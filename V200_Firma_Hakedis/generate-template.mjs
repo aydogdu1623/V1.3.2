@@ -1,0 +1,11 @@
+import {writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import './report-engine.js';
+import './tools/xlsx-writer.js';
+import {makeEvaluator} from './tests/formula-evaluator.mjs';
+const {wb}=globalThis.CepheProFirma199.makeWorkbook({Workbook:globalThis.CepheProXlsx200.Workbook},{info:{},rows:[],previousPeriods:[],currentExtras:[],currentCuts:[]});
+makeEvaluator(wb).all();
+const file=globalThis.CepheProXlsx200.write(wb);
+const target=process.argv[2]?resolve(process.argv[2]):new URL('./CephePro_Firma_Hakedis_5_Sayfa_Sablon.xlsx',import.meta.url);
+writeFileSync(target,Buffer.from(file.bytes));
+console.log('Beş sayfalı boş şablon oluşturuldu: '+target);
