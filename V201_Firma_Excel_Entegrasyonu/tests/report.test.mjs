@@ -1,0 +1,13 @@
+import {readFileSync} from 'node:fs';
+import '../report-engine.js';
+import '../tools/xlsx-writer.js';
+import {makeEvaluator,test200} from './formula-evaluator.mjs';
+import {testSite201} from './site-export.mjs';
+import {verifyXlsx} from './verify-xlsx.mjs';
+const api=globalThis.CepheProFirma199,writer=globalThis.CepheProXlsx200;
+const model=test200(api,writer),structure=verifyXlsx(model.blankFile.bytes,model.blankFile.parts);
+delete model.blankFile;
+const source=readFileSync(new URL('../assets/claims-v182.js',import.meta.url),'utf8');
+new Function(source);
+const site=await testSite201(api,writer,makeEvaluator,source);
+console.log(JSON.stringify({model,site,structure,integrationSyntax:'passed'},null,2));
