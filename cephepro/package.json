@@ -1,0 +1,17 @@
+{
+  "name": "cephepro-v1-3-5-cloud",
+  "private": true,
+  "version": "208.0.1",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "verify:puantaj": "node --test tests/puantaj.test.mjs && node tests/puantaj-export.cjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.1"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0",
+    "jszip": "3.10.1"
+  }
+}

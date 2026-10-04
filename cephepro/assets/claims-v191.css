@@ -1,0 +1,8 @@
+#cl-pane .cl-record-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:12px 0 16px;padding:12px;background:#f1f6f8;border:1px solid #c9d9e1;border-radius:10px}
+#cl-pane .cl-record-bar label{min-width:240px;max-width:480px;flex:1}
+#cl-pane .cl-record-bar span{font-size:13px;color:#476476}
+#cl-pane #cl-local-save{background:#eaf2ee;font-weight:700}
+#cl-pane #cl-status{max-width:600px;font-size:13px}
+#cl-pane #cl-net-total{line-height:1.7}
+#cl-pane button:disabled{cursor:default;opacity:.6}
+#cl-pane .cl-actions button[hidden]{display:none}

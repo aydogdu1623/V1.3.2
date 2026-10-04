@@ -1,0 +1,20 @@
+#settingsModal #cl-pane .cl-history-summary{margin:12px 0 16px;padding:12px;border:1px solid #b7cecc;border-radius:10px;background:#f5f9f8}
+#settingsModal #cl-pane .cl-history-heading{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+#settingsModal #cl-pane .cl-history-heading h3{margin:0;font-size:14px}
+#settingsModal #cl-pane .cl-history-heading p{margin:0;font-size:12px;color:#567573}
+#settingsModal #cl-pane .cl-history-summary table{width:100%;min-width:900px}
+#settingsModal #cl-pane .cl-history-summary th,#settingsModal #cl-pane .cl-history-summary td{padding:8px;text-align:right;font-size:12px;white-space:nowrap}
+#settingsModal #cl-pane .cl-history-summary th:first-child,#settingsModal #cl-pane .cl-history-summary td:first-child{text-align:left}
+#settingsModal #cl-pane .cl-history-summary small{display:block;font-weight:400;margin-top:4px}
+#settingsModal #cl-pane .cl-history-summary button{white-space:nowrap}
+#settingsModal #cl-pane .cl-history-table table{border-collapse:separate;border-spacing:0;min-width:1500px;width:max-content}
+#settingsModal #cl-pane .cl-history-table thead{position:sticky;top:0;z-index:2}
+#settingsModal #cl-pane .cl-history-table thead th{position:static;text-align:center;min-width:74px;white-space:nowrap}
+#settingsModal #cl-pane .cl-history-table .cl-history-group{background:#dbe8f5;color:#234663;border-left:2px solid #9cb8d1}
+#settingsModal #cl-pane .cl-history-table .cl-history-group span{font-weight:400}
+#settingsModal #cl-pane .cl-history-table .cl-history-column{background:#edf3fa;color:#234663}
+#settingsModal #cl-pane .cl-history-table .cl-current-group{background:#165c59;color:#fff}
+#settingsModal #cl-pane .cl-history-table td.cl-history-cell{background:#f2f6fb;text-align:right;min-width:90px;font-variant-numeric:tabular-nums}
+#settingsModal #cl-pane .cl-history-table .cl-history-cell[data-history-field=quantity]{border-left:2px solid #ccdbea}
+#settingsModal #cl-pane .cl-history-table .cl-history-only td{color:#526f7b}
+#settingsModal #cl-pane .cl-history-table .cl-history-missing{font-size:11px}

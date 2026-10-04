@@ -1,0 +1,15 @@
+#settingsModal #cl-pane .cl-entry-cards{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:16px!important;padding:16px 0!important}
+#settingsModal #cl-pane .cl-entry-cards button{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:10px!important;width:100%!important;max-width:none!important;height:150px!important;padding:22px!important;text-align:left!important;white-space:normal!important;background:#e8f3f1!important;color:#194d4e!important;border:1px solid #7caead!important;border-radius:12px!important}
+#settingsModal #cl-pane .cl-entry-cards button:last-child{background:#eaf0f7!important;border-color:#9bb4d2!important;color:#264f80!important}
+#settingsModal #cl-pane .cl-entry-cards strong{font-size:20px!important}#settingsModal #cl-pane .cl-entry-cards span{font-size:14px!important;font-weight:400!important}
+#settingsModal #cl-pane .cl-editor-dialog{position:fixed!important;inset:0!important;width:min(1450px,96vw)!important;max-width:96vw!important;height:88dvh!important;max-height:88dvh!important;padding:16px!important;margin:auto!important;overflow:auto!important;box-sizing:border-box!important;border:1px solid #83aaa5!important;border-radius:12px!important;background:#fff!important;color:#24464c!important}
+#settingsModal #cl-pane .cl-editor-dialog:not([open]){display:none!important}
+#settingsModal #cl-pane .cl-editor-dialog::backdrop{background:#193c4880}
+#settingsModal #cl-pane .cl-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #bcd2ce;padding-bottom:10px}
+#settingsModal #cl-pane .cl-editor-head h2{font-size:20px;margin:0}
+#settingsModal #cl-pane .cl-period-toolbar{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:12px 0}
+#settingsModal #cl-pane .cl-period-toolbar label{min-width:190px}
+#settingsModal #cl-pane .cl-compare-dialog{width:min(1180px,94vw)!important;max-width:94vw!important}
+#settingsModal #cl-pane .cl-compare-selectors{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+#settingsModal #cl-pane .cl-compare-dialog td,#settingsModal #cl-pane .cl-compare-dialog th{font-size:13px;white-space:nowrap}
+@media(max-width:650px){#settingsModal #cl-pane .cl-entry-cards{grid-template-columns:1fr!important}#settingsModal #cl-pane .cl-entry-cards button{height:120px!important}#settingsModal #cl-pane .cl-compare-selectors{grid-template-columns:1fr}}

@@ -1,0 +1,46 @@
+/* Compact claim workspace, scoped to preserve the rest of CephePro. */
+#settingsModal #cl-pane{font-size:12px;color:#24464c}
+#settingsModal #cl-pane button{box-sizing:border-box;min-height:30px;height:30px;padding:4px 9px;font:600 12px/1.2 Arial,sans-serif;letter-spacing:normal;white-space:nowrap;border:1px solid #9cbeb8;border-radius:5px;background:#f4f9f8;color:#24464c;cursor:pointer;box-shadow:none}
+#settingsModal #cl-pane button:hover{background:#dfeeea}
+#settingsModal #cl-pane button:focus-visible{outline:2px solid #165c59;outline-offset:2px}
+#settingsModal #cl-pane button:disabled{opacity:.55;cursor:wait}
+#settingsModal #cl-pane .cl-kinds{display:flex;gap:6px;margin:0 0 8px}
+#settingsModal #cl-pane .cl-kinds button{width:150px;max-width:50%;height:32px;min-height:32px}
+#settingsModal #cl-pane .cl-kinds button.active{background:#165c59;color:#fff;border:2px solid #0c4542;box-shadow:inset 0 -3px 0 #79d0b7}
+#settingsModal #cl-pane[data-kind=taseron] .cl-kinds button.active{background:#264f80;border-color:#1c3b62;box-shadow:inset 0 -3px 0 #96bfea}
+#settingsModal #cl-pane .cl-current{margin:0 0 8px;padding:7px 10px;border-left:4px solid #165c59;background:#e5f1ed;font-size:13px;font-weight:700}
+#settingsModal #cl-pane[data-kind=taseron] .cl-current{border-color:#264f80;background:#eaf0f8;color:#264f80}
+#settingsModal #cl-pane .cl-actions{display:flex;gap:6px;margin:8px 0;align-items:center}
+#settingsModal #cl-pane .cl-actions button{flex:0 0 142px;width:142px}
+#settingsModal #cl-pane #cl-status{flex-basis:100%;font-size:12px;color:#536a65}
+#settingsModal #cl-pane #cl-status:empty{display:none}
+#settingsModal #cl-pane .cl-bulk{gap:6px;margin:8px 0;align-items:end}
+#settingsModal #cl-pane .cl-filters{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:8px 0}
+#settingsModal #cl-pane input,#settingsModal #cl-pane select,#settingsModal #cl-pane summary{padding:5px 7px;font:400 12px/1.35 Arial,sans-serif;min-height:30px;border:1px solid #afc8c2;border-radius:4px;background:white;color:#24464c;box-sizing:border-box}
+#settingsModal #cl-pane input[type=checkbox]{width:15px;height:15px;min-height:15px;accent-color:#165c59}
+#settingsModal #cl-pane label{font-size:12px;gap:4px}
+#settingsModal #cl-pane small,#settingsModal #cl-pane .cl-note{font-size:12px;line-height:1.4}
+#settingsModal #cl-pane td,#settingsModal #cl-pane th{padding:6px;font-size:12px}
+#settingsModal #cl-pane td input[type=number]{min-width:85px}
+#settingsModal #cl-pane .cl-total{font-size:14px;margin:10px 0}
+#settingsModal #cl-pane .cl-dialog{position:fixed;inset:0;margin:auto;width:min(680px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:80dvh;overflow:auto;padding:16px;border:1px solid #99bbb2;border-radius:10px;background:#fff;color:#24464c;box-sizing:border-box;box-shadow:0 18px 65px #102f3540;font:12px/1.5 Arial,sans-serif}
+#settingsModal #cl-pane .cl-dialog:not([open]){display:none!important}
+#settingsModal #cl-pane .cl-dialog::backdrop{background:#10272f80}
+#settingsModal #cl-pane .cl-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #cfdfdb;padding-bottom:8px}
+#settingsModal #cl-pane .cl-dialog-head h3{margin:0;font-size:14px;line-height:1.4}
+#settingsModal #cl-pane .cl-dialog-head button{flex-shrink:0}
+#settingsModal #cl-pane .cl-dialog p{overflow-wrap:anywhere}
+#settingsModal #cl-pane .cl-options{max-width:calc(100vw - 70px);min-width:180px}
+/* Narrow the cloud information panel toward the right; stretch to Delete. */
+#v113ActivityPane .v113-activity-toolbar{grid-template-columns:minmax(120px,1fr) minmax(190px,300px) auto!important;align-items:stretch!important}
+#v113ActivityPane .v113-activity-note{align-self:stretch!important;display:flex;flex-direction:column;justify-content:center;padding:10px!important}
+#v113ActivityPane .v113-activity-toolbar>.field{align-self:center}
+#v113ActivityPane .v140-activity-actions{align-self:stretch;display:grid;gap:6px}
+@media(max-width:620px){
+ #settingsModal #cl-pane .cl-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ #settingsModal #cl-pane .cl-actions button{width:100%;height:auto;min-height:32px;white-space:normal}
+ #settingsModal #cl-pane #cl-status{grid-column:1/-1}
+ #settingsModal #cl-pane .cl-dialog .cl-filters{grid-template-columns:1fr}
+ #v113ActivityPane .v113-activity-toolbar{grid-template-columns:minmax(0,1fr) auto!important}
+ #v113ActivityPane .v113-activity-toolbar>.field{grid-column:1/-1}
+}

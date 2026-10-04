@@ -1,0 +1,5 @@
+body.v113-member :is(.v32CopyFacade,.v32DeleteFacade,.v32RenameFacade,.v58CopyFacade,.v58DeleteFacade,.v32UpFacade,#v52ChooseProjectLogo,#v52RemoveProjectLogo,#v34SaveProjectInfo){display:none!important}
+body.v113-member #v32WorkModal .v34WiDone{pointer-events:auto!important;opacity:1!important;background:#fff!important}
+body.v113-member #v34ProjectModal input[readonly],body.v113-member #v34ProjectModal textarea[readonly]{background:#f0f5f5!important;color:#294c51!important;cursor:text!important}
+body.v113-member #v34ScheduleModal input{pointer-events:auto!important;opacity:1!important}
+#v34NoWorkHistory .v111-note-check:disabled{opacity:.3!important;cursor:not-allowed!important}

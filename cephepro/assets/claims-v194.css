@@ -1,0 +1,7 @@
+#settingsModal #cl-pane .cl-cumulative-summary{margin:12px 0;padding:14px;border:1px solid #86b8b2;border-radius:10px;background:#eaf5f1;color:#164f4a}
+#settingsModal #cl-pane .cl-cumulative-summary>strong{display:block;font-size:14px;margin-bottom:10px}
+#settingsModal #cl-pane .cl-cumulative-summary>div{display:flex;gap:12px 20px;flex-wrap:wrap;font-size:13px}
+#settingsModal #cl-pane .cl-history-actions{white-space:nowrap}
+#settingsModal #cl-pane .cl-history-actions button{margin:2px}
+#settingsModal #cl-pane [data-delete-claim],#settingsModal #cl-pane [data-delete-cloud-claim]{color:#9b302e;border-color:#d5a5a4}
+#settingsModal #cl-pane td[data-cumulative-field]{font-weight:700}

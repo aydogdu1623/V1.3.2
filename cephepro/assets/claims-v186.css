@@ -1,0 +1,25 @@
+/* Date labels flex within the panel width in balanced and focused layouts. */
+#facadePanel .v47-datebox{box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;padding:5px!important;container-type:inline-size;container-name:cp-date}
+#facadePanel .v47-datebox .v47-date-row{grid-template-columns:22px minmax(0,1fr)!important;gap:3px!important;min-width:0!important;width:100%!important}
+#facadePanel .v47-datebox .v47-date-row strong{display:block!important;min-width:0!important;max-width:100%!important;font-size:clamp(7.5px,9cqi,9.5px)!important;line-height:1.2!important;letter-spacing:-.15px!important;text-align:right!important;white-space:nowrap!important}
+#facadePanel .v47-datebox .v47-date-row small{min-width:0!important;font-size:7px!important;text-align:left!important}
+@container cp-date (max-width:84px){#facadePanel .v47-datebox .v47-date-row{grid-template-columns:minmax(0,1fr)!important;gap:1px!important}#facadePanel .v47-datebox .v47-date-row strong{font-size:9px!important;text-align:left!important}}
+@container cp-date (max-width:58px){#facadePanel .v47-datebox .v47-date-row strong{font-size:7.5px!important}}
+#settingsModal #cl-pane #cl-firma.active{background:#1d65a6!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#124878!important}
+#settingsModal #cl-pane[data-kind=taseron] #cl-taseron.active{background:#165c59!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#0c4542!important}
+#settingsModal #cl-pane .cl-filter-actions{display:grid;grid-template-columns:minmax(130px,.7fr) minmax(0,3fr);gap:8px;margin:8px 0;align-items:start}
+#settingsModal #cl-pane .cl-price-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#settingsModal #cl-pane .cl-filter-actions button{min-height:34px!important;height:34px!important;margin:0;box-sizing:border-box}
+#settingsModal #cl-pane .cl-period-number{display:flex;align-items:center;gap:5px;font-size:9px}
+#settingsModal #cl-pane #cl-period-number{width:58px;min-height:34px;height:34px}
+#settingsModal #cl-pane .cl-period-title{font-size:12px;margin:10px 0 7px}
+#settingsModal #cl-pane .cl-claim-table{overflow:auto;overscroll-behavior:contain;max-height:48vh}
+#settingsModal #cl-pane .cl-claim-table table{min-width:1220px}
+#settingsModal #cl-pane .cl-claim-table td,#settingsModal #cl-pane .cl-claim-table th{font-size:10px;padding:6px}
+#settingsModal #cl-pane .cl-claim-table th{position:sticky;top:0;background:#e4f1ef;z-index:1}
+#settingsModal #cl-pane input[data-certified]{width:95px;min-width:95px;font-size:11px}
+
+@media(max-width:760px){#settingsModal #cl-pane .cl-filter-actions{grid-template-columns:1fr}#settingsModal #cl-pane #cl-select{width:220px;max-width:100%}}
+
+#settingsModal #cl-pane .cl-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media(max-width:620px){#settingsModal #cl-pane .cl-info-grid{grid-template-columns:1fr}}
