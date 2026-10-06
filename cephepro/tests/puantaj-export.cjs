@@ -32,7 +32,7 @@ function employee(i,props={}){return {id:'test-'+i,serial:'TEST-'+i,name:'Test P
  let cloud={data:null,revision:0};const calls=[];
  w.fetch=async(url,opts={})=>{calls.push({url,opts});if(opts.method==='PUT'){const b=JSON.parse(opts.body);cloud={data:b.data,revision:b.revision+1,updatedAt:new Date().toISOString()};return {ok:true,json:async()=>cloud};}return {ok:true,json:async()=>cloud};};
  w.eval(fs.readFileSync(root+'/assets/puantaj.js','utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));const $=s=>w.document.querySelector(s),click=s=>$(s).click(),tick=()=>new Promise(r=>setTimeout(r,25));
- assert.equal($('#puantajBtn').nextElementSibling.id,'v38SaveStatus');assert.equal($('#v38SaveStatus').nextElementSibling.id,'layoutManagerBtn');click('#puantajBtn');await tick();assert.equal($('#puantajDialog').open,true);
+ assert.equal($('#v38SaveStatus').nextElementSibling.id,'puantajBtn');assert.equal($('#puantajBtn').nextElementSibling.id,'layoutManagerBtn');click('#puantajBtn');await tick();assert.equal($('#puantajDialog').open,true);
  click('[data-go="personnel"]');click('[data-action="new-person"]');$('[name="name"]').value='Ekran Testi';$('[name="base"]').value='30000';$('#pt-person-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));assert.match($('#pt-content').textContent,/Ekran Testi/);
  click('#pt-save');await tick();assert.match($('#pt-status').textContent,/Kaydedildi/);assert.equal(cloud.data.employees[0].name,'Ekran Testi');click('#pt-reload');await tick();assert.match($('#pt-content').textContent,/Ekran Testi/);
  for(const tab of ['dashboard','monthly','bank','receipt','annual','holidays','personnel']){click('[data-tab="'+tab+'"]');assert.ok($('#pt-content').textContent.length>20);}
@@ -40,6 +40,6 @@ function employee(i,props={}){return {id:'test-'+i,serial:'TEST-'+i,name:'Test P
  // Snapshot conflict/failure does not claim a successful save.
  w.fetch=async()=>({ok:false,json:async()=>({error:'REVISION_CONFLICT TEST'})});click('#pt-save');await tick();assert.match($('#pt-status').textContent,/REVISION_CONFLICT/);assert.ok(w.sessionStorage.length>0);
  click('#logoutBtn');assert.equal($('#puantajDialog').open,false);assert.equal($('#pt-content').innerHTML,'');assert.equal(w.sessionStorage.length,0);
- console.log('PASS: left-of-cloud-status placement; open; add employee; save; reload; all 7 tabs; edit hours; failed save preserves draft; logout clears private content.');
+ console.log('PASS: right-of-cloud-status placement; open; add employee; save; reload; all 7 tabs; edit hours; failed save preserves draft; logout clears private content.');
  w.close();
 })().catch(e=>{console.error(e);w.close();process.exitCode=1;});

@@ -12053,7 +12053,7 @@ function v38EnsureSaveStatus(){
   s.id="v38SaveStatus";s.className="v38-save-status";
   s.innerHTML=`<span class="v38-save-dot"></span><span id="v38SaveText">Kaydedildi</span>`;
   const puantaj=document.getElementById("puantajBtn");
-  if(puantaj?.parentElement===headerActions)puantaj.after(s);else headerActions.prepend(s);
+  if(puantaj?.parentElement===headerActions)puantaj.before(s);else headerActions.prepend(s);
 }
 let v38SaveTimer=null;
 function v38MarkSaved(){
@@ -16615,6 +16615,23 @@ document.addEventListener("click",e=>{
 
 // ---------- Work Items = draft until Save ----------
 let v53WorkDraft=null;
+function v209WorkItemLabel(pozNo,itemName){
+  const code=String(pozNo||"").trim(),name=String(itemName||"").trim();
+  return name?(code?`${code} - ${name}`:name):"";
+}
+function v209WorkItemFields(raw){
+  const label=String(raw[0]||""),pozNo=typeof raw[10]==="string"?raw[10].trim():"";
+  return {pozNo,itemName:pozNo&&label.startsWith(pozNo+" - ")?label.slice(pozNo.length+3):label};
+}
+function v209WorkAttribute(value){
+  return String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function v209WorkDraftError(draft){
+  const items=draft?.items||[];
+  if(items.some(x=>String(x.pozNo||"").trim()&&!String(x.itemName||"").trim()))return "Poz numarası girilen satırın iş kalemi adını da yazın";
+  const names=items.map(x=>String(x.name||"").trim()).filter(n=>n&&!/^yeni\s+iş\s+kalemi(?:\s+ekle)?$/i.test(n)).map(n=>n.toLocaleLowerCase("tr-TR"));
+  return new Set(names).size!==names.length?"Aynı isimde iki iş kalemi olamaz":"";
+}
 function v53NewDraft(b,f){
   const d=DATA[b]?.[f];
   if(!d)return null;
@@ -16625,6 +16642,7 @@ function v53NewDraft(b,f){
       return {
         oldName:String(raw[0]||""),
         name:String(raw[0]||""),
+        ...v209WorkItemFields(raw),
         unit:v34ItemUnit(raw),
         weight:Number(e[7]||0),
         autoWeight:raw[9]===true || !(Number(e[7])>0),
@@ -16686,16 +16704,13 @@ function v53SaveWorkDraft(){
   if(currentUser?.role==='member'){window.__member190?.saveCumulative();return;}
   const draft=v53WorkDraft;
   if(!draft||!DATA[draft.b]?.[draft.f])return;
+  const error=v209WorkDraftError(draft);
+  if(error){toast(error);return;}
 
   const named=draft.items.filter(x=>{
     const n=String(x.name||"").trim();
     return n&&!/^yeni\s+iş\s+kalemi(?:\s+ekle)?$/i.test(n);
   });
-  const normalized=named.map(x=>String(x.name).trim().toLocaleLowerCase("tr-TR"));
-  if(new Set(normalized).size!==normalized.length){
-    toast("Aynı isimde iki iş kalemi olamaz");
-    return;
-  }
 
   const d=DATA[draft.b][draft.f];
   const oldNames=new Set((d.items||[]).map(r=>String(r[0]||"")).filter(Boolean));
@@ -16734,7 +16749,8 @@ function v53SaveWorkDraft(){
       Number(x.duration)||0,
       Math.max(0,Math.min(100,Number(x.weight)||0)),
       x.unit||"m²",
-      x.autoWeight!==false && (x.autoWeight===true || !(Number(x.weight)>0))
+      x.autoWeight!==false && (x.autoWeight===true || !(Number(x.weight)>0)),
+      String(x.pozNo||"").trim()
     ]);
   });
 
@@ -16789,13 +16805,14 @@ v32RenderWorkItems=function(){
     <div style="overflow:auto">
       <div class="v34-work-grid">
         <div class="v34-work-head">
-          <span>İş Kalemi</span><span>Birim</span><span>Pursantaj %</span>
-          <span>Toplam Metraj</span><span>Kümülatif Yapılan</span><span>İlerleme</span><span></span>
+          <span>Poz No</span><span>İş Kalemi</span><span>Birim</span><span>Pursantaj %</span>
+          <span>Toplam Metraj</span><span>Kümülatif Yapılan</span><span class="v209-progress-head">İlerleme</span><span class="v209-delete-head"></span>
         </div>
         ${draft.items.map((x,i)=>{
           const pct=Number(x.total)>0?Math.round(Number(x.done||0)/Number(x.total)*100):0;
           return `<div class="v34-work-row" data-i="${i}">
-            <input class="v34WiName" data-i="${i}" value="${String(x.name||"").replace(/"/g,"&quot;")}" placeholder="Yeni İş Kalemi Ekle" autocomplete="off">
+            <input class="v209WiPoz" data-i="${i}" value="${v209WorkAttribute(x.pozNo)}" placeholder="W1" aria-label="${i+1}. Poz No" autocomplete="off">
+            <input class="v34WiName" data-i="${i}" value="${v209WorkAttribute(x.itemName)}" placeholder="ANKRAJ MONTAJI" aria-label="${i+1}. İş Kalemi" autocomplete="off">
             <select class="v34WiUnit" data-i="${i}">${V34_UNITS.map(u=>`<option ${u===x.unit?"selected":""}>${u}</option>`).join("")}</select>
             <input class="v34WiWeight" data-i="${i}" type="number" min="0" max="100" step="0.01" value="${Number(x.weight||0)}">
             <input class="v34WiTotal" data-i="${i}" type="number" min="0" step="0.01" value="${Number(x.total||0)}">
@@ -16815,7 +16832,7 @@ v32RenderWorkItems=function(){
     let idx=draft.items.findIndex(x=>!String(x.name||"").trim());
     if(idx<0){
       draft.items.push({
-        oldName:"",name:"",unit:"m²",weight:0,total:0,done:0,originalDone:0,rawBaseDone:0,
+        oldName:"",name:"",pozNo:"",itemName:"",unit:"m²",weight:0,total:0,done:0,originalDone:0,rawBaseDone:0,
         plannedStart:v34Today(),plannedEnd:v34AddDays(v34Today(),30),duration:0
       });
       idx=draft.items.length-1;
@@ -16833,6 +16850,7 @@ v32RenderWorkItems=function(){
         const x=draft.items[+el.dataset.i];
         if(!x)return;
         x[field]=parser(el.value,x);
+        if(field==='pozNo'||field==='itemName')x.name=v209WorkItemLabel(x.pozNo,x.itemName);
         if(field==='weight')x.autoWeight=!(Number(el.value)>0);
         v53MarkWorkDirty();
       };
@@ -16842,7 +16860,8 @@ v32RenderWorkItems=function(){
       });
     });
   };
-  change(".v34WiName","name",v=>String(v));
+  change(".v209WiPoz","pozNo",v=>String(v));
+  change(".v34WiName","itemName",v=>String(v));
   change(".v34WiUnit","unit",v=>v);
   change(".v34WiWeight","weight",v=>Math.max(0,Math.min(100,Number(v)||0)));
   change(".v34WiTotal","total",v=>Math.max(0,Number(v)||0));
@@ -16858,7 +16877,7 @@ v32RenderWorkItems=function(){
 
   if(Number.isInteger(window.__v53FocusWorkIndex)){
     const idx=window.__v53FocusWorkIndex;window.__v53FocusWorkIndex=null;
-    setTimeout(()=>v32WorkBody.querySelector(`.v34WiName[data-i="${idx}"]`)?.focus(),20);
+    setTimeout(()=>v32WorkBody.querySelector(`.v209WiPoz[data-i="${idx}"]`)?.focus(),20);
   }
 };
 
@@ -29509,7 +29528,7 @@ select,textarea,
 /* V113 — rol, hareket takibi, çok kullanıcılı bulut koruması */
 .v113-member-lock{opacity:.58!important;cursor:not-allowed!important;pointer-events:none!important}
 body.v113-member :is(#topAddBlockBtn,#topAddFacadeBtn,#topAddWorkItemBtn,#addBlockBtn,#addWorkItemBtn,#v30AddBlock,#v30AddFacade,#v30AddItem,#v32AddBlockBtn,#v32CopyBlockBtn,#v32DeleteBlockBtn,#v32AddFacadeBtn,#v32AddWorkItem,#v34AddWorkItem,#v43AddBlockBtn,#v43AddBlockSave,#v25SaveBlockName,#v25CopyBlock,#v25BlockUp,#v25BlockDown,#v25DeleteBlock,.v34WiDelete,.v102-bulk-delete){display:none!important}
-body.v113-member #v32WorkModal :is(.v34WiName,.v34WiUnit,.v34WiWeight,.v34WiTotal){pointer-events:none!important;opacity:.72!important;background:#f1f6f6!important;color:#294c51!important}
+body.v113-member #v32WorkModal :is(.v209WiPoz,.v34WiName,.v34WiUnit,.v34WiWeight,.v34WiTotal){pointer-events:none!important;opacity:.72!important;background:#f1f6f6!important;color:#294c51!important}
 body.v113-member #structureModal :is(input,select,textarea){pointer-events:none!important;opacity:.72!important;background:#f1f6f6!important}
 .v113-role-note{display:none;margin:7px 0 0;padding:7px 9px;border-radius:8px;background:#eef8f6;border:1px solid #a8cbc7;color:#245e62;font-size:9.5px;font-weight:750}
 body.v113-member .v113-role-note{display:block}
@@ -29536,7 +29555,7 @@ body.v113-member .v113-role-note{display:block}
   function roleApply(){
     document.body.classList.toggle('v113-member',isMember());document.body.classList.toggle('v113-admin',isAdmin());
     if(isMember()){
-      document.querySelectorAll('#v32WorkModal :is(.v34WiName,.v34WiUnit,.v34WiWeight,.v34WiTotal)').forEach(el=>{el.readOnly=true;el.disabled=el.tagName==='SELECT'});
+      document.querySelectorAll('#v32WorkModal :is(.v209WiPoz,.v34WiName,.v34WiUnit,.v34WiWeight,.v34WiTotal)').forEach(el=>{el.readOnly=true;el.disabled=el.tagName==='SELECT'});
       document.querySelectorAll('#v32WorkModal .v34WiDone,#v34ScheduleModal input').forEach(el=>{el.readOnly=false;el.disabled=false});
       document.querySelectorAll('#v34ProjectModal input,#v34ProjectModal textarea').forEach(el=>el.readOnly=true);
       document.querySelectorAll('#v34ProjectModal input[type=file],#v34ProjectModal select').forEach(el=>el.disabled=true);
@@ -29544,7 +29563,7 @@ body.v113-member .v113-role-note{display:block}
     }else{
       document.querySelectorAll('#v34ProjectModal input,#v34ProjectModal textarea').forEach(el=>el.readOnly=false);
       document.querySelectorAll('#v34ProjectModal input[type=file],#v34ProjectModal select').forEach(el=>el.disabled=false);
-      document.querySelectorAll('#v32WorkModal :is(.v34WiName,.v34WiWeight,.v34WiTotal)').forEach(el=>{el.readOnly=false;el.disabled=false});
+      document.querySelectorAll('#v32WorkModal :is(.v209WiPoz,.v34WiName,.v34WiWeight,.v34WiTotal)').forEach(el=>{el.readOnly=false;el.disabled=false});
       document.querySelectorAll('#v32WorkModal .v34WiUnit,#v34ScheduleModal input,#structureModal input,#structureModal select,#structureModal textarea,#v40AIDetailModal input,#v40AIDetailModal select,#v40AIDetailModal textarea').forEach(el=>el.disabled=false);
     }
     let note=document.querySelector('#v32WorkModal .v113-role-note');if(!note&&document.getElementById('v32WorkBody')){note=document.createElement('div');note.className='v113-role-note';note.textContent='Üye: Kümülatif yapılan ve cephe tarihlerini düzenleyebilirsiniz. Yapı adları, birimler ve toplam metraj yönetici tarafından düzenlenir.';document.getElementById('v32WorkBody').prepend(note)}
@@ -31811,9 +31830,11 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
       <table class="v169-financial-table"><thead><tr><th>Blok / Cephe</th><th>Toplam Tutar</th><th>Gerçekleşen</th><th>Parasal İlerleme</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.b)} / ${esc(r.f)}</td><td>${money(r.contract)}</td><td>${money(r.earned)}</td><td>%${r.progress.toFixed(2)}</td></tr>`).join('')||'<tr><td colspan="4">Cephe verisi yok.</td></tr>'}</tbody></table>`;
   }
   function collectCurrentPrices(b,f){
+    if(v209WorkDraftError(v53WorkDraft))return;
     const next={};Object.entries(prices).forEach(([key,value])=>{if(!key.startsWith(prefix(b,f)))next[key]=value});
     document.querySelectorAll('#v32WorkBody .v34-work-row').forEach(row=>{
-      const name=String(row.querySelector('.v34WiName')?.value||'').trim(),value=finite(row.querySelector('.v169-unit-price')?.value);
+      const draftItem=v53WorkDraft?.items?.[Number(row.dataset.i)];
+      const name=String(draftItem?.name||'').trim(),value=finite(row.querySelector('.v169-unit-price')?.value);
       if(name)next[priceKey(b,f,name)]=value;
     });
     prices=next;window.__v179Weights?.sync();updateSummary(b,f);schedulePush();window.__v177Progress?.refresh();
@@ -31834,7 +31855,7 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
       row.querySelector('.v34WiDelete')?.remove();
       const i=Number(row.dataset.i),draftItem=typeof v53WorkDraft!=='undefined'?v53WorkDraft?.items?.[i]:null;
       const name=String(draftItem?.name||row.querySelector('.v34WiName')?.value||'');
-      const value=finite(prices[priceKey(b,f,name)]),progress=row.querySelector('.v32-work-progress');
+      const value=finite(prices[priceKey(b,f,name)]??prices[priceKey(b,f,draftItem?.oldName)]),progress=row.querySelector('.v32-work-progress');
       const price=document.createElement('input');price.type='number';price.min='0';price.step='0.01';price.inputMode='decimal';price.className='v169-finance-cell v169-unit-price';price.value=String(value);price.title='Birim Fiyat (₺)';
       const total=document.createElement('span');total.className='v169-finance-cell v169-money-cell';
       row.insertBefore(price,progress);row.insertBefore(total,progress);progress?.remove();
@@ -32395,7 +32416,24 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/puantaj-model.js?v=207"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
-<script src="/assets/puantaj.js?v=208.1"></script>
+<style id="v209WorkItemPozStyle">
+body:not(.v113-member) #v32WorkModal .v34-work-head.v169-financial-grid,
+body:not(.v113-member) #v32WorkModal .v34-work-row.v169-financial-grid{
+  grid-template-columns:70px minmax(155px,1.5fr) 58px 70px 92px 100px 96px minmax(120px,1fr)!important;
+}
+body.v113-member #v32WorkModal .v34-work-head,
+body.v113-member #v32WorkModal .v34-work-row{
+  grid-template-columns:70px minmax(155px,1.6fr) 62px 72px 96px 106px!important;
+}
+body.v113-member #v32WorkModal .v209-progress-head,
+body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
+#v32WorkModal .v209WiPoz{font-weight:700!important;text-align:left!important}
+@media(max-width:900px){
+  #v32WorkModal>.modal>.panel-body{overflow-x:auto!important}
+  #v32WorkBody{min-width:860px!important}
+}
+</style>
+<script src="/assets/puantaj.js?v=209.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
