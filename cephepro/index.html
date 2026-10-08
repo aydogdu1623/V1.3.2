@@ -10,7 +10,7 @@
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V201";window.CEPHEPRO_BUILD="V201.0";</script>
+<script>window.CEPHEPRO_VERSION="V210";window.CEPHEPRO_BUILD="V210.0";</script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" data-v167-external="true"></script>
@@ -21455,6 +21455,7 @@ try{v41RenderOverview()}catch(_){ }
   }
 
   function writeFilter68(ws,startRow,headers,rows,widths){
+    ({headers,rows,widths}=window.CepheProReportPoz.table(headers,rows,widths));
     widths?.forEach((w,i)=>ws.getColumn(i+1).width=w);
     headers.forEach((h,i)=>{
       const c=ws.getCell(startRow,i+1);
@@ -21968,12 +21969,12 @@ try{v41RenderOverview()}catch(_){ }
 
     // İlerleme yüzdesi Excel içinde Toplam ve Kümülatif miktarlardan yeniden hesaplanır.
     rows.forEach((source,index)=>{
-      const row=8+index,cell=ws.getCell(row,8);
-      cell.value={formula:`IFERROR(G${row}/F${row}*100,0)`,result:Number(source?.[7])||0};
+      const row=8+index,cell=ws.getCell(row,9);
+      cell.value={formula:`IFERROR(H${row}/G${row}*100,0)`,result:Number(source?.[7])||0};
       cell.numFmt='0.00"%"';
     });
     // V159: Ana rapor tablosunun kendi en dış çerçevesi kalındır.
-    v57Border(ws,7,1,grid.lastRow,10,'FF243B46','thick');
+    v57Border(ws,7,1,grid.lastRow,11,'FF243B46','thick');
 
     // V168: Rapor sayfasında yalnız A1:J7 üst başlık satırları sabittir.
     // Yatay xSplit kullanılmaz; böylece tablo/grafik ikinci bir bölmede tekrar
@@ -21988,50 +21989,50 @@ try{v41RenderOverview()}catch(_){ }
     }
 
     // V103 — reference workbook geometry.
-    [5.55,8.11,14.33,6.22,7.33,7.44,8.89,5.66,11.89,11.33].forEach((w,i)=>ws.getColumn(i+1).width=w);
+    [5.55,8.11,14.33,8,6.22,7.33,7.44,8.89,5.66,11.89,11.33].forEach((w,i)=>ws.getColumn(i+1).width=w);
     ws.getRow(1).height=18;
     ws.getRow(7).height=19.95;
     for(let r=8;r<=grid.lastRow;r++)ws.getRow(r).height=22.05;
 
     // V145: K:T sabit ana grafik alanıdır. Grafik tek hücre ankrajıyla dondurulmuş
     // üst satırlara bağlıdır; rapor tablosu dikey kayarken grafik yerinde kalır.
-    for(let c=11;c<=20;c++)ws.getColumn(c).width=11;
-    for(let c=21;c<=66;c++)ws.getColumn(c).hidden=true;
+    for(let c=12;c<=21;c++)ws.getColumn(c).width=11;
+    for(let c=22;c<=67;c++)ws.getColumn(c).hidden=true;
 
     // V159: Rapor logosu A-B sütunlarında 4. satıra kadar sığdırılır.
     v57Logo(ws,wb,{tl:{col:0,row:0},br:{col:2,row:4}});
-    ws.mergeCells('C1:J1');ws.getCell('C1').value=v34ProjectInfo.company||'FİRMA';ws.getCell('C1').font={bold:true,size:14,color:{argb:'FF1C2B34'}};
-    ws.mergeCells('C2:J2');ws.getCell('C2').value=v34ProjectInfo.projectName||'CephePro Projesi';ws.getCell('C2').font={bold:true,size:11,color:{argb:'FF1C2B34'}};
-    ws.mergeCells('C3:F3');ws.getCell('C3').value=`İşveren: ${v34ProjectInfo.employer||'-'}`;
-    ws.mergeCells('G3:J3');ws.getCell('G3').value=`Proje Kodu: ${v34ProjectInfo.projectCode||'-'}`;
-    ws.mergeCells('C4:F4');ws.getCell('C4').value=`Konum: ${[v34ProjectInfo.province,v34ProjectInfo.district].filter(Boolean).join(' / ')||'-'}`;
-    ws.mergeCells('G4:J4');ws.getCell('G4').value=`Rapor: ${new Date().toLocaleDateString('tr-TR')} · ${window.CEPHEPRO_VERSION||'V126'}`;
+    ws.mergeCells('C1:K1');ws.getCell('C1').value=v34ProjectInfo.company||'FİRMA';ws.getCell('C1').font={bold:true,size:14,color:{argb:'FF1C2B34'}};
+    ws.mergeCells('C2:K2');ws.getCell('C2').value=v34ProjectInfo.projectName||'CephePro Projesi';ws.getCell('C2').font={bold:true,size:11,color:{argb:'FF1C2B34'}};
+    ws.mergeCells('C3:G3');ws.getCell('C3').value=`İşveren: ${v34ProjectInfo.employer||'-'}`;
+    ws.mergeCells('H3:K3');ws.getCell('H3').value=`Proje Kodu: ${v34ProjectInfo.projectCode||'-'}`;
+    ws.mergeCells('C4:G4');ws.getCell('C4').value=`Konum: ${[v34ProjectInfo.province,v34ProjectInfo.district].filter(Boolean).join(' / ')||'-'}`;
+    ws.mergeCells('H4:K4');ws.getCell('H4').value=`Rapor: ${new Date().toLocaleDateString('tr-TR')} · ${window.CEPHEPRO_VERSION||'V126'}`;
 
-    ws.mergeCells('A6:J6');ws.getCell('A6').value=`GENEL RAPOR · ${window.CEPHEPRO_VERSION||'V126'}`;
+    ws.mergeCells('A6:K6');ws.getCell('A6').value=`GENEL RAPOR · ${window.CEPHEPRO_VERSION||'V126'}`;
     ws.getCell('A6').font={bold:true,size:11,color:{argb:'FFFFFFFF'}};
     ws.getCell('A6').alignment={horizontal:'center',vertical:'middle'};
-    v57Fill(ws,6,1,6,10,'FF52758C');
+    v57Fill(ws,6,1,6,11,'FF52758C');
 
-    ws.mergeCells('A5:E5');
+    ws.mergeCells('A5:F5');
     ws.getCell('A5').value=`Rapor Aralığı: ${v52ReportDates().start||'-'} — ${v52ReportDates().end||'-'}`;
     ws.getCell('A5').font={size:7.5,color:{argb:'FF5D707B'}};
-    ws.mergeCells('F5:J5');
-    ws.getCell('F5').value=`Toplam çalışan: ${crew.workerDays} kişi-gün · ${crew.workingDays} cephe/gün kaydı`;
-    ws.getCell('F5').font={bold:true,size:7.5,color:{argb:'FF2E7068'}};ws.getCell('F5').alignment={horizontal:'right'};
+    ws.mergeCells('G5:K5');
+    ws.getCell('G5').value=`Toplam çalışan: ${crew.workerDays} kişi-gün · ${crew.workingDays} cephe/gün kaydı`;
+    ws.getCell('G5').font={bold:true,size:7.5,color:{argb:'FF2E7068'}};ws.getCell('G5').alignment={horizontal:'right'};
 
     // -------- FILTER CONTEXT W:AE --------
-    ws.getCell('W1').value={formula:`SUBTOTAL(103,$A$8:$A$${dataEnd})`,result:rows.length}; // visible count
-    ws.getCell('X1').value=rows.length; // total count
-    ws.getCell('Y1').value={formula:'--($W$1=$X$1)',result:1}; // no filter
+    ws.getCell('X1').value={formula:`SUBTOTAL(103,$A$8:$A$${dataEnd})`,result:rows.length}; // visible count
+    ws.getCell('Y1').value=rows.length; // total count
+    ws.getCell('Z1').value={formula:'--($X$1=$Y$1)',result:1}; // no filter
 
     const firstVisible=(col)=>`IFERROR(INDEX($${col}$8:$${col}$${dataEnd},AGGREGATE(15,6,(ROW($${col}$8:$${col}$${dataEnd})-ROW($${col}$8)+1)/(SUBTOTAL(103,OFFSET($${col}$8,ROW($${col}$8:$${col}$${dataEnd})-ROW($${col}$8),0,1))),1)),"")`;
-    ws.getCell('Z1').value={formula:firstVisible('A'),result:String(rows[0]?.[0]||'')};   // first block
-    ws.getCell('AA1').value={formula:firstVisible('B'),result:String(rows[0]?.[1]||'')}; // first facade
-    ws.getCell('AB1').value={formula:firstVisible('C'),result:String(rows[0]?.[2]||'')}; // first item
+    ws.getCell('AA1').value={formula:firstVisible('A'),result:String(rows[0]?.[0]||'')};   // first block
+    ws.getCell('AB1').value={formula:firstVisible('B'),result:String(rows[0]?.[1]||'')}; // first facade
+    ws.getCell('AC1').value={formula:firstVisible('C'),result:String(rows[0]?.[2]||'')}; // first item
 
-    ws.getCell('AC1').value={formula:`IF($W$1=0,FALSE,SUMPRODUCT(SUBTOTAL(103,OFFSET($A$8,ROW($A$8:$A$${dataEnd})-ROW($A$8),0,1))*--($A$8:$A$${dataEnd}<>$Z$1))=0)`,result:false};
-    ws.getCell('AD1').value={formula:`IF($W$1=0,FALSE,SUMPRODUCT(SUBTOTAL(103,OFFSET($A$8,ROW($A$8:$A$${dataEnd})-ROW($A$8),0,1))*--($B$8:$B$${dataEnd}<>$AA$1))=0)`,result:false};
-    ws.getCell('AE1').value={formula:`IF($W$1=0,FALSE,SUMPRODUCT(SUBTOTAL(103,OFFSET($A$8,ROW($A$8:$A$${dataEnd})-ROW($A$8),0,1))*--($C$8:$C$${dataEnd}<>$AB$1))=0)`,result:false};
+    ws.getCell('AD1').value={formula:`IF($X$1=0,FALSE,SUMPRODUCT(SUBTOTAL(103,OFFSET($A$8,ROW($A$8:$A$${dataEnd})-ROW($A$8),0,1))*--($A$8:$A$${dataEnd}<>$AA$1))=0)`,result:false};
+    ws.getCell('AE1').value={formula:`IF($X$1=0,FALSE,SUMPRODUCT(SUBTOTAL(103,OFFSET($A$8,ROW($A$8:$A$${dataEnd})-ROW($A$8),0,1))*--($B$8:$B$${dataEnd}<>$AB$1))=0)`,result:false};
+    ws.getCell('AF1').value={formula:`IF($X$1=0,FALSE,SUMPRODUCT(SUBTOTAL(103,OFFSET($A$8,ROW($A$8:$A$${dataEnd})-ROW($A$8),0,1))*--($C$8:$C$${dataEnd}<>$AC$1))=0)`,result:false};
 
     // -------- CHART 1: General + blocks AF:AG --------
     // V144: genel ve blok ilerlemeleri cephe yüzdelerinin basit ortalamasıyla
@@ -22047,16 +22048,16 @@ try{v41RenderOverview()}catch(_){ }
         return {label,value:quantityProgress144(rows.filter(row=>String(row?.[0]||'')===label))};
       })
     ];
-    generalRows.forEach((x,i)=>{const r=i+2;ws.getCell(r,32).value=x.label;ws.getCell(r,33).value=x.value;ws.getCell(r,33).numFmt='0.00"%"'});
+    generalRows.forEach((x,i)=>{const r=i+2;ws.getCell(r,33).value=x.label;ws.getCell(r,34).value=x.value;ws.getCell(r,34).numFmt='0.00"%"'});
     const generalEnd=Math.max(2,1+generalRows.length);
 
     // -------- CHART 2: Visible facade progress AH:AL --------
     facades.forEach(([b,f],i)=>{
       const r=i+2;
-      ws.getCell(r,34).value=v33BlockLabel(b); // AH
-      ws.getCell(r,35).value=f;                // AI
-      ws.getCell(r,36).value=Number(calculatedFacadeProgress(b,f)||0); // AJ
-      ws.getCell(r,37).value={formula:`SUMPRODUCT(SUBTOTAL(103,OFFSET($A$8,ROW($A$8:$A$${dataEnd})-ROW($A$8),0,1)),--($A$8:$A$${dataEnd}=$AH${r}),--($B$8:$B$${dataEnd}=$AI${r}))`}; // AK
+      ws.getCell(r,35).value=v33BlockLabel(b); // AH
+      ws.getCell(r,36).value=f;                // AI
+      ws.getCell(r,37).value=Number(calculatedFacadeProgress(b,f)||0); // AJ
+      ws.getCell(r,38).value={formula:`SUMPRODUCT(SUBTOTAL(103,OFFSET($A$8,ROW($A$8:$A$${dataEnd})-ROW($A$8),0,1)),--($A$8:$A$${dataEnd}=$AI${r}),--($B$8:$B$${dataEnd}=$AJ${r}))`}; // AK
     });
     const facadeSourceEnd=Math.max(2,1+facades.length);
     const facadeOutputMax=Math.max(1,facades.length);
@@ -22066,10 +22067,10 @@ try{v41RenderOverview()}catch(_){ }
         ? displayLabel68(f,16)
         : `${displayLabel68(v33BlockLabel(b),16)}
 ${displayLabel68(f,16)}`;
-      ws.getCell(r,38).value=label; // AL — chart category shown under the bar
+      ws.getCell(r,39).value=label; // AL — chart category shown under the bar
       const cached=Number(calculatedFacadeProgress(b,f)||0);
-      ws.getCell(r,39).value={formula:`IFERROR(SUMPRODUCT(($A$8:$A$${dataEnd}=$AH${r})*($B$8:$B$${dataEnd}=$AI${r})*$E$8:$E$${dataEnd}*$H$8:$H$${dataEnd})/100,0)`,result:cached}; // AM
-      ws.getCell(r,39).numFmt='0.00"%"';
+      ws.getCell(r,40).value={formula:`IFERROR(SUMPRODUCT(($A$8:$A$${dataEnd}=$AI${r})*($B$8:$B$${dataEnd}=$AJ${r})*$F$8:$F$${dataEnd}*$I$8:$I$${dataEnd})/100,0)`,result:cached}; // AM
+      ws.getCell(r,40).numFmt='0.00"%"';
     });
 
     // -------- CHART 3: Work item visible scope / single-item comparison AN:AT --------
@@ -22085,12 +22086,12 @@ ${displayLabel68(f,16)}`;
 
     uniqueNames.forEach((n,i)=>{
       const r=i+2;
-      ws.getCell(r,40).value=n; // AN raw item
-      ws.getCell(r,41).value={formula:`SUMPRODUCT(SUBTOTAL(109,OFFSET($F$8,ROW($F$8:$F$${dataEnd})-ROW($F$8),0,1)),--($C$8:$C$${dataEnd}=$AN${r}))`}; // AO visible total
-      ws.getCell(r,42).value={formula:`SUMPRODUCT(SUBTOTAL(109,OFFSET($G$8,ROW($G$8:$G$${dataEnd})-ROW($G$8),0,1)),--($C$8:$C$${dataEnd}=$AN${r}))`}; // AP visible done
-      ws.getCell(r,43).value={formula:`IF($AO${r}>0,$AP${r}/$AO${r}*100,NA())`}; // AQ visible progress
-      ws.getCell(r,47).value=n; // AU raw lookup
-      ws.getCell(r,48).value=displayLabel68(n,14); // AV chart display label
+      ws.getCell(r,41).value=n; // AN raw item
+      ws.getCell(r,42).value={formula:`SUMPRODUCT(SUBTOTAL(109,OFFSET($G$8,ROW($G$8:$G$${dataEnd})-ROW($G$8),0,1)),--($C$8:$C$${dataEnd}=$AO${r}))`}; // AO visible total
+      ws.getCell(r,43).value={formula:`SUMPRODUCT(SUBTOTAL(109,OFFSET($H$8,ROW($H$8:$H$${dataEnd})-ROW($H$8),0,1)),--($C$8:$C$${dataEnd}=$AO${r}))`}; // AP visible done
+      ws.getCell(r,44).value={formula:`IF($AP${r}>0,$AQ${r}/$AP${r}*100,NA())`}; // AQ visible progress
+      ws.getCell(r,48).value=n; // AU raw lookup
+      ws.getCell(r,49).value=displayLabel68(n,14); // AV chart display label
     });
     const itemSourceEnd=Math.max(2,1+uniqueNames.length);
     const itemOutputMax=Math.max(4,uniqueNames.length);
@@ -22099,24 +22100,24 @@ ${displayLabel68(f,16)}`;
     for(let i=0;i<itemOutputMax;i++){
       const r=i+2;
       if(i===0){
-        ws.getCell(r,44).value={formula:`IF($AE$1,IF($AD$1,$AA$1&" • "&$AB$1,IF($AC$1,$Z$1&" • "&$AB$1,"Tüm Proje • "&$AB$1)),IFERROR(INDEX($AV$2:$AV$${itemSourceEnd},AGGREGATE(15,6,(ROW($AN$2:$AN$${itemSourceEnd})-ROW($AN$2)+1)/($AO$2:$AO$${itemSourceEnd}>0),ROWS($AR$2:AR${r}))),""))`};
-        ws.getCell(r,45).value={formula:`IF($AE$1,IF($AD$1,IFERROR(SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$Z$1,$B$8:$B$${dataEnd},$AA$1,$C$8:$C$${dataEnd},$AB$1)/SUMIFS($F$8:$F$${dataEnd},$A$8:$A$${dataEnd},$Z$1,$B$8:$B$${dataEnd},$AA$1,$C$8:$C$${dataEnd},$AB$1)*100,NA()),IF($AC$1,IFERROR(SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$Z$1,$C$8:$C$${dataEnd},$AB$1)/SUMIFS($F$8:$F$${dataEnd},$A$8:$A$${dataEnd},$Z$1,$C$8:$C$${dataEnd},$AB$1)*100,NA()),IFERROR(SUMIFS($G$8:$G$${dataEnd},$C$8:$C$${dataEnd},$AB$1)/SUMIFS($F$8:$F$${dataEnd},$C$8:$C$${dataEnd},$AB$1)*100,NA()))),IF($AR${r}="",NA(),IFERROR(INDEX($AQ$2:$AQ$${itemSourceEnd},MATCH($AR${r},$AV$2:$AV$${itemSourceEnd},0)),NA())))`};
+        ws.getCell(r,45).value={formula:`IF($AF$1,IF($AE$1,$AB$1&" • "&$AC$1,IF($AD$1,$AA$1&" • "&$AC$1,"Tüm Proje • "&$AC$1)),IFERROR(INDEX($AW$2:$AW$${itemSourceEnd},AGGREGATE(15,6,(ROW($AO$2:$AO$${itemSourceEnd})-ROW($AO$2)+1)/($AP$2:$AP$${itemSourceEnd}>0),ROWS($AS$2:AS${r}))),""))`};
+        ws.getCell(r,46).value={formula:`IF($AF$1,IF($AE$1,IFERROR(SUMIFS($H$8:$H$${dataEnd},$A$8:$A$${dataEnd},$AA$1,$B$8:$B$${dataEnd},$AB$1,$C$8:$C$${dataEnd},$AC$1)/SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$AA$1,$B$8:$B$${dataEnd},$AB$1,$C$8:$C$${dataEnd},$AC$1)*100,NA()),IF($AD$1,IFERROR(SUMIFS($H$8:$H$${dataEnd},$A$8:$A$${dataEnd},$AA$1,$C$8:$C$${dataEnd},$AC$1)/SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$AA$1,$C$8:$C$${dataEnd},$AC$1)*100,NA()),IFERROR(SUMIFS($H$8:$H$${dataEnd},$C$8:$C$${dataEnd},$AC$1)/SUMIFS($G$8:$G$${dataEnd},$C$8:$C$${dataEnd},$AC$1)*100,NA()))),IF($AS${r}="",NA(),IFERROR(INDEX($AR$2:$AR$${itemSourceEnd},MATCH($AS${r},$AW$2:$AW$${itemSourceEnd},0)),NA())))`};
       }else if(i===1){
-        ws.getCell(r,44).value={formula:`IF($AE$1,IF($AD$1,$Z$1&" • "&$AB$1,IF($AC$1,"Tüm Proje • "&$AB$1,"")),IFERROR(INDEX($AV$2:$AV$${itemSourceEnd},AGGREGATE(15,6,(ROW($AN$2:$AN$${itemSourceEnd})-ROW($AN$2)+1)/($AO$2:$AO$${itemSourceEnd}>0),ROWS($AR$2:AR${r}))),""))`};
-        ws.getCell(r,45).value={formula:`IF($AE$1,IF($AD$1,IFERROR(SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$Z$1,$C$8:$C$${dataEnd},$AB$1)/SUMIFS($F$8:$F$${dataEnd},$A$8:$A$${dataEnd},$Z$1,$C$8:$C$${dataEnd},$AB$1)*100,NA()),IF($AC$1,IFERROR(SUMIFS($G$8:$G$${dataEnd},$C$8:$C$${dataEnd},$AB$1)/SUMIFS($F$8:$F$${dataEnd},$C$8:$C$${dataEnd},$AB$1)*100,NA()),NA())),IF($AR${r}="",NA(),IFERROR(INDEX($AQ$2:$AQ$${itemSourceEnd},MATCH($AR${r},$AV$2:$AV$${itemSourceEnd},0)),NA())))`};
+        ws.getCell(r,45).value={formula:`IF($AF$1,IF($AE$1,$AA$1&" • "&$AC$1,IF($AD$1,"Tüm Proje • "&$AC$1,"")),IFERROR(INDEX($AW$2:$AW$${itemSourceEnd},AGGREGATE(15,6,(ROW($AO$2:$AO$${itemSourceEnd})-ROW($AO$2)+1)/($AP$2:$AP$${itemSourceEnd}>0),ROWS($AS$2:AS${r}))),""))`};
+        ws.getCell(r,46).value={formula:`IF($AF$1,IF($AE$1,IFERROR(SUMIFS($H$8:$H$${dataEnd},$A$8:$A$${dataEnd},$AA$1,$C$8:$C$${dataEnd},$AC$1)/SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$AA$1,$C$8:$C$${dataEnd},$AC$1)*100,NA()),IF($AD$1,IFERROR(SUMIFS($H$8:$H$${dataEnd},$C$8:$C$${dataEnd},$AC$1)/SUMIFS($G$8:$G$${dataEnd},$C$8:$C$${dataEnd},$AC$1)*100,NA()),NA())),IF($AS${r}="",NA(),IFERROR(INDEX($AR$2:$AR$${itemSourceEnd},MATCH($AS${r},$AW$2:$AW$${itemSourceEnd},0)),NA())))`};
       }else if(i===2){
-        ws.getCell(r,44).value={formula:`IF($AE$1,IF($AD$1,"Tüm Proje • "&$AB$1,""),IFERROR(INDEX($AV$2:$AV$${itemSourceEnd},AGGREGATE(15,6,(ROW($AN$2:$AN$${itemSourceEnd})-ROW($AN$2)+1)/($AO$2:$AO$${itemSourceEnd}>0),ROWS($AR$2:AR${r}))),""))`};
-        ws.getCell(r,45).value={formula:`IF($AE$1,IF($AD$1,IFERROR(SUMIFS($G$8:$G$${dataEnd},$C$8:$C$${dataEnd},$AB$1)/SUMIFS($F$8:$F$${dataEnd},$C$8:$C$${dataEnd},$AB$1)*100,NA()),NA()),IF($AR${r}="",NA(),IFERROR(INDEX($AQ$2:$AQ$${itemSourceEnd},MATCH($AR${r},$AV$2:$AV$${itemSourceEnd},0)),NA())))`};
+        ws.getCell(r,45).value={formula:`IF($AF$1,IF($AE$1,"Tüm Proje • "&$AC$1,""),IFERROR(INDEX($AW$2:$AW$${itemSourceEnd},AGGREGATE(15,6,(ROW($AO$2:$AO$${itemSourceEnd})-ROW($AO$2)+1)/($AP$2:$AP$${itemSourceEnd}>0),ROWS($AS$2:AS${r}))),""))`};
+        ws.getCell(r,46).value={formula:`IF($AF$1,IF($AE$1,IFERROR(SUMIFS($H$8:$H$${dataEnd},$C$8:$C$${dataEnd},$AC$1)/SUMIFS($G$8:$G$${dataEnd},$C$8:$C$${dataEnd},$AC$1)*100,NA()),NA()),IF($AS${r}="",NA(),IFERROR(INDEX($AR$2:$AR$${itemSourceEnd},MATCH($AS${r},$AW$2:$AW$${itemSourceEnd},0)),NA())))`};
       }else{
-        ws.getCell(r,44).value={formula:`IF($AE$1,"",IFERROR(INDEX($AV$2:$AV$${itemSourceEnd},AGGREGATE(15,6,(ROW($AN$2:$AN$${itemSourceEnd})-ROW($AN$2)+1)/($AO$2:$AO$${itemSourceEnd}>0),ROWS($AR$2:AR${r}))),""))`};
-        ws.getCell(r,45).value={formula:`IF($AR${r}="",NA(),IFERROR(INDEX($AQ$2:$AQ$${itemSourceEnd},MATCH($AR${r},$AV$2:$AV$${itemSourceEnd},0)),NA()))`};
+        ws.getCell(r,45).value={formula:`IF($AF$1,"",IFERROR(INDEX($AW$2:$AW$${itemSourceEnd},AGGREGATE(15,6,(ROW($AO$2:$AO$${itemSourceEnd})-ROW($AO$2)+1)/($AP$2:$AP$${itemSourceEnd}>0),ROWS($AS$2:AS${r}))),""))`};
+        ws.getCell(r,46).value={formula:`IF($AS${r}="",NA(),IFERROR(INDEX($AR$2:$AR$${itemSourceEnd},MATCH($AS${r},$AW$2:$AW$${itemSourceEnd},0)),NA()))`};
       }
     }
 
     // Dynamic chart title cells AT1:AT3
-    ws.getCell('AT1').value='Genel İlerleme • Genel + Bloklar';
-    ws.getCell('AT2').value=blocks.length===1?`Cephe İlerleme • ${v33BlockLabel(blocks[0])}`:'Cephe İlerleme • Seçili Cepheler';
-    ws.getCell('AT3').value='Cephe İş Kalemleri';
+    ws.getCell('AU1').value='Genel İlerleme • Genel + Bloklar';
+    ws.getCell('AU2').value=blocks.length===1?`Cephe İlerleme • ${v33BlockLabel(blocks[0])}`:'Cephe İlerleme • Seçili Cepheler';
+    ws.getCell('AU3').value='Cephe İş Kalemleri';
 
     const initialItems=uniqueNames.map(n=>{
       const a=itemAgg.get(n);
@@ -22126,32 +22127,32 @@ ${displayLabel68(f,16)}`;
     for(let i=0;i<itemOutputMax;i++){
       const r=i+2;
       if(i<initialItems.length){
-        ws.getCell(r,44).value=initialItems[i].label; // AR
-        ws.getCell(r,45).value={formula:`IFERROR(SUMIFS($G$8:$G$${dataEnd},$C$8:$C$${dataEnd},$AN${r})/SUMIFS($F$8:$F$${dataEnd},$C$8:$C$${dataEnd},$AN${r})*100,0)`,result:initialItems[i].value}; // AS
-        ws.getCell(r,45).numFmt='0.00"%"';
+        ws.getCell(r,45).value=initialItems[i].label; // AR
+        ws.getCell(r,46).value={formula:`IFERROR(SUMIFS($H$8:$H$${dataEnd},$C$8:$C$${dataEnd},$AO${r})/SUMIFS($G$8:$G$${dataEnd},$C$8:$C$${dataEnd},$AO${r})*100,0)`,result:initialItems[i].value}; // AS
+        ws.getCell(r,46).numFmt='0.00"%"';
       }else{
-        ws.getCell(r,44).value=null;
         ws.getCell(r,45).value=null;
+        ws.getCell(r,46).value=null;
       }
     }
 
     // -------- V128 SITE-LIKE NATIVE EXCEL CHART HELPERS AW:BN --------
     // Doughnut categories and formula-backed values for General + every selected block.
-    ws.getCell('AW1').value='Tamamlanan';ws.getCell('AX1').value='Kalan';
+    ws.getCell('AX1').value='Tamamlanan';ws.getCell('AY1').value='Kalan';
     generalRows.forEach((item,index)=>{
       const row=index+2;
-      ws.getCell(row,51).value={formula:`AG${row}`,result:item.value};       // AY
-      ws.getCell(row,52).value={formula:`MAX(0,100-AY${row})`,result:Math.max(0,100-item.value)}; // AZ
-      ws.getCell(row,51).numFmt=ws.getCell(row,52).numFmt='0.00"%"';
+      ws.getCell(row,52).value={formula:`AH${row}`,result:item.value};       // AY
+      ws.getCell(row,53).value={formula:`MAX(0,100-AZ${row})`,result:Math.max(0,100-item.value)}; // AZ
+      ws.getCell(row,52).numFmt=ws.getCell(row,53).numFmt='0.00"%"';
     });
 
     // Horizontal progress tracks: label + completed + remaining.
     initialItems.forEach((item,index)=>{
       const row=index+2;
-      ws.getCell(row,53).value=item.label; // BA
-      ws.getCell(row,54).value={formula:`AS${row}`,result:item.value}; // BB
-      ws.getCell(row,55).value={formula:`MAX(0,100-BB${row})`,result:Math.max(0,100-item.value)}; // BC
-      ws.getCell(row,54).numFmt=ws.getCell(row,55).numFmt='0.00"%"';
+      ws.getCell(row,54).value=item.label; // BA
+      ws.getCell(row,55).value={formula:`AT${row}`,result:item.value}; // BB
+      ws.getCell(row,56).value={formula:`MAX(0,100-BC${row})`,result:Math.max(0,100-item.value)}; // BC
+      ws.getCell(row,55).numFmt=ws.getCell(row,56).numFmt='0.00"%"';
     });
 
     // Facade detail panel uses the first selected facade, exactly like the active site facade card.
@@ -22168,17 +22169,17 @@ ${displayLabel68(f,16)}`;
       raw,label:displayLabel68(v91ExcelTitleCase(raw),14),value:value.total?Math.round(value.done/value.total*100):0
     }));
     if(!detailItems.length)detailItems.push({raw:'İş Kalemi',label:'İş Kalemi',value:0});
-    ws.getCell('BF1').value=detailBlockLabel;ws.getCell('BG1').value=detailFacade;
-    ws.getCell('BH1').value='Tamamlanan';ws.getCell('BI1').value='Kalan';
-    ws.getCell('BJ2').value={formula:`IFERROR(SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$BF$1,$B$8:$B$${dataEnd},$BG$1)/SUMIFS($F$8:$F$${dataEnd},$A$8:$A$${dataEnd},$BF$1,$B$8:$B$${dataEnd},$BG$1)*100,0)`,result:detailProgress};
-    ws.getCell('BK2').value={formula:'MAX(0,100-BJ2)',result:Math.max(0,100-detailProgress)};
-    ws.getCell('BJ2').numFmt=ws.getCell('BK2').numFmt='0.00"%"';
+    ws.getCell('BG1').value=detailBlockLabel;ws.getCell('BH1').value=detailFacade;
+    ws.getCell('BI1').value='Tamamlanan';ws.getCell('BJ1').value='Kalan';
+    ws.getCell('BK2').value={formula:`IFERROR(SUMIFS($H$8:$H$${dataEnd},$A$8:$A$${dataEnd},$BG$1,$B$8:$B$${dataEnd},$BH$1)/SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$BG$1,$B$8:$B$${dataEnd},$BH$1)*100,0)`,result:detailProgress};
+    ws.getCell('BL2').value={formula:'MAX(0,100-BK2)',result:Math.max(0,100-detailProgress)};
+    ws.getCell('BK2').numFmt=ws.getCell('BL2').numFmt='0.00"%"';
     detailItems.forEach((item,index)=>{
       const row=index+2;
-      ws.getCell(row,64).value=item.label; // BL — displayed under column
-      ws.getCell(row,65).value=item.raw;   // BM — exact SUMIFS key
-      ws.getCell(row,66).value={formula:`IFERROR(SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$BF$1,$B$8:$B$${dataEnd},$BG$1,$C$8:$C$${dataEnd},BM${row})/SUMIFS($F$8:$F$${dataEnd},$A$8:$A$${dataEnd},$BF$1,$B$8:$B$${dataEnd},$BG$1,$C$8:$C$${dataEnd},BM${row})*100,0)`,result:item.value}; // BN
-      ws.getCell(row,66).numFmt='0.00"%"';
+      ws.getCell(row,65).value=item.label; // BL — displayed under column
+      ws.getCell(row,66).value=item.raw;   // BM — exact SUMIFS key
+      ws.getCell(row,67).value={formula:`IFERROR(SUMIFS($H$8:$H$${dataEnd},$A$8:$A$${dataEnd},$BG$1,$B$8:$B$${dataEnd},$BH$1,$C$8:$C$${dataEnd},BN${row})/SUMIFS($G$8:$G$${dataEnd},$A$8:$A$${dataEnd},$BG$1,$B$8:$B$${dataEnd},$BH$1,$C$8:$C$${dataEnd},BN${row})*100,0)`,result:item.value}; // BN
+      ws.getCell(row,67).numFmt='0.00"%"';
     });
 
     // V152: yüklenen V144(2) şablonundaki gibi yalnız tek yerel Excel grafiği
@@ -22191,8 +22192,8 @@ ${displayLabel68(f,16)}`;
     ws.getCell(endRow,1).value=' ';
     ws.getCell(endRow,1).font={color:{argb:'FFFFFFFF'}};
     // V135: Sayfanın gerçek kullanılan alanını kalın dış çerçeveyle sınırla.
-    v57Border(ws,1,1,endRow,10,'FF243B46','thick');
-    ws.pageSetup.printArea='A1:BN100';
+    v57Border(ws,1,1,endRow,11,'FF243B46','thick');
+    ws.pageSetup.printArea='A1:BO100';
 
     // ---------------- REFERENCE VISIBLE SHEETS: PERSONEL, TAKVIM ----------------
     const dates=v52ReportDates();
@@ -22263,7 +22264,7 @@ ${displayLabel68(f,16)}`;
       [3,4,6,7].forEach(col=>{if(sch.getCell(row,col).value)sch.getCell(row,col).numFmt='dd.mm.yyyy'});
       sch.getCell(row,5).value={formula:`IF(OR(C${row}="",D${row}=""),"",D${row}-C${row}+1)`,result:Number(source?.[4])||0};
       sch.getCell(row,8).value={formula:`IF(OR(F${row}="",G${row}=""),"",G${row}-F${row}+1)`,result:Number(source?.[7])||0};
-      sch.getCell(row,9).value={formula:`IFERROR(SUMIFS(Rapor!$G:$G,Rapor!$A:$A,A${row},Rapor!$B:$B,B${row})/SUMIFS(Rapor!$F:$F,Rapor!$A:$A,A${row},Rapor!$B:$B,B${row})*100,0)`,result:Number(source?.[8])||0};
+      sch.getCell(row,9).value={formula:`IFERROR(SUMIFS(Rapor!$H:$H,Rapor!$A:$A,A${row},Rapor!$B:$B,B${row})/SUMIFS(Rapor!$G:$G,Rapor!$A:$A,A${row},Rapor!$B:$B,B${row})*100,0)`,result:Number(source?.[8])||0};
       sch.getCell(row,5).numFmt=sch.getCell(row,8).numFmt='0';
       sch.getCell(row,9).numFmt='0.00"%"';
     });
@@ -22280,12 +22281,12 @@ ${displayLabel68(f,16)}`;
     // ---------------- FILTERED WORK HISTORY / NO-WORK PAGES ----------------
     const company145=v34ProjectInfo.company||'FİRMA',projectCode145=v34ProjectInfo.projectCode||'-';
     const historySheet=wb.addWorksheet('Çalışma Geçmişi');v57Setup(historySheet,'landscape');stampVersion126(historySheet);
-    historySheet.mergeCells('A1:K1');historySheet.getCell('A1').value='ÇALIŞMA GEÇMİŞİ';historySheet.getCell('A1').font={bold:true,size:12,color:{argb:'FFFFFFFF'}};historySheet.getCell('A1').alignment={horizontal:'center',vertical:'middle'};v57Fill(historySheet,1,1,1,11,'FF52758C');historySheet.getRow(1).height=23;
-    historySheet.mergeCells('A2:K2');historySheet.getCell('A2').value=`${company145}  ${projectCode145}`;historySheet.getCell('A2').font={bold:true,size:10,color:{argb:'FF20313A'}};historySheet.getCell('A2').alignment={horizontal:'center',vertical:'middle'};historySheet.getRow(2).height=21;
+    historySheet.mergeCells('A1:L1');historySheet.getCell('A1').value='ÇALIŞMA GEÇMİŞİ';historySheet.getCell('A1').font={bold:true,size:12,color:{argb:'FFFFFFFF'}};historySheet.getCell('A1').alignment={horizontal:'center',vertical:'middle'};v57Fill(historySheet,1,1,1,12,'FF52758C');historySheet.getRow(1).height=23;
+    historySheet.mergeCells('A2:L2');historySheet.getCell('A2').value=`${company145}  ${projectCode145}`;historySheet.getCell('A2').font={bold:true,size:10,color:{argb:'FF20313A'}};historySheet.getCell('A2').alignment={horizontal:'center',vertical:'middle'};historySheet.getRow(2).height=21;
     const historyGrid143=writeFilter68(historySheet,4,['Blok Adı','Cephe Adı','Ay','Yıl','Tam Tarih','İş Kalemi','Birim','Yapılan','Çalışan','Kullanıcı','Açıklama'],historyRows143,[13,14,10,8,12,24,8,11,10,14,38]);
-    for(let row=5;row<=historyGrid143.lastRow;row++){if(historySheet.getCell(row,5).value instanceof Date)historySheet.getCell(row,5).numFmt='dd.mm.yyyy';historySheet.getCell(row,8).numFmt='0.00';historySheet.getRow(row).height=22;historySheet.getCell(row,11).alignment={vertical:'middle',wrapText:true}}
-    v57Border(historySheet,1,1,Math.max(5,historyGrid143.lastRow),11,'FF243B46','thick');historySheet.pageSetup.printArea=`A1:K${Math.max(5,historyGrid143.lastRow)}`;
-    v57Border(historySheet,4,1,Math.max(5,historyGrid143.lastRow),11,'FF243B46','thick');
+    for(let row=5;row<=historyGrid143.lastRow;row++){if(historySheet.getCell(row,5).value instanceof Date)historySheet.getCell(row,5).numFmt='dd.mm.yyyy';historySheet.getCell(row,9).numFmt='0.00';historySheet.getRow(row).height=22;historySheet.getCell(row,12).alignment={vertical:'middle',wrapText:true}}
+    v57Border(historySheet,1,1,Math.max(5,historyGrid143.lastRow),12,'FF243B46','thick');historySheet.pageSetup.printArea=`A1:L${Math.max(5,historyGrid143.lastRow)}`;
+    v57Border(historySheet,4,1,Math.max(5,historyGrid143.lastRow),12,'FF243B46','thick');
 
     const noWorkSheet=wb.addWorksheet('Çalışma Olmadı');v57Setup(noWorkSheet,'landscape');stampVersion126(noWorkSheet);
     noWorkSheet.mergeCells('A1:G1');noWorkSheet.getCell('A1').value='ÇALIŞMA OLMADI';noWorkSheet.getCell('A1').font={bold:true,size:12,color:{argb:'FFFFFFFF'}};noWorkSheet.getCell('A1').alignment={horizontal:'center',vertical:'middle'};v57Fill(noWorkSheet,1,1,1,7,'FF52758C');noWorkSheet.getRow(1).height=23;
@@ -22326,16 +22327,16 @@ ${displayLabel68(f,16)}`;
     detailItems.forEach(x=>graphData.push(['Cephe Detayı',detailBlockLabel,detailFacade,x.raw,'',x.value]));
     v57SameRows().forEach(x=>graphData.push(['Aynı İş Kalemi Kıyas',x.label,'','','',x.value]));
     writeFilter68(gd,1,['Grafik Grubu','Blok / Seri','Cephe','İş Kalemi','Birim','İlerleme %'],graphData,[18,18,13,21,7,9]);
-    gd.getCell('H1').value='Grafik biçimi';gd.getCell('I1').value='Site görünümü · yerel Excel grafikleri';
-    gd.getCell('H2').value='Grafik paneli';gd.getCell('I2').value=3;
-    gd.getCell('H3').value='Paneller';gd.getCell('I3').value='Genel + Blok sütunları / Toplam metraja göre iş kalemleri / Cephe iş kalemleri';
-    v57Border(gd,1,1,Math.max(2,1+graphData.length),9,'FF243B46','thick');
+    gd.getCell('I1').value='Grafik biçimi';gd.getCell('J1').value='Site görünümü · yerel Excel grafikleri';
+    gd.getCell('I2').value='Grafik paneli';gd.getCell('J2').value=3;
+    gd.getCell('I3').value='Paneller';gd.getCell('J3').value='Genel + Blok sütunları / Toplam metraja göre iş kalemleri / Cephe iş kalemleri';
+    v57Border(gd,1,1,Math.max(2,1+graphData.length),10,'FF243B46','thick');
 
     // V135: Kullanıcının gördüğü tüm rapor sayfalarının en dış kenarları
     // belirgin ve kalındır. İç tablo çizgileri mevcut ince yapısını korur.
     v57Border(person,1,1,Math.max(2,1+pRows.length),10,'FF243B46','thick');
     v57Border(sch,1,1,Math.max(2,1+schRows.length),10,'FF243B46','thick');
-    v57Border(daily,1,1,Math.max(2,1+dailyRows.length),9,'FF243B46','thick');
+    v57Border(daily,1,1,Math.max(2,1+dailyRows.length),10,'FF243B46','thick');
     v57Border(crewSheet,1,1,Math.max(2,1+crewRows.length),8,'FF243B46','thick');
 
     // V144: Her dolu hücre ince kenarlıklıdır. Tablo dış kenarları aşağıdaki
@@ -22357,19 +22358,19 @@ ${displayLabel68(f,16)}`;
     // V162: Tek cephede K1:BO20. Her ilave cephede sağ kenar üç sütun büyür:
     // 2 cephe BR20, 3 cephe BU20... Sol K1 sabittir; yalnız sağ kenar uzar.
     const extraFacadeCount162=Math.max(0,facades.length-1);
-    const chartRightCol158=67+extraFacadeCount162*3;
+    const chartRightCol158=68+extraFacadeCount162*3;
     const nativeChart148={
       type:'column',
       title:`${scopeBlocks145} ${scopeFacades145}\nİŞ KALEMLERİ\nMETRAJLAR`,
-      catFormula:`Rapor!$B$8:$D$${dataEnd}`,
+      catFormula:`Rapor!$B$8:$E$${dataEnd}`,
       cacheLabels:chartRows155.map(row=>row.item),
-      categoryLevels:[chartRows155.map(row=>row.unit),chartRows155.map(row=>row.item),chartRows155.map(row=>row.facade)],
+      categoryLevels:[chartRows155.map(row=>row.unit),rows.map(row=>window.CepheProReportPoz.position(row[2],row[0],row[1])),chartRows155.map(row=>row.item),chartRows155.map(row=>row.facade)],
       series:[
-        {name:'Toplam',valFormula:`Rapor!$F$8:$F$${dataEnd}`,cacheValues:chartRows155.map(row=>row.total),color:'4F81BD',showLabels:true,labelPosition:'inEnd',labelFormat:'0.##',labelColor:'FFFFFF'},
-        {name:'Kümülatif',valFormula:`Rapor!$G$8:$G$${dataEnd}`,cacheValues:chartRows155.map(row=>row.done),color:'C0504D',showLabels:true,labelPosition:'inEnd',labelFormat:'0.##',labelColor:'FFFFFF'},
-        {name:'İlerleme %',valFormula:`Rapor!$H$8:$H$${dataEnd}`,cacheValues:chartRows155.map(row=>row.progress),color:'9BBB59',showLabels:true,labelPosition:'inEnd',labelFormat:'0.00"%"',labelColor:'173D42'}
+        {name:'Toplam',valFormula:`Rapor!$G$8:$G$${dataEnd}`,cacheValues:chartRows155.map(row=>row.total),color:'4F81BD',showLabels:true,labelPosition:'inEnd',labelFormat:'0.##',labelColor:'FFFFFF'},
+        {name:'Kümülatif',valFormula:`Rapor!$H$8:$H$${dataEnd}`,cacheValues:chartRows155.map(row=>row.done),color:'C0504D',showLabels:true,labelPosition:'inEnd',labelFormat:'0.##',labelColor:'FFFFFF'},
+        {name:'İlerleme %',valFormula:`Rapor!$I$8:$I$${dataEnd}`,cacheValues:chartRows155.map(row=>row.progress),color:'9BBB59',showLabels:true,labelPosition:'inEnd',labelFormat:'0.00"%"',labelColor:'173D42'}
       ],
-      fixedViewport:true,fixedRange:true,fromCol:10,fromRow:0,toCol:chartRightCol158,toRow:21,
+      fixedViewport:true,fixedRange:true,fromCol:11,fromRow:0,toCol:chartRightCol158,toRow:21,
       widthPx:835+extraFacadeCount162*192,heightPx:560,
       titleSize:1050,verticalLabels:false,
       showDataLabels:false,categoryTitle:false,autoValueAxis:true,valueFormat:'General',
@@ -29973,7 +29974,7 @@ body.v113-member .v113-role-note{display:block}
     const facadeDetails=facades.map(([block,facade])=>({block,facade,items:facadeItemReport126(rows,block,facade)}));
     const photoDetails=facades.map(([block,facade])=>({block,facade,photos:latestFacadePhotos163(block,facade)}));
     const pageTotal=9+facadeDetails.length+photoDetails.length,foot=page=>`<div class="v126-report-foot"><span>CephePro ${esc(VERSION)} · Ana Firma İmalat ve İlerleme Raporu</span><b>SAYFA ${page} / ${pageTotal}</b></div>`;
-    const dataTable=(headers,data,empty)=>`<table class="v126-report-table"><thead><tr>${headers.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${data.map(r=>`<tr>${r.map(x=>`<td>${esc(x).replace(/\n/g,'<br>')}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${headers.length}">${esc(empty)}</td></tr>`}</tbody></table>`;
+    const dataTable=(headers,data,empty)=>{({headers,rows:data}=window.CepheProReportPoz.table(headers,data));return `<table class="v126-report-table"><thead><tr>${headers.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${data.map(r=>`<tr>${r.map(x=>`<td>${esc(x).replace(/\n/g,'<br>')}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${headers.length}">${esc(empty)}</td></tr>`}</tbody></table>`;};
     const scope=`${scopeBlocks} / ${scopeFacades}`;
     const facadePagesHtml=facadeDetails.map(({block,facade,items},index)=>{
       const tableRows=items.map(x=>[x.block,x.facade,x.item,x.unit,x.total.toFixed(2),x.done.toFixed(2),progressText161(x.progress)]),chartItems=items.map(x=>({label:x.item,value:x.progress}));
@@ -30046,6 +30047,9 @@ body.v113-member .v113-role-note{display:block}
     const titleBar=title=>new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:[new TableRow({children:[new TableCell({shading:{fill:blue,type:ShadingType.CLEAR},borders:{top:{style:BorderStyle.SINGLE,size:10,color:dark},bottom:{style:BorderStyle.SINGLE,size:10,color:dark},left:{style:BorderStyle.SINGLE,size:10,color:dark},right:{style:BorderStyle.SINGLE,size:10,color:dark}},children:[para(title,{bold:true,size:23,color:white,align:AlignmentType.LEFT,after:0})]})]})]});
     const sectionTitle=(title,subtitle='')=>[para(title,{bold:true,size:24,color:dark,align:AlignmentType.CENTER,after:35}),...(subtitle?[para(subtitle,{bold:true,size:14,color:blue,align:AlignmentType.CENTER,after:90})]:[])];
     const table=(headers,data,widths=[],options={})=>{
+      const originalCount=headers.length;
+      ({headers,rows:data,widths}=window.CepheProReportPoz.table(headers,data,widths));
+      if(headers.length!==originalCount){options={...options,leftColumns:(options.leftColumns??3)+1};const total=widths.reduce((sum,value)=>sum+value,0);if(total)widths=widths.map(value=>value*100/total);}
       const headerSize=options.headerSize||13,bodySize=options.bodySize||12,leftColumns=options.leftColumns??3;
       const rowHeight=value=>value?{value,rule:HeightRule?.ATLEAST||'atLeast'}:undefined;
       return new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:[new TableRow({tableHeader:true,height:rowHeight(options.headerHeight),children:headers.map((h,i)=>new TableCell({width:widths[i]?{size:widths[i],type:WidthType.PERCENTAGE}:undefined,verticalAlign:VerticalAlign.CENTER,shading:{fill:blue,type:ShadingType.CLEAR},borders,children:[para(h,{bold:true,size:headerSize,color:white,align:AlignmentType.CENTER,after:0})]}))}),...data.map((row,ri)=>new TableRow({height:rowHeight(options.rowHeight),children:headers.map((_,i)=>new TableCell({width:widths[i]?{size:widths[i],type:WidthType.PERCENTAGE}:undefined,verticalAlign:VerticalAlign.CENTER,shading:{fill:ri%2?'F4F7F8':white,type:ShadingType.CLEAR},borders,children:[para(row?.[i]??'',{size:bodySize,align:i<leftColumns?AlignmentType.LEFT:AlignmentType.CENTER,after:0})]}))}))]});
@@ -32410,8 +32414,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <link rel="stylesheet" href="/assets/claims-v192.css">
 <link rel="stylesheet" href="/assets/claims-v194.css">
 <link rel="stylesheet" href="/assets/activity-v189.css">
+<script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=207.1">
+<link rel="stylesheet" href="/assets/puantaj.css?v=210.0">
 <script src="/assets/jszip.min.js"></script>
 <script src="/assets/puantaj-model.js?v=207"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
@@ -32433,7 +32438,7 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=209.0"></script>
+<script src="/assets/puantaj.js?v=210.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

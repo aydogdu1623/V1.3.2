@@ -29,17 +29,18 @@ function employee(i,props={}){return {id:'test-'+i,serial:'TEST-'+i,name:'Test P
  // DOM integration: test only synthetic session and fake API, no production data.
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  w.eval('var currentUser={id:"test-owner",role:"admin"};');w.localStorage.setItem('cp_cloud_token','synthetic-test-token');w.confirm=()=>true;
- let cloud={data:null,revision:0};const calls=[];
- w.fetch=async(url,opts={})=>{calls.push({url,opts});if(opts.method==='PUT'){const b=JSON.parse(opts.body);cloud={data:b.data,revision:b.revision+1,updatedAt:new Date().toISOString()};return {ok:true,json:async()=>cloud};}return {ok:true,json:async()=>cloud};};
+ let cloud={data:null,revision:0,uploads:[]};const calls=[];
+ w.fetch=async(url,opts={})=>{calls.push({url,opts});if(opts.method==='PUT'){const b=JSON.parse(opts.body);const upload={id:b.revision+1,user_name:'Admin Test',username:'test-admin',role:'admin',details:{year:b.data.year,revision:b.revision+1,employeeCount:b.data.employees.length},created_at:new Date().toISOString()};cloud={data:b.data,revision:b.revision+1,updatedAt:upload.created_at,upload,uploads:[upload,...cloud.uploads]};return {ok:true,json:async()=>cloud};}return {ok:true,json:async()=>cloud};};
  w.eval(fs.readFileSync(root+'/assets/puantaj.js','utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));const $=s=>w.document.querySelector(s),click=s=>$(s).click(),tick=()=>new Promise(r=>setTimeout(r,25));
  assert.equal($('#v38SaveStatus').nextElementSibling.id,'puantajBtn');assert.equal($('#puantajBtn').nextElementSibling.id,'layoutManagerBtn');click('#puantajBtn');await tick();assert.equal($('#puantajDialog').open,true);
  click('[data-go="personnel"]');click('[data-action="new-person"]');$('[name="name"]').value='Ekran Testi';$('[name="base"]').value='30000';$('#pt-person-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));assert.match($('#pt-content').textContent,/Ekran Testi/);
- click('#pt-save');await tick();assert.match($('#pt-status').textContent,/Kaydedildi/);assert.equal(cloud.data.employees[0].name,'Ekran Testi');click('#pt-reload');await tick();assert.match($('#pt-content').textContent,/Ekran Testi/);
- for(const tab of ['dashboard','monthly','bank','receipt','annual','holidays','personnel']){click('[data-tab="'+tab+'"]');assert.ok($('#pt-content').textContent.length>20);}
+ click('#pt-save');await tick();assert.match($('#pt-status').textContent,/Buluta yüklendi/);assert.equal(cloud.data.employees[0].name,'Ekran Testi');click('#pt-reload');await tick();assert.match($('#pt-content').textContent,/Ekran Testi/);
+ for(const tab of ['dashboard','monthly','bank','receipt','annual','holidays','personnel','uploads']){click('[data-tab="'+tab+'"]');assert.ok($('#pt-content').textContent.length>20);}
+ click('[data-tab="uploads"]');assert.match($('#pt-content').textContent,/Admin Test/);assert.match($('#pt-content').textContent,/Buluta yüklendi/);assert.match($('#pt-cloud-info').textContent,/Sürüm 1/);assert.match($('#pt-save').textContent,/Buluta Yükle/);
  click('[data-tab="monthly"]');const hours=$('[data-hours]:not(:disabled)');hours.value='2';hours.dispatchEvent(new w.Event('change',{bubbles:true}));assert.match($('#pt-status').textContent,/Kaydedilmemiş/);
  // Snapshot conflict/failure does not claim a successful save.
- w.fetch=async()=>({ok:false,json:async()=>({error:'REVISION_CONFLICT TEST'})});click('#pt-save');await tick();assert.match($('#pt-status').textContent,/REVISION_CONFLICT/);assert.ok(w.sessionStorage.length>0);
+ w.fetch=async()=>({ok:false,json:async()=>({error:'REVISION_CONFLICT TEST'})});click('#pt-save');await tick();assert.match($('#pt-status').textContent,/REVISION_CONFLICT/);assert.ok(w.sessionStorage.length>0);click('[data-tab="uploads"]');assert.equal(w.document.querySelectorAll('.pt-upload-ok').length,1);
  click('#logoutBtn');assert.equal($('#puantajDialog').open,false);assert.equal($('#pt-content').innerHTML,'');assert.equal(w.sessionStorage.length,0);
- console.log('PASS: right-of-cloud-status placement; open; add employee; save; reload; all 7 tabs; edit hours; failed save preserves draft; logout clears private content.');
+ console.log('PASS: right-of-cloud-status placement; open; add employee; save; reload; all 8 tabs; edit hours; failed save preserves draft; logout clears private content.');
  w.close();
 })().catch(e=>{console.error(e);w.close();process.exitCode=1;});
