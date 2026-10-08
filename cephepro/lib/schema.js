@@ -93,6 +93,23 @@ async function initializeSchema(sql) {
   statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_activity_user_idx ON cephepro_activity_log(user_id,created_at DESC)`);
   statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_activity_daily_user_idx ON cephepro_activity_log(user_id,created_at DESC) WHERE action_type='daily_production'`);
 
+  // Each owner/year retains the current payroll and exactly one previous copy.
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_puantaj (
+    owner_id text NOT NULL, work_year integer NOT NULL,
+    data jsonb NOT NULL DEFAULT '{}'::jsonb, revision integer NOT NULL DEFAULT 0,
+    updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(owner_id,work_year)
+  )`);
+  statements.push(sql`ALTER TABLE cephepro_puantaj ADD COLUMN IF NOT EXISTS previous_data jsonb`);
+  statements.push(sql`ALTER TABLE cephepro_puantaj ADD COLUMN IF NOT EXISTS previous_revision integer`);
+  statements.push(sql`ALTER TABLE cephepro_puantaj ADD COLUMN IF NOT EXISTS previous_updated_at timestamptz`);
+  // Apply the same two-version limit to legacy upload summaries. Historical
+  // payloads that were never stored cannot be reconstructed from these summaries.
+  statements.push(sql`DELETE FROM cephepro_activity_log l USING cephepro_puantaj p
+    WHERE l.action_type='puantaj_upload' AND l.user_id=p.owner_id
+      AND l.details->>'year'=p.work_year::text
+      AND CASE WHEN l.details->>'revision' ~ '^[0-9]{1,10}$'
+        THEN (l.details->>'revision')::bigint < p.revision::bigint-1 ELSE false END`);
+
   statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_daily_activity_snapshots (
     user_id text NOT NULL,
     work_date date NOT NULL,

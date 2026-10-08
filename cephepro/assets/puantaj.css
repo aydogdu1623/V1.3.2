@@ -34,3 +34,7 @@
 #puantajDialog #pt-work-date{width:130px}
 #puantajDialog input[type=checkbox]{min-height:0;width:16px;height:16px;padding:0}
 .cl-poz{white-space:nowrap;font-weight:700}
+
+#puantajDialog .pt-version-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 14px;background:#eff6f5;border-bottom:1px solid #dce5e8;flex-shrink:0}
+#puantajDialog #pt-version-note{flex:1;min-width:200px;font-size:11px;color:#426962}
+#puantajDialog .pt-version-bar button{font-size:11px;min-height:26px}

@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
 import '../assets/puantaj-model.js';
 import '../assets/puantaj-formulas.js';
 import {database} from './helpers/test-db.mjs';
@@ -30,10 +32,13 @@ test('PostgreSQL save keeps payroll private while exposing only permitted upload
  assert.equal((await h.call('PUT','member-a',{data:record(),revision:1,workDate:'2026-01-02'})).code,503);
  const saved=await h.call('GET','member-a');assert.equal(saved.body.revision,1);assert.equal(saved.body.uploads.length,1);
 });
-test('upload history paginates by global ID and isolates member records and years',async t=>{
- const h=await harness(t);for(let n=0;n<52;n++)assert.equal((await h.call('PUT','member-a',{data:record(),revision:n,workDate:'2026-01-02'})).code,200);
- const first=await h.call('GET','member-a',null,{year:'2026',view:'uploads'});assert.equal(first.body.uploads.length,50);assert.equal(first.body.nextBefore,'3');
- const rest=await h.call('GET','member-a',null,{year:'2026',view:'uploads',before:first.body.nextBefore});assert.deepEqual(rest.body.uploads.map(x=>x.details.revision),[2,1]);assert.equal(rest.body.nextBefore,null);
+test('upload history retains two revisions per owner/year and paginates across users',async t=>{
+ const h=await harness(t);for(let n=0;n<6;n++)assert.equal((await h.call('PUT','member-a',{data:record(),revision:n,workDate:'2026-01-02'})).code,200);
+ const own=await h.call('GET','member-a',null,{year:'2026',view:'uploads'});assert.deepEqual(own.body.uploads.map(x=>x.details.revision),[6,5]);assert.equal(own.body.nextBefore,null);
+ await h.db.exec("INSERT INTO cephepro_activity_log(user_id,user_name,role,action_type,summary,details) SELECT 'fixture-'||n,'Fixture '||n,'member','puantaj_upload','test',jsonb_build_object('year',2026,'revision',1) FROM generate_series(1,52) n");
+ const first=await h.call('GET','admin-a',null,{year:'2026',view:'uploads'});assert.equal(first.body.uploads.length,50);assert.ok(first.body.nextBefore);
+ const rest=await h.call('GET','admin-a',null,{year:'2026',view:'uploads',before:first.body.nextBefore});assert.equal(rest.body.uploads.length,4);assert.equal(rest.body.nextBefore,null);
+ assert.equal(new Set([...first.body.uploads,...rest.body.uploads].map(x=>x.id)).size,54);
  assert.equal((await h.call('GET','member-a',null,{year:'2026',view:'uploads',before:'oops'})).code,400);
  assert.equal((await h.call('GET','member-a',null,{year:'2027',view:'uploads'})).body.uploads.length,0);
 });
@@ -63,4 +68,60 @@ test('daily headcount counts work codes, respects employment dates, and shows la
  assert.equal((await h.call('GET','member-b',null,{year:'2026',view:'activity',date:'2026-04-05'})).body.activities.length,0);
  assert.equal((await h.call('GET','admin-a',null,{year:'2026',view:'activity',date:'2026-02-30'})).code,400);
  assert.equal((await h.call('PUT','member-a',{data:d,revision:2,workDate:'2100-01-01'})).code,400);
+});
+
+test('six then seven preserves exact current/previous payloads and deletes older uploads atomically',async t=>{
+ const h=await harness(t);
+ await h.call('PUT','member-b',{data:record(),revision:0,workDate:'2026-01-02'});
+ const older={...M.blank(2025),employees:[person({start:'2025-01-01'})]};
+ assert.equal((await h.call('PUT','member-a',{data:older,revision:0,workDate:'2025-01-02'})).code,200);
+ const payloads=[];
+ for(let i=1;i<=7;i++){
+  const d=record();d.employees[0].name='Snapshot '+i;d.employees[0].base=30000+i;
+  d.entries={'1:person-1':{codes:{2:i%2?'X':'R'},hours:{3:i},advance:i*100}};payloads.push(d);
+  const r=await h.call('PUT','member-a',{data:d,revision:i-1,workDate:'2026-01-02'});assert.equal(r.code,200);
+  assert.deepEqual(r.body.versions.map(x=>x.revision),i===1?[1]:[i,i-1]);
+  if(i===6){const five=await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'5'});assert.deepEqual(five.body.data,payloads[4]);assert.equal(five.body.isCurrent,false);}
+ }
+ const now=await h.call('GET','member-a');assert.deepEqual(now.body.data,payloads[6]);assert.deepEqual(now.body.uploads.map(x=>x.details.revision),[7,6]);assert.ok(now.body.uploads.every(x=>x.canOpen));
+ const prev=await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'6'});assert.equal(prev.code,200);assert.deepEqual(prev.body.data,payloads[5]);assert.equal(prev.body.currentRevision,7);
+ assert.equal((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'5'})).code,404);
+ assert.equal((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'-1'})).code,400);
+ const dbrow=(await h.db.query("SELECT data,previous_data,revision,previous_revision FROM cephepro_puantaj WHERE owner_id='member-a' AND work_year=2026")).rows[0];assert.equal(dbrow.previous_revision,6);assert.deepEqual(dbrow.previous_data,payloads[5]);
+ assert.equal((await h.call('GET','member-b')).body.revision,1);assert.equal((await h.call('GET','member-a',null,{year:'2025'})).body.revision,1);
+ assert.equal((await h.db.query("SELECT count(*)::int n FROM cephepro_activity_log WHERE user_id='member-a' AND details->>'year'='2026'")).rows[0].n,2);
+ assert.equal((await h.call('PUT','member-a',{data:record(),revision:5,workDate:'2026-01-02'})).code,409);
+ assert.deepEqual((await h.call('GET','member-a')).body.versions.map(x=>x.revision),[7,6]);
+ await h.db.exec("ALTER TABLE cephepro_activity_log ADD CONSTRAINT fail_archive_test CHECK (username <> 'member-a') NOT VALID");
+ assert.equal((await h.call('PUT','member-a',{data:record(),revision:7,workDate:'2026-01-02'})).code,503);
+ assert.deepEqual((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'6'})).body.data,payloads[5]);
+ assert.deepEqual((await h.call('GET','member-a')).body.uploads.map(x=>x.details.revision),[7,6]);
+});
+test('snapshot contents stay private even when an admin or founder can delete another upload',async t=>{
+ const h=await harness(t);for(let revision=0;revision<2;revision++)await h.call('PUT','member-a',{data:record(),revision,workDate:'2026-01-02'});
+ for(const user of ['founder','admin-a','member-b']){
+  const r=await h.call('GET',user,null,{year:'2026',view:'version',revision:'1',ownerId:'member-a'});assert.equal(r.code,404);assert.ok(!JSON.stringify(r.body).includes('Deneme Personeli'));
+ }
+ assert.equal((await h.call('GET','',null,{year:'2026',view:'version',revision:'1'})).code,401);
+ const shared=(await h.call('GET','founder',null,{year:'2026',view:'uploads'})).body.uploads;assert.equal(shared.length,2);assert.ok(shared.every(x=>x.canDelete&&!x.canOpen));assert.ok(!JSON.stringify(shared).includes('30000'));
+});
+test('legacy revision five becomes the retrievable previous copy when six is uploaded',async t=>{
+ const h=await harness(t),legacy=record();legacy.employees[0].name='Legacy Five';
+ await h.sql`INSERT INTO cephepro_puantaj(owner_id,work_year,data,revision) VALUES('member-a',2026,${JSON.stringify(legacy)}::jsonb,5)`;
+ await h.db.exec("INSERT INTO cephepro_activity_log(user_id,user_name,role,action_type,summary,details) SELECT 'member-a','User member-a','member','puantaj_upload','test',jsonb_build_object('year',2026,'revision',n) FROM generate_series(1,5) n");
+ await h.db.exec("INSERT INTO cephepro_activity_log(user_id,user_name,role,action_type,summary,details) VALUES('member-a','User member-a','member','daily_production','keep',jsonb_build_object('year',2026,'revision',1))");
+ const source=fs.readFileSync(new URL('../lib/schema.js',import.meta.url),'utf8');await vm.runInNewContext(source.slice(source.indexOf('async function initializeSchema'))+';initializeSchema(sql)',{sql:h.sql});
+ const initial=(await h.call('GET','member-a')).body;assert.deepEqual(initial.versions.map(x=>x.revision),[5]);assert.deepEqual(initial.uploads.map(x=>x.details.revision),[5,4]);assert.equal(initial.uploads[1].canOpen,false);
+ assert.equal((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'4'})).code,404);
+ assert.equal((await h.call('PUT','member-a',{data:record(),revision:5,workDate:'2026-01-02'})).code,200);
+ const previous=(await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'5'})).body;assert.deepEqual(previous.data,legacy);
+ assert.deepEqual((await h.call('GET','member-a')).body.uploads.map(x=>x.details.revision),[6,5]);
+ assert.equal((await h.db.query("SELECT count(*)::int n FROM cephepro_activity_log WHERE action_type='daily_production'")).rows[0].n,1);
+});
+test('competing uploads leave one winner, one previous copy and two summaries',async t=>{
+ const h=await harness(t);await h.call('PUT','member-a',{data:record(),revision:0,workDate:'2026-01-02'});
+ const a=record(),b=record();a.employees[0].name='Winner A';b.employees[0].name='Winner B';
+ const results=await Promise.all([a,b].map(data=>h.call('PUT','member-a',{data,revision:1,workDate:'2026-01-02'})));assert.deepEqual(results.map(x=>x.code).sort(),[200,409]);
+ const state=(await h.call('GET','member-a')).body;assert.equal(state.revision,2);assert.equal(state.uploads.length,2);
+ assert.deepEqual((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'1'})).body.data,record());
 });
