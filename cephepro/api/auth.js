@@ -26,7 +26,7 @@ async function clearFailures(sql,scope,value){
   await sql`DELETE FROM cephepro_auth_failures WHERE failure_key=${failureKey(scope,value)}`;
 }
 
-export default async function handler(req,res){
+export function createAuthHandler({getSql,noStore,bearer,ensureSchema,sessionUser,newSession,logActivity}){return async function handler(req,res){
   if(!noStore(req,res))return res.status(403).json({error:'Bu istek güvenlik nedeniyle reddedildi.',code:'ORIGIN_DENIED'});
   if(req.method==='OPTIONS')return res.status(204).end();
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
@@ -237,3 +237,5 @@ export default async function handler(req,res){
     return res.status(503).json({error:'Bulut veritabanına ulaşılamıyor.',code:'DB_UNAVAILABLE'});
   }
 }
+}
+export default createAuthHandler({getSql,noStore,bearer,ensureSchema,sessionUser,newSession,logActivity});

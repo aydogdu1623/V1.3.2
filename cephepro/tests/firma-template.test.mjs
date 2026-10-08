@@ -21,8 +21,9 @@ test('six original sheets, all 15 periods, revision boundaries, attachments and 
  assert.equal(JSON.stringify(input),before);assert.deepEqual(out.sheetNames,['Özet','Hakediş Takip','Tutanak ve Ekler','Kesintiler','Tüm İmalatlar Master','Birim Fiyat Master']);assert.equal(out.extra.length,1);
  const zip=await JSZip.loadAsync(out.bytes),source=await JSZip.loadAsync(templateBytes);
  for(const p of ['xl/styles.xml','xl/theme/theme1.xml'])assert.equal(await zip.file(p).async('string'),await source.file(p).async('string'));
- for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal(a.match(/<sheetViews>[\s\S]*?<\/sheetViews>/)?.[0],b.match(/<sheetViews>[\s\S]*?<\/sheetViews>/)?.[0]);assert.doesNotMatch(b,/_xludf\./);}
+ for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);if(![2,6].includes(i))assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal(a.match(/<sheetViews>[\s\S]*?<\/sheetViews>/)?.[0],b.match(/<sheetViews>[\s\S]*?<\/sheetViews>/)?.[0]);assert.doesNotMatch(b,/_xludf\./);}
  const track=await xml(zip,2),summary=await xml(zip,1),prices=await xml(zip,6);
+ assert.match(cell(track,'C6'),/Poz No/);assert.match(cell(track,'D6'),/İş Kalemi/);assert.match(cell(track,'C7'),/POZ-0/);assert.match(cell(track,'D7'),/İmalat 0/);assert.match(cell(prices,'A6'),/POZ-0/);assert.match(cell(prices,'B6'),/İmalat 0/);assert.match(cell(track,'K7'),/VLOOKUP\(D7, &apos;Birim Fiyat Master&apos;!B\$6/);
  assert.equal(value(track,'K7'),100);assert.equal(value(track,'O7'),120);assert.equal(value(track,'W7'),150);assert.equal(value(track,'AM7'),180);assert.equal(value(track,'BC7'),200);
  assert.equal(value(track,'BN7'),30);assert.equal(value(track,'BP7'),400);assert.match(cell(track,'G7'),/<f>F7-BM7<\/f>/);
  assert.equal(value(prices,'G6'),2);assert.equal(value(prices,'I6'),4);assert.equal(value(prices,'K6'),8);assert.equal(value(prices,'M6'),12);
@@ -50,6 +51,6 @@ test('incomplete history, duplicate periods, missing paid prices and unsupported
 });
 test('zero quantities, zero prices, empty exports and formula-like text stay safe',async()=>{
  const p=fixture(1,1);p.contractRows[0].item='=1+1 <script>';p.periods[0].snapshot.contractRows199=structuredClone(p.contractRows);p.periods[0].snapshot.firmaRows199[0].quantity=0;p.periods[0].snapshot.firmaRows199[0].price=0;
- const out=await api.build(p,{templateBytes}),zip=await JSZip.loadAsync(out.bytes),track=await xml(zip,2);assert.match(cell(track,'C7'),/inline|<is>/);assert.match(cell(track,'C7'),/&lt;script&gt;/);assert.equal(value(track,'K7'),0);assert.equal(value(track,'L7'),0);
+ const out=await api.build(p,{templateBytes}),zip=await JSZip.loadAsync(out.bytes),track=await xml(zip,2);assert.match(cell(track,'D7'),/inline|<is>/);assert.match(cell(track,'D7'),/&lt;script&gt;/);assert.equal(value(track,'K7'),0);assert.equal(value(track,'L7'),0);
  const empty=await api.build(fixture(0,1),{templateBytes});assert.equal(empty.totals[0],0);
 });

@@ -49,7 +49,7 @@ function prepare({selectedPeriodId,periods=[],contractRows=[],info={},readOnly=f
   }
   if(revisions.length>4)throw Error(item+': dört revizyondan fazla fiyat değişikliği var. Şablon dört revizyon desteklediği için veri eksilterek indirme yapılmadı.');
   for(let n=1;n<=15;n++){let p=base;for(const revision of revisions)if(n>=revision.start)p=revision.price;prices.push(p??0);}
-  Object.assign(r,{label,block,facade,code:String(r.code||r.key),unit:String(r.unit||''),contractQuantity:number(r.contractQuantity),base,revisions,quantities,prices});
+  Object.assign(r,{label,block,facade,code:String(r.pozNo??(r.code&&r.code!==r.key?r.code:'')),unit:String(r.unit||''),contractQuantity:number(r.contractQuantity),base,revisions,quantities,prices});
  });
  const extra=[],cuts=[],attachments=[];
  for(const p of ordered){const s=snap(p),n=number(p.number),meta=s.info||{};
@@ -81,6 +81,13 @@ class Sheet {
   }this.rows.set(n,row);
  }
  formula(ref,f,cache,styleRef){this.put(ref,null,{formula:f,cache,styleRef});}
+ swapColumns(a,b,start){
+  for(const [n,row]of this.rows){if(n<start)continue;const cells=[...row.body.matchAll(/<c\b[^>]*(?:>[\s\S]*?<\/c>|\/>)/g)].map(m=>m[0].replace(/\br="([A-Z]+)(\d+)"/,(_,c,r)=>`r="${c===a?b:c===b?a:c}${r}"`));cells.sort((x,y)=>columnNumber(x.match(/\br="([A-Z]+)/)[1])-columnNumber(y.match(/\br="([A-Z]+)/)[1]));row.body=cells.join('');}
+  const ia=columnNumber(a),ib=columnNumber(b);
+  this.xml=this.xml.replace(/<col\b[^>]*\/>/g,tag=>{const lo=Number(tag.match(/\bmin="(\d+)"/)?.[1]),hi=Number(tag.match(/\bmax="(\d+)"/)?.[1]);if(lo!==hi)return tag;const n=lo===ia?ib:lo===ib?ia:lo;return tag.replace(/\bmin="\d+"/,`min="${n}"`).replace(/\bmax="\d+"/,`max="${n}"`);});
+  this.xml=this.xml.replace(/<cols>([\s\S]*?)<\/cols>/,(_,body)=>'<cols>'+[...body.matchAll(/<col\b[^>]*\/>/g)].map(m=>m[0]).sort((a,b)=>Number(a.match(/min="(\d+)"/)[1])-Number(b.match(/min="(\d+)"/)[1])).join('')+'</cols>');
+  this.xml=this.output();
+ }
  resize(last,col){this.xml=this.xml.replace(/<dimension ref="[^"]+"\s*\/>/,`<dimension ref="A1:${col}${last}"/>`);}
  output(){return this.xml.replace(/<sheetData>[\s\S]*?<\/sheetData>/,'<sheetData>'+[...this.rows].sort((a,b)=>a[0]-b[0]).map(([n,r])=>'<row'+r.attrs+'>'+r.body+'</row>').join('')+'</sheetData>');}
 }
@@ -93,6 +100,7 @@ async function build(payload,{templateBytes}={}){
  if(JSON.stringify(names)!==JSON.stringify(sheetNames))throw Error('Firma hakediş şablonunun sayfa yapısı değişmiş.');
  const sheets=await Promise.all(sheetNames.map(async(_,i)=>new Sheet(await zip.file(`xl/worksheets/sheet${i+1}.xml`).async('string'))));
  const [summary,track,extras,cuts,master,prices]=sheets;
+ track.swapColumns('C','D',6);master.swapColumns('C','D',6);prices.swapColumns('A','B',5);
  const count=Math.max(24,data.rows.length),last=6+count,totalRow=last+1,priceLast=Math.max(30,5+data.rows.length);
  const firstPriceFormula=unescape(track.cell('K7')[2].match(/<f\b[^>]*>([\s\S]*?)<\/f>/)[1]).replace(/_xludf\.IFS/g,'_xlfn.IFS');
  const info=data.info;
@@ -109,10 +117,10 @@ async function build(payload,{templateBytes}={}){
  for(let i=0;i<count;i++){
   const r=7+i,item=data.rows[i],pr=6+i;
   if(item){
-   const values=[item.label,item.code,item.unit,item.base,1];for(let v=0;v<4;v++)values.push(item.revisions[v]?.price??null,item.revisions[v]?.start??99);
+   const values=[item.code,item.label,item.unit,item.base,1];for(let v=0;v<4;v++)values.push(item.revisions[v]?.price??null,item.revisions[v]?.start??99);
    values.forEach((v,c)=>write(prices,column(c+1)+pr,v,pricePrototype,column(c+1)+'6'));
-   for(const [c,v]of Object.entries({A:item.block,B:item.facade,C:item.label,F:item.contractQuantity,H:0})) {write(track,c+r,v,trackPrototype,c+'7');remember('Hakediş Takip',c+r,v??0);}
-   for(const [c,index,val]of [['D',2,item.code],['E',3,item.unit]]){formula(track,c+r,`IFERROR(VLOOKUP(C${r}, 'Birim Fiyat Master'!A$6:M$${priceLast}, ${index}, FALSE), "")`,val,trackPrototype,c+'7');remember('Hakediş Takip',c+r,val);}
+   for(const [c,v]of Object.entries({A:item.block,B:item.facade,C:item.code,D:item.label,F:item.contractQuantity,H:0})) {write(track,c+r,v,trackPrototype,c+'7');remember('Hakediş Takip',c+r,v??0);}
+   for(const [c,index,val]of [['E',2,item.unit]]){formula(track,c+r,`IFERROR(VLOOKUP(D${r}, 'Birim Fiyat Master'!B$6:M$${priceLast}, ${index}, FALSE), "")`,val,trackPrototype,c+'7');remember('Hakediş Takip',c+r,val);}
    // Retain the reference workbook's exact remaining-quantity rule (F - BM).
    const remaining=(item.contractQuantity??0)-item.quantities[14];formula(track,'G'+r,`F${r}-BM${r}`,remaining,trackPrototype,'G7');remember('Hakediş Takip','G'+r,remaining);
    let cumulative=0;
@@ -120,12 +128,12 @@ async function build(payload,{templateBytes}={}){
     const c=9+(n-1)*4,q=column(c),cum=column(c+1),price=column(c+2),amount=column(c+3),quantity=item.quantities[n-1],p=item.prices[n-1];cumulative+=quantity;
     write(track,q+r,quantity,trackPrototype,q+'7');remember('Hakediş Takip',q+r,quantity);
     formula(track,cum+r,`${n===1?'H':column(c-3)}${r}+${q}${r}`,cumulative,trackPrototype,cum+'7');remember('Hakediş Takip',cum+r,cumulative);
-    const f=firstPriceFormula.replace(/C7/g,'C'+r).replace(/\b1>=/g,n+'>=').replace(/M\$30/g,'M$'+priceLast);
+    const f=firstPriceFormula.replace(/C7/g,'D'+r).replace(/!A\$6/g,'!B$6').replace(/, (\d+), FALSE/g,(_,index)=>', '+(Number(index)-1)+', FALSE').replace(/\b1>=/g,n+'>=').replace(/M\$30/g,'M$'+priceLast);
     formula(track,price+r,f,p,trackPrototype,price+'7');remember('Hakediş Takip',price+r,p);
     formula(track,amount+r,`${q}${r}*${price}${r}`,quantity*p,trackPrototype,amount+'7');remember('Hakediş Takip',amount+r,quantity*p);
    }
   }else for(let c=1;c<=68;c++)write(track,column(c)+r,null,trackPrototype,column(c)+'7');
-  for(let c=1;c<=68;c++){const col=column(c),v=item?(cache.get('Hakediş Takip!'+col+r)??''):'';formula(master,col+r,`IF('Hakediş Takip'!C${r}<>"", 'Hakediş Takip'!${col}${r}, "")`,v,masterPrototype,col+'7');}
+  for(let c=1;c<=68;c++){const col=column(c),v=item?(cache.get('Hakediş Takip!'+col+r)??''):'';formula(master,col+r,`IF('Hakediş Takip'!D${r}<>"", 'Hakediş Takip'!${col}${r}, "")`,v,masterPrototype,col+'7');}
  }
  write(track,'A'+totalRow,'TOPLAM',trackPrototype,'A31');
  track.xml=track.xml.replace(/A31:E31/g,`A${totalRow}:E${totalRow}`);
@@ -156,5 +164,5 @@ async function build(payload,{templateBytes}={}){
  for(const p of ['xl/_rels/workbook.xml.rels','[Content_Types].xml']){const f=zip.file(p);if(f)zip.file(p,(await f.async('string')).replace(/<(?:Relationship|Override)\b[^>]*(?:calcChain)[^>]*\/>/g,''));}
  return{bytes:await zip.generateAsync({type:'uint8array',compression:'DEFLATE'}),extra:data.attachments,sheetNames:[...sheetNames],report:data,totals:sums};
 }
-root.CepheProFirmaTemplate208={prepare,build,sheetNames,version:208};
+root.CepheProFirmaTemplate208={prepare,build,sheetNames,version:211};
 })(typeof window==='undefined'?globalThis:window);

@@ -139,6 +139,11 @@ function memberVisibleState(state,adminRows){
   return view;
 }
 
+export function publicProjectState(state={}){
+ const allowed=['cp_dynamic_data','cp_block_order','cp_facade_overrides','cp_daily_entries','cp_attendance_logs','cp_project_info','cp_no_work_notes'];
+ return clone(Object.fromEntries(allowed.filter(k=>Object.hasOwn(state,k)).map(k=>[k,state[k]])));
+}
+
 export default async function handler(req,res){
   if(!noStore(req,res))return res.status(403).json({error:'Bu istek güvenlik nedeniyle reddedildi.',code:'ORIGIN_DENIED'});
   if(req.method==='OPTIONS')return res.status(204).end();
@@ -148,8 +153,7 @@ export default async function handler(req,res){
     if(req.method==='GET'){
       const rows=await sql`SELECT state,revision,updated_at,updated_by FROM cephepro_project_state WHERE project_key='main' LIMIT 1`;
       const r=rows[0]||{state:{},revision:0};
-      let visibleState=clone(r.state||{});
-      for(const key of ['cp_users','cp_user_profiles','cp_session','cp_remembered_account','cp_last_login_id','cp_member_edit_receipts'])delete visibleState[key];
+      let visibleState=publicProjectState(r.state);
       if(me.role!=='admin'){
         const adminRows=await sql`SELECT id,name,username,email FROM cephepro_users WHERE role='admin'`;
         visibleState=memberVisibleState(visibleState,adminRows);

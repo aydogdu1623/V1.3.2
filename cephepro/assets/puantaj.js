@@ -5,29 +5,41 @@ const money=n=>fmt(n)+' ₺';
 const user=()=>typeof currentUser!=='undefined'?currentUser:null;
 const token=()=>localStorage.getItem('cp_cloud_token')||localStorage.getItem('cp_remembered_cloud_token')||'';
 let data=M.blank(),revision=0,dirty=false,loaded=false,busy=false,owner='',tab='dashboard',month=new Date().getMonth()+1,personId='',generation=0,editId=null;
-let uploadRows=[],nextBefore=null,lastUploadedAt=null,historyLoading=false,historyError='',historyRequest=0;
+let uploadRows=[],nextBefore=null,lastUploadedAt=null,historyLoading=false,historyError='',historyRequest=0,cloudPending=false;
+let activityRows=[],activityLoading=false,activityError='',activityRequest=0,selectedUploads=new Set(),manager=false;
+const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+let workDate=today();
 const dateTime=value=>{const d=new Date(value);return value&&Number.isFinite(d.getTime())?d.toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'}):'—';};
 function cloudInfo(){if($('pt-cloud-info'))$('pt-cloud-info').textContent=lastUploadedAt?'Son yükleme: '+dateTime(lastUploadedAt)+' · Sürüm '+revision:'Bu yıl için henüz bulut yüklemesi yok.';}
 const draftKey=()=>`cp_puantaj_draft:${owner}:${data.year}`;
+const localKey=()=>`cp_puantaj_saved:${owner}:${data.year}`;
 function status(s,error=false){$('pt-status').textContent=s;$('pt-status').dataset.error=String(error);}
-function draft(){try{sessionStorage.setItem(draftKey(),JSON.stringify({data,revision,dirty}));}catch{status('Taslak depolanamadı. Çalışmanızı Excel olarak indirin.',true);}}
-function changed(){dirty=true;draft();status('Kaydedilmemiş değişiklikler var.');}
-function allowed(){return user()?.role==='admin'&&String(user().id)===owner&&!!token();}
-function busyState(on){busy=on;for(const id of ['pt-save','pt-download','pt-reload','pt-year'])$(id).disabled=on;$('pt-content').inert=on;}
+function draft(){try{sessionStorage.setItem(draftKey(),JSON.stringify({data,revision,dirty,cloudPending}));}catch{status('Taslak depolanamadı. Çalışmanızı Excel olarak indirin.',true);}}
+function changed(){dirty=true;cloudPending=true;draft();status('Kaydedilmemiş değişiklikler var.');}
+function allowed(){return ['admin','member'].includes(user()?.role)&&String(user().id)===owner&&!!token();}
+function busyState(on){busy=on;for(const id of ['pt-save','pt-local-save','pt-download','pt-reload','pt-year','pt-work-date'])$(id).disabled=on;$('pt-content').inert=on;}
 async function request(method,body,query={}){const response=await fetch('/api/puantaj'+(method==='GET'?'?'+new URLSearchParams({year:data.year,...query}):''),{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:body?JSON.stringify(body):undefined,cache:'no-store'});const result=await response.json().catch(()=>({error:'Sunucudan geçerli yanıt alınamadı.'}));if(!response.ok)throw Error(result.error||'Puantaj işlemi tamamlanamadı.');return result;}
 async function load(year,{restore=true}={}){
- const seq=++generation;++historyRequest;uploadRows=[];nextBefore=null;lastUploadedAt=null;historyError='';historyLoading=false;data=M.blank(year);revision=0;loaded=false;dirty=false;editId=null;cloudInfo();busyState(true);status('Puantaj kaydı yükleniyor…');render();
- let saved;try{saved=JSON.parse(sessionStorage.getItem(draftKey())||'null');}catch{}
- try{const r=await request('GET');if(seq!==generation||!allowed())return;data=r.data?M.validate(r.data):M.blank(year);revision=r.revision;loaded=true;uploadRows=r.uploads||[];nextBefore=r.nextBefore??null;lastUploadedAt=r.updatedAt||null;cloudInfo();
-  if(restore&&saved?.dirty){M.validate(saved.data);data=saved.data;dirty=true;if(saved.revision!==revision){loaded=false;status('Bu sekmede taslak var; bulut kaydı da değişmiş. Önce Excel indirerek taslağı yedekleyin, ardından Buluttan Yenile seçin.',true);}else status('Bu sekmedeki kaydedilmemiş taslak geri yüklendi.');}
-  else {if(!restore)sessionStorage.removeItem(draftKey());status(r.data?'Bulut kaydı yüklendi.':'Bu yıl için henüz kayıt yok. Personel ekleyerek başlayın.');}
- }catch(e){if(seq!==generation||!allowed())return;if(restore&&saved?.data){try{data=M.validate(saved.data);revision=saved.revision;dirty=true;}catch{}}
-  status(e.message+' Değişiklikler bu sekmede taslak tutulur; buluta kaydetmek için bağlantıyı yenileyin.',true);
- }finally{if(seq===generation&&allowed()){busyState(false);$('pt-year').value=year;render();}}
+ const seq=++generation;++historyRequest;++activityRequest;uploadRows=[];selectedUploads.clear();activityRows=[];nextBefore=null;lastUploadedAt=null;historyError='';activityError='';historyLoading=false;activityLoading=false;data=M.blank(year);revision=0;loaded=false;dirty=false;cloudPending=false;editId=null;
+ if(Number(workDate.slice(0,4))!==year)workDate=year===Number(today().slice(0,4))?today():year+'-01-01';
+ $('pt-work-date').value=workDate;$('pt-work-date').min=year+'-01-01';$('pt-work-date').max=year+'-12-31'<today()?year+'-12-31':today();
+ cloudInfo();busyState(true);status('Puantaj kaydı yükleniyor…');render();
+ let saved;try{saved=JSON.parse(sessionStorage.getItem(draftKey())||'null');if(!saved?.cloudPending&&!saved?.dirty)saved=JSON.parse(localStorage.getItem(localKey())||'null');}catch{}
+ try{const r=await request('GET');if(seq!==generation||!allowed())return;data=r.data?M.validate(r.data):M.blank(year);revision=r.revision;loaded=true;uploadRows=r.uploads||[];manager=!!r.canManage;nextBefore=r.nextBefore??null;lastUploadedAt=r.updatedAt||null;cloudInfo();
+  if(restore&&(saved?.dirty||saved?.cloudPending)){M.validate(saved.data);data=saved.data;dirty=!!saved.dirty;cloudPending=true;if(saved.revision!==revision){loaded=false;status('Cihazdaki kayıt ile bulut sürümü farklı. Önce Excel indirerek kaydınızı yedekleyin, ardından Buluttan Yenile seçin.',true);}else status(dirty?'Kaydedilmemiş taslak geri yüklendi.':'Cihazdaki kayıt yüklendi. Buluta yükleme bekliyor.');}
+  else {if(!restore){sessionStorage.removeItem(draftKey());localStorage.removeItem(localKey());}status(r.data?'Bulut kaydı yüklendi.':'Bu yıl için henüz kayıt yok. Personel ekleyerek başlayın.');}
+ }catch(e){if(seq!==generation||!allowed())return;if(restore&&saved?.data){try{data=M.validate(saved.data);revision=saved.revision;dirty=!!saved.dirty;cloudPending=true;}catch{}}
+  status(e.message+' Kaydet ile cihazınızda saklayabilirsiniz; buluta yüklemek için bağlantıyı yenileyin.',true);
+ }finally{if(seq===generation&&allowed()){busyState(false);$('pt-year').value=year;render();if(tab==='activity')refreshActivity();}}
 }
 function pendingInputs(){if($('pt-person-form')){status('Önce personel formundaki Personele Uygula düğmesine basın veya Vazgeç seçin.',true);return true;}const invalid=$('puantajDialog').querySelector('input:invalid, select:invalid');if(invalid){invalid.reportValidity();return true;}return false;}
+function saveLocal(){
+ if(busy||!allowed()||pendingInputs())return false;
+ try{M.validate(data);localStorage.setItem(localKey(),JSON.stringify({data,revision,dirty:false,cloudPending:true,savedAt:new Date().toISOString()}));dirty=false;cloudPending=true;sessionStorage.removeItem(draftKey());status('Kaydedildi. Bulutta görünmesi için Buluta Yükle düğmesine basın.');return true;}
+ catch(e){status('Cihaza kaydedilemedi: '+e.message,true);return false;}
+}
 async function save(){if(busy||!allowed()||pendingInputs())return;try{M.validate(data);}catch(e){return status(e.message,true);}if(!loaded)return status('Bulut kaydı okunamadığı için üzerine yazılmadı. Önce Excel indirerek taslağı yedekleyin ve Buluttan Yenile seçin.',true);
- const seq=generation,payload=JSON.parse(JSON.stringify(data));busyState(true);status('Buluta yükleniyor…');try{const r=await request('PUT',{data:payload,revision});if(seq!==generation||!allowed())return;revision=r.revision;dirty=false;sessionStorage.removeItem(draftKey());lastUploadedAt=r.updatedAt||null;++historyRequest;historyLoading=false;if(r.upload)uploadRows=[r.upload,...uploadRows.filter(x=>String(x.id)!==String(r.upload.id))];cloudInfo();status('Buluta yüklendi · '+dateTime(r.updatedAt)+' · Sürüm '+revision);if(tab==='uploads')render();}catch(e){if(seq===generation&&allowed()){draft();status(e.message+' Taslağınız bu sekmede korunuyor.',true);}}finally{if(seq===generation&&allowed())busyState(false);}}
+ const seq=generation,payload=JSON.parse(JSON.stringify(data));busyState(true);status('Buluta yükleniyor…');try{const r=await request('PUT',{data:payload,revision,workDate});if(seq!==generation||!allowed())return;revision=r.revision;dirty=false;cloudPending=false;sessionStorage.removeItem(draftKey());localStorage.removeItem(localKey());lastUploadedAt=r.updatedAt||null;++historyRequest;historyLoading=false;selectedUploads.clear();if(r.upload)uploadRows=[r.upload,...uploadRows.filter(x=>String(x.id)!==String(r.upload.id))];cloudInfo();status('Buluta yüklendi · '+dateTime(r.updatedAt)+' · '+workDate+': '+(r.upload?.details?.workingCount??0)+' kişi çalışmış');if(tab==='uploads')render();}catch(e){if(seq===generation&&allowed()){cloudPending=true;draft();status(e.message+' Cihazdaki kaydınız korunuyor.',true);}}finally{if(seq===generation&&allowed()){busyState(false);if(tab==='activity')refreshActivity();}}}
 async function download(){if(busy||!allowed()||pendingInputs())return;const seq=generation;busyState(true);status('18 sayfalı Excel hazırlanıyor…');try{const snapshot=JSON.parse(JSON.stringify(data));const {bytes}=await window.PuantajExport.build(snapshot,{month,personId});if(seq!==generation||!allowed())return;const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`Cift_Kademeli_Zam_Puantaj_Bordro_${data.year}.xlsx`;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);status('Excel indirildi.'+(dirty?' Buluta kaydedilmemiş değişiklikleriniz var.':''));}catch(e){if(seq===generation&&allowed())status('Excel indirilemedi: '+e.message,true);}finally{if(seq===generation&&allowed())busyState(false);}}
 const table=(heads,rows)=>`<div class="pt-scroll"><table><thead><tr>${heads.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 const row=(cells)=>'<tr>'+cells.map(c=>`<td>${c}</td>`).join('')+'</tr>';
@@ -54,31 +66,59 @@ async function refreshUploads(more=false){
  historyLoading=true;historyError='';if(tab==='uploads')render();
  try{const r=await request('GET',undefined,{view:'uploads',...(cursor?{before:cursor}:{})});
   if(seq!==generation||requestId!==historyRequest||!allowed())return;
-  uploadRows=more?[...uploadRows,...(r.uploads||[]).filter(x=>!uploadRows.some(old=>String(old.id)===String(x.id)))]:r.uploads||[];nextBefore=r.nextBefore??null;
+  uploadRows=more?[...uploadRows,...(r.uploads||[]).filter(x=>!uploadRows.some(old=>String(old.id)===String(x.id)))]:r.uploads||[];nextBefore=r.nextBefore??null;manager=!!r.canManage;selectedUploads=new Set([...selectedUploads].filter(id=>uploadRows.some(x=>String(x.id)===id&&x.canDelete)));
  }catch(e){if(seq===generation&&requestId===historyRequest&&allowed())historyError=e.message;}
  finally{if(seq===generation&&requestId===historyRequest&&allowed()){historyLoading=false;if(tab==='uploads')render();}}
 }
+const roleLabel=x=>x.isFounder?'Kurucu Admin':x.role==='admin'?'Admin':'Üye';
+async function removeUploads(ids){
+ if(busy||!allowed()||!ids.length)return;
+ if(!confirm(ids.length+' bulut yükleme kaydı ve hareket özeti silinsin mi? Kendi kayıtlı puantajınız ve bordronuz korunur.'))return;
+ const seq=generation;busyState(true);
+ try{const r=await request('DELETE',{ids});if(seq!==generation||!allowed())return;++historyRequest;++activityRequest;historyLoading=false;activityLoading=false;selectedUploads.clear();uploadRows=uploadRows.filter(x=>!ids.includes(String(x.id)));activityRows=activityRows.filter(x=>!ids.includes(String(x.id)));status(r.deleted+' bulut yükleme kaydı silindi.');render();}
+ catch(e){if(seq===generation&&allowed())status(e.message,true);}
+ finally{if(seq===generation&&allowed()){busyState(false);if(tab==='activity')refreshActivity();else refreshUploads();}}
+}
 function uploads(){
- return `<div class="pt-section-head"><div><h3>Bulut Yüklemeleri · ${data.year}</h3><p class="pt-note">Hesabınızdan başarıyla yüklenen puantaj kayıtları · Saatler Türkiye saatidir.</p></div><button data-action="refresh-uploads" ${historyLoading?'disabled':''}>${historyLoading?'Yükleniyor…':'Listeyi Yenile'}</button></div>`+
+ const deletable=uploadRows.filter(x=>x.canDelete);
+ return `<div class="pt-section-head"><div><h3>Bulut Yüklemeleri · ${data.year}</h3><p class="pt-note">${manager?'Admin: kendi ve üyelerin kayıtlarını silebilir. Kurucu admin: tüm kayıtları silebilir.':'Yalnız kendi yüklemelerinizi görür ve silebilirsiniz.'} Saatler Türkiye saatidir.</p></div><button data-action="refresh-uploads" ${historyLoading?'disabled':''}>${historyLoading?'Yükleniyor…':'Listeyi Yenile'}</button></div>`+
  (historyError?`<p class="pt-upload-error" role="alert">${esc(historyError)}</p>`:'')+
- (uploadRows.length?table(['Tarih / Saat','Kullanıcı','Yetki','Çalışma Yılı','Sürüm','Personel','İşlem'],uploadRows.map(x=>row([esc(dateTime(x.created_at)),esc(x.user_name||x.username||'Kullanıcı')+(x.username?`<span class="pt-muted">${esc(x.username)}</span>`:''),x.role==='admin'?'Admin':'Üye',esc(x.details?.year||data.year),esc(x.details?.revision??''),esc(x.details?.employeeCount??''),'<span class="pt-upload-ok">Buluta yüklendi</span>']))):`<div class="pt-empty"><h3>${historyLoading?'Yükleme kayıtları okunuyor…':'Henüz ayrıntılı yükleme kaydı yok'}</h3><p>Buluta Yükle düğmesiyle kaydettiğiniz puantajlar burada listelenir.</p></div>`)+
+ (uploadRows.length?table(['Seç','Tarih / Saat','Kullanıcı','Yetki','Çalışma Tarihi','Çalışan','Sürüm','Personel','İşlem'],uploadRows.map(x=>row([`<input type="checkbox" data-upload-check="${esc(x.id)}" aria-label="${esc(x.user_name)} ${esc(dateTime(x.created_at))} yüklemesini seç" ${x.canDelete?'':'disabled'} ${selectedUploads.has(String(x.id))?'checked':''}>`,esc(dateTime(x.created_at)),esc(x.user_name||x.username||'Kullanıcı'),roleLabel(x),esc(x.details?.workDate||'—'),esc(x.details?.workingCount??'—'),esc(x.details?.revision??''),esc(x.details?.employeeCount??''),x.canDelete?`<button data-upload-delete="${esc(x.id)}">Sil</button>`:'Korumalı']))):`<div class="pt-empty"><h3>${historyLoading?'Yükleme kayıtları okunuyor…':'Henüz yükleme kaydı yok'}</h3><p>Kaydet düğmesi cihazınıza kaydeder. Buluta Yükle düğmesi kayıtları burada görünür yapar.</p></div>`)+
+ (deletable.length?`<div class="pt-upload-actions"><button data-action="select-uploads">Silinebilenleri Seç</button><button data-action="delete-uploads" ${selectedUploads.size?'':'disabled'}>Seçilenleri Sil (${selectedUploads.size})</button></div>`:'')+
  (nextBefore?`<button data-action="more-uploads" ${historyLoading?'disabled':''}>Önceki Yüklemeler</button>`:'');
 }
-function render(){$('pt-content').setAttribute('aria-labelledby','pt-tab-'+tab);const views={dashboard,personnel,monthly,bank,receipt,annual,holidays,uploads};$('pt-content').innerHTML=views[tab]();$('pt-content').inert=busy;$('pt-month').value=month;for(const b of $('pt-tabs').querySelectorAll('[data-tab]'))b.setAttribute('aria-selected',String(b.dataset.tab===tab));}
+async function refreshActivity(){
+ if(!allowed()||busy||activityLoading)return;const seq=generation,requestId=++activityRequest;activityLoading=true;activityError='';if(tab==='activity')render();
+ try{const r=await request('GET',undefined,{view:'activity',date:workDate});if(seq!==generation||requestId!==activityRequest||!allowed())return;activityRows=r.activities||[];manager=!!r.canManage;}
+ catch(e){if(seq===generation&&requestId===activityRequest&&allowed())activityError=e.message;}
+ finally{if(seq===generation&&requestId===activityRequest&&allowed()){activityLoading=false;if(tab==='activity')render();}}
+}
+function activity(){
+ const total=activityRows.reduce((n,x)=>n+Number(x.details?.workingCount||0),0);
+ return `<div class="pt-section-head"><div><h3>Admin / Üye Hareket Takibi</h3><p class="pt-note">${esc(workDate)} · Her kullanıcının bu tarih için son yüklemesi. Çalışan sayısı puantajdaki X, PM ve BM kodlarından hesaplanır.</p></div><button data-action="refresh-activity" ${activityLoading?'disabled':''}>Yenile</button></div><div class="pt-grid"><div class="pt-card"><span>Yükleme yapan kullanıcı</span><strong>${activityRows.length}</strong></div><div class="pt-card"><span>Bildirilen çalışan toplamı</span><strong>${total}</strong></div></div>`+
+ (activityError?`<p role="alert">${esc(activityError)}</p>`:'')+
+ (activityRows.length?table(['Kullanıcı','Yetki','Çalışma Tarihi','Kaç Kişi Çalışmış','Yükleme Saati','İşlem'],activityRows.map(x=>row([esc(x.user_name||x.username),roleLabel(x),esc(x.details.workDate),`<b>${esc(x.details.workingCount)} kişi</b>`,esc(dateTime(x.created_at)),x.canDelete?`<button data-upload-delete="${esc(x.id)}">Sil</button>`:'Korumalı']))):`<p class="pt-note">${activityLoading?'Hareketler yükleniyor…':'Seçili tarih için buluta yüklenen puantaj yok.'}</p>`);
+}
+function render(){$('pt-content').setAttribute('aria-labelledby','pt-tab-'+tab);const views={dashboard,personnel,monthly,bank,receipt,annual,holidays,uploads,activity};$('pt-content').innerHTML=views[tab]();$('pt-content').inert=busy;$('pt-month').value=month;for(const b of $('pt-tabs').querySelectorAll('[data-tab]'))b.setAttribute('aria-selected',String(b.dataset.tab===tab));}
 function getEntry(id){return data.entries[`${month}:${id}`]??= {codes:{},hours:{},advance:0};}
 function close(){if(dirty)draft();$('puantajDialog').close();$('puantajBtn').focus();}
-function reset(){++generation;++historyRequest;uploadRows=[];nextBefore=null;lastUploadedAt=null;historyError='';historyLoading=false;revision=0;cloudInfo();for(let i=sessionStorage.length-1;i>=0;i--){const k=sessionStorage.key(i);if(k?.startsWith('cp_puantaj_draft:'))sessionStorage.removeItem(k);}owner='';data=M.blank();dirty=false;loaded=false;busy=false;$('puantajDialog').close();$('pt-content').innerHTML='';}
-async function open(){if(user()?.role!=='admin'||!token()){if(typeof showToast==='function')showToast('Puantaj için yönetici oturumu açın.');return;}owner=String(user().id);$('puantajDialog').showModal();await load(Number($('pt-year').value)||new Date().getFullYear());}
+function reset(){++generation;++historyRequest;++activityRequest;activityRows=[];selectedUploads.clear();activityLoading=false;activityError='';cloudPending=false;uploadRows=[];nextBefore=null;lastUploadedAt=null;historyError='';historyLoading=false;revision=0;cloudInfo();for(let i=sessionStorage.length-1;i>=0;i--){const k=sessionStorage.key(i);if(k?.startsWith('cp_puantaj_draft:'))sessionStorage.removeItem(k);}owner='';data=M.blank();dirty=false;loaded=false;busy=false;$('puantajDialog').close();$('pt-content').innerHTML='';}
+async function open(){if(!['admin','member'].includes(user()?.role)||!token()){if(typeof showToast==='function')showToast('Puantaj için hesabınıza giriş yapın.');return;}owner=String(user().id);$('puantajDialog').showModal();await load(Number($('pt-year').value)||new Date().getFullYear());}
 function setup(){if($('puantajDialog'))return;const panel=$('layoutManagerBtn');if(!panel)return;
  const btn=$('puantajBtn')||document.createElement('button');btn.id='puantajBtn';btn.className='btn';btn.type='button';btn.setAttribute('aria-haspopup','dialog');btn.setAttribute('aria-controls','puantajDialog');btn.title='Puantaj ve bordro';btn.innerHTML='<span class="v76-top-icon" aria-hidden="true">▤</span><span>Puantaj</span>';panel.before(btn);const cloud=$('v38SaveStatus');if(cloud)cloud.after(btn);
- const dialog=document.createElement('dialog');dialog.id='puantajDialog';dialog.setAttribute('aria-labelledby','pt-title');dialog.innerHTML=`<div class="pt-shell"><div class="pt-head"><div><h2 id="pt-title">Çift Kademeli Puantaj ve Bordro</h2><p class="pt-sub">Personel sicili, günlük çalışma ve maaş takibi</p></div><button id="pt-close" type="button" aria-label="Puantajı kapat">×</button></div><div class="pt-toolbar"><label>Çalışma yılı<input id="pt-year" type="number" min="2025" max="2100" value="${data.year}" style="width:105px"></label><label>Bordro dönemi<select id="pt-month">${M.months.map((m,i)=>`<option value="${i+1}" ${month===i+1?'selected':''}>${m}</option>`).join('')}</select></label><div class="pt-spacer"></div><button id="pt-save" type="button" class="pt-primary">☁ Buluta Yükle</button><button id="pt-reload" type="button">Buluttan Yenile</button><button id="pt-download" type="button">Excel İndir</button></div><div id="pt-cloud-info" class="pt-cloud-info" aria-live="polite"></div><div id="pt-status" role="status" aria-live="polite"></div><div id="pt-tabs" class="pt-tabs" role="tablist" aria-label="Puantaj sayfaları">${[['dashboard','Yönetici Paneli'],['personnel','Personel Sicili'],['monthly','Aylık Puantaj'],['bank','Banka Transfer'],['receipt','Ücret Pusulası'],['annual','Çoklu Özet'],['holidays','Resmi Tatiller'],['uploads','Bulut Yüklemeleri']].map(([id,label])=>`<button type="button" role="tab" id="pt-tab-${id}" aria-controls="pt-content" data-tab="${id}">${label}</button>`).join('')}</div><div id="pt-content" role="tabpanel"></div><p class="pt-note pt-footer">Hesap yöntemi Excel şablonuyla aynıdır: 28+ ücretli gün tam maaş, mesai /225 ×1,5, PM/BM /30 ×1,5. Ücretsiz izin kesintisi ayrıca düşülür. Brüt, şablondaki 0,7149 katsayısı ile tahmindir.</p></div>`;document.body.appendChild(dialog);
- btn.onclick=open;$('pt-close').onclick=close;dialog.addEventListener('cancel',e=>{e.preventDefault();close();});$('pt-save').onclick=save;$('pt-download').onclick=download;
- $('pt-reload').onclick=()=>{if(!dirty||confirm('Kaydedilmemiş değişiklikler buluttaki kayıtla değiştirilecek. Devam edilsin mi?'))load(data.year,{restore:false});};
+ const dialog=document.createElement('dialog');dialog.id='puantajDialog';dialog.setAttribute('aria-labelledby','pt-title');dialog.innerHTML=`<div class="pt-shell"><div class="pt-head"><div><h2 id="pt-title">Çift Kademeli Puantaj ve Bordro</h2><p class="pt-sub">Personel sicili, günlük çalışma ve maaş takibi</p></div><button id="pt-close" type="button" aria-label="Puantajı kapat">×</button></div><div class="pt-toolbar"><label>Çalışma yılı<input id="pt-year" type="number" min="2025" max="2100" value="${data.year}" style="width:105px"></label><label>Bordro dönemi<select id="pt-month">${M.months.map((m,i)=>`<option value="${i+1}" ${month===i+1?'selected':''}>${m}</option>`).join('')}</select></label><label>Çalışma tarihi<input id="pt-work-date" type="date" value="${workDate}"></label><div class="pt-spacer"></div><button id="pt-local-save" type="button">Kaydet</button><button id="pt-save" type="button" class="pt-primary">☁ Buluta Yükle</button><button id="pt-reload" type="button">Buluttan Yenile</button><button id="pt-download" type="button">Excel İndir</button></div><div id="pt-cloud-info" class="pt-cloud-info" aria-live="polite"></div><div id="pt-status" role="status" aria-live="polite"></div><div id="pt-tabs" class="pt-tabs" role="tablist" aria-label="Puantaj sayfaları">${[['dashboard','Yönetici Paneli'],['personnel','Personel Sicili'],['monthly','Aylık Puantaj'],['bank','Banka Transfer'],['receipt','Ücret Pusulası'],['annual','Çoklu Özet'],['holidays','Resmi Tatiller'],['uploads','Bulut Yüklemeleri'],['activity','Admin/Üye Hareket Takibi']].map(([id,label])=>`<button type="button" role="tab" id="pt-tab-${id}" aria-controls="pt-content" data-tab="${id}">${label}</button>`).join('')}</div><div id="pt-content" role="tabpanel"></div><p class="pt-note pt-footer">Hesap yöntemi Excel şablonuyla aynıdır: 28+ ücretli gün tam maaş, mesai /225 ×1,5, PM/BM /30 ×1,5. Ücretsiz izin kesintisi ayrıca düşülür. Brüt, şablondaki 0,7149 katsayısı ile tahmindir.</p></div>`;document.body.appendChild(dialog);
+ btn.onclick=open;$('pt-close').onclick=close;dialog.addEventListener('cancel',e=>{e.preventDefault();close();});$('pt-save').onclick=save;$('pt-local-save').onclick=saveLocal;$('pt-download').onclick=download;
+ $('pt-reload').onclick=()=>{if(!(dirty||cloudPending)||confirm('Kaydedilmemiş değişiklikler buluttaki kayıtla değiştirilecek. Devam edilsin mi?'))load(data.year,{restore:false});};
  $('pt-year').onchange=()=>{const y=Number($('pt-year').value);if(!Number.isInteger(y)||y<2025||y>2100){$('pt-year').value=data.year;return status('Geçerli bir çalışma yılı girin.',true);}if(dirty)draft();load(y);};
+ $('pt-work-date').onchange=()=>{const value=$('pt-work-date').value;if(!value||Number(value.slice(0,4))!==data.year||value>today()){$('pt-work-date').value=workDate;return status('Seçili yıl içinde, bugün veya geçmiş bir tarih seçin.',true);}workDate=value;++activityRequest;activityLoading=false;activityRows=[];if(tab==='activity')refreshActivity();};
  $('pt-month').onchange=()=>{month=Number($('pt-month').value);render();};
  dialog.addEventListener('click',e=>{if(!allowed()||busy)return;const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.tab||b.dataset.go){tab=b.dataset.tab||b.dataset.go;editId=null;render();$('pt-content').setAttribute('aria-labelledby','pt-tab-'+tab);}
+  if(b.dataset.tab||b.dataset.go){tab=b.dataset.tab||b.dataset.go;editId=null;render();$('pt-content').setAttribute('aria-labelledby','pt-tab-'+tab);if(tab==='activity')refreshActivity();if(tab==='uploads')refreshUploads();}
   if(b.dataset.month){month=Number(b.dataset.month);render();}
+  if(b.dataset.action==='refresh-activity')refreshActivity();
+  if(b.dataset.uploadDelete)removeUploads([String(b.dataset.uploadDelete)]);
+  if(b.dataset.action==='select-uploads'){selectedUploads=new Set(uploadRows.filter(x=>x.canDelete).map(x=>String(x.id)));render();}
+  if(b.dataset.action==='delete-uploads')removeUploads([...selectedUploads]);
   if(b.dataset.action==='refresh-uploads')refreshUploads();
   if(b.dataset.action==='more-uploads')refreshUploads(true);
   if(b.dataset.action==='new-person'){editId='';render();$('pt-person-form')?.querySelector('input')?.focus();}
@@ -90,6 +130,7 @@ function setup(){if($('puantajDialog'))return;const panel=$('layoutManagerBtn');
  });
  dialog.addEventListener('submit',e=>{if(e.target.id!=='pt-person-form')return;e.preventDefault();if(!allowed()||busy)return;const form=new FormData(e.target),p={id:editId||crypto.randomUUID()};for(const [key,,type] of fields)p[key]=type==='number'||type==='month'?Number(form.get(key)||0):String(form.get(key)||'').trim();p.iban=p.iban.replace(/\s/g,'').toUpperCase();const next=JSON.parse(JSON.stringify(data));if(editId)next.employees[next.employees.findIndex(x=>x.id===editId)]=p;else next.employees.push(p);try{M.validate(next);data=next;editId=null;changed();render();}catch(err){status(err.message,true);}});
  dialog.addEventListener('change',e=>{if(!allowed()||busy)return;const el=e.target,d=el.dataset;let id;
+  if(d.uploadCheck){const id=String(d.uploadCheck);if(uploadRows.some(x=>String(x.id)===id&&x.canDelete)){el.checked?selectedUploads.add(id):selectedUploads.delete(id);render();}return;}
   if(el.id==='pt-person-select'){personId=el.value;render();return;}
   if(d.code){id=d.code;const x=getEntry(id);if(el.value==='auto')delete x.codes[d.day];else x.codes[d.day]=el.value;}
   if(d.hours){if(!el.checkValidity())return el.reportValidity();id=d.hours;getEntry(id).hours[d.day]=Number(el.value||0);}
@@ -99,8 +140,8 @@ function setup(){if($('puantajDialog'))return;const panel=$('layoutManagerBtn');
   if(id){const cell=dialog.querySelector(`[data-net="${id}"]`);if(cell)cell.innerHTML='<b>'+money(M.calc(data,data.employees.find(p=>p.id===id),month).net)+'</b>';}
   if(id||d.holidayName!==undefined||d.holidayDate!==undefined)changed();
  });
- const sync=()=>{btn.hidden=user()?.role!=='admin';if(owner&&(!allowed()))reset();};
- document.addEventListener('cephepro:user-ready',sync);$('logoutBtn')?.addEventListener('click',reset,true);window.addEventListener('storage',e=>{if(['cp_session','cp_cloud_token','cp_remembered_cloud_token'].includes(e.key))sync();});setInterval(sync,1000);sync();
+ const sync=()=>{btn.hidden=!['admin','member'].includes(user()?.role)||!token();if(owner&&(!allowed()))reset();};
+ document.addEventListener('cephepro:user-ready',sync);document.addEventListener('cephepro:locked',reset);$('logoutBtn')?.addEventListener('click',reset,true);window.addEventListener('storage',e=>{if(['cp_session','cp_cloud_token','cp_remembered_cloud_token'].includes(e.key))sync();});setInterval(sync,1000);sync();
  window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();

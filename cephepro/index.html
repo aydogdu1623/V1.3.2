@@ -1,16 +1,22 @@
 <!doctype html>
-<html lang="tr">
+<html lang="tr" data-cp-auth="locked">
 <head>
+<style id="cp-session-privacy">
+html[data-cp-auth="locked"] body > :not(#authScreen):not(script):not(style):not(link){display:none!important}
+html[data-cp-auth="locked"] #authScreen{display:grid!important}
+html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
+</style>
+<script src="/assets/session-privacy.js?v=211.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta name="cephepro-version" content="V201"/>
-<meta name="cephepro-build" content="V201.0"/>
+<meta name="cephepro-version" content="V211"/>
+<meta name="cephepro-build" content="V211.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V210";window.CEPHEPRO_BUILD="V210.0";</script>
+<script>window.CEPHEPRO_VERSION="V211";window.CEPHEPRO_BUILD="V211.0";</script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" data-v167-external="true"></script>
@@ -5704,27 +5710,10 @@ const store={
  set(k,v){memoryStore[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
  remove(k){delete memoryStore[k];try{localStorage.removeItem(k)}catch(e){}}
 };
-let users=store.get("cp_users",[
- {id:1,name:"CephePro Yöneticisi",username:"",email:(window.__cpFounderEmail||'__protected_founder__'),password:"",role:"admin"}
-]);
-if(!Array.isArray(users) || users.length===0){
- users=[{id:1,name:"CephePro Yöneticisi",username:"",email:(window.__cpFounderEmail||'__protected_founder__'),password:"",role:"admin"}];
- store.set("cp_users",users);
-}
-users.forEach(u=>{
- if((u.email||"").toLowerCase()===(window.__cpFounderEmail||'__protected_founder__'))u.role="admin";
-});
-store.set("cp_users",users);
-
+let users=store.get("cp_users",[]);
+if(!Array.isArray(users))users=[];
 const MASTER_ADMIN_EMAIL=(window.__cpFounderEmail||'__protected_founder__');
-let masterAdmin=users.find(u=>(u.email||"").toLowerCase()===MASTER_ADMIN_EMAIL);
-if(!masterAdmin){
- masterAdmin={id:1,name:"CephePro Yöneticisi",username:"",email:MASTER_ADMIN_EMAIL,password:"",role:"admin"};
- users.unshift(masterAdmin);
-}else{
- masterAdmin.role="admin";
-}
-store.set("cp_users",users);
+let masterAdmin=users.find(u=>(u.email||"").toLowerCase()===MASTER_ADMIN_EMAIL)||null;
 
 let currentUser=(localStorage.getItem("cp_cloud_token")||localStorage.getItem("cp_remembered_cloud_token"))?store.get("cp_session",null):null;
 let attendanceLogs=store.get("cp_attendance_logs",[]);
@@ -5740,7 +5729,7 @@ try{
  }
 }catch(e){}
 
-let lastLoginId=store.get("cp_last_login_id","")||"";
+let lastLoginId="";
 let rememberedAccount=store.get("cp_remembered_account",null);
 let facadeOverrides=store.get("cp_facade_overrides",{});
 let dailyEntries=store.get("cp_daily_entries",{});
@@ -5756,7 +5745,7 @@ function refreshLoginSuggestions(){
  // Login suggestions belong only to this device’s remembered account.
  const unique=[...new Set(values.filter(Boolean))];
  loginSuggestions.innerHTML=unique.map(v=>`<option value="${v}"></option>`).join("");
- if(!loginUser.value && lastLoginId)loginUser.value=lastLoginId;
+
 }
 
 function authTab(mode){
@@ -5785,7 +5774,7 @@ function applyAuth(){
  const loginUserEl=document.getElementById("loginUser");
  if(!currentUser){
    if(auth)auth.style.display="grid";
-   if(loginUserEl && lastLoginId && !loginUserEl.value)loginUserEl.value=lastLoginId;
+
    try{refreshRememberedProfile()}catch(e){}
    return;
  }
@@ -6149,16 +6138,8 @@ registerBtn.addEventListener("click",()=>{
 });
 
 function refreshRememberedProfile(){
- const area=document.getElementById("rememberedProfileArea");
- if(!area)return;
- if(!rememberedAccount){area.style.display="none";return}
- area.style.display="block";
- const usernameEl=document.getElementById("rememberedUsername");
- const emailEl=document.getElementById("rememberedEmail");
- const avatarEl=document.getElementById("rememberedAvatar");
- if(usernameEl)usernameEl.textContent=rememberedAccount.username||rememberedAccount.name||"Kullanıcı";
- if(emailEl)emailEl.textContent=rememberedAccount.email||"";
- if(avatarEl)avatarEl.textContent=(rememberedAccount.username||rememberedAccount.name||"A").trim().charAt(0).toUpperCase();
+ const area=document.getElementById("rememberedProfileArea");if(area)area.style.display="none";
+ for(const id of ['rememberedUsername','rememberedEmail','rememberedAvatar']){const el=document.getElementById(id);if(el)el.textContent='';}
 }
 const rememberedProfileButton=document.getElementById("rememberedProfileBtn");
 if(rememberedProfileButton){
@@ -25482,10 +25463,11 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
   }
 
   function setCloudUser(user,token,remember=true){
+    window.CepheProPrivacy?.accept(user);
     cloudToken=token||cloudToken;
     if(token){localStorage.setItem(TOKEN_KEY,token);if(remember)localStorage.setItem(REMEMBERED_TOKEN_KEY,token)}
     currentUser={
-      id:user.id,name:user.name,username:user.username,email:user.email||'',role:user.role
+      id:user.id,name:user.name,username:user.username,email:user.email||'',role:user.role,isFounder:!!user.isFounder
     };
     localSet('cp_session',currentUser);
     lastLoginId=currentUser.email||currentUser.username;
@@ -25505,7 +25487,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     localStorage.removeItem(REMEMBERED_TOKEN_KEY);
     localStorage.removeItem(REV_KEY);
     cloudRevision=0;
-    currentUser=null;store.remove('cp_session');
+    currentUser=null;store.remove('cp_session');window.CepheProPrivacy?.lock();
     const auth=document.getElementById('authScreen');if(auth)auth.style.display='grid';
   }
 
@@ -25513,6 +25495,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     setCloudUser(user,token,remember);
     await fetchCloudUsers();
     await pullState({reload:true,bootstrap:true});
+    window.CepheProPrivacy?.ready(currentUser);
   }
 
   async function cloudLogin(){
@@ -25656,6 +25639,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
       setCloudUser(data.user,cloudToken,true);
       await fetchCloudUsers();
       await pullState({reload:true,bootstrap:true});
+      window.CepheProPrivacy?.ready(currentUser);
     }catch(err){
       console.error('cloud boot',err);
       clearCloudSession(false);
@@ -29160,6 +29144,7 @@ select,textarea,
     }catch(_){ }
   }
   function enter(user,tok,remember=true,reloadCloud=true){
+    window.CepheProPrivacy?.accept(user);
     if(String(currentUser?.id||'')!==String(user.id)){localStorage.removeItem('cp_cloud_revision');users=[];v34UserProfiles={};store.set('cp_users',[]);store.set('cp_user_profiles',{});}
     if(!remember){rememberedAccount=null;store.remove('cp_remembered_account');localStorage.removeItem(REM_TOKEN_KEY);}
     window.__cpFounderEmail=user.isFounder?user.email:null;
@@ -29170,6 +29155,7 @@ select,textarea,
     if(remember){rememberedAccount={...currentUser};store.set('cp_remembered_account',rememberedAccount)}
     try{refreshRememberedProfile()}catch(_){ }try{applyAuth()}catch(e){console.error(e)}
     const a=document.getElementById('authScreen');if(a)a.style.display='none';status('');regStatus('');
+    if(!reloadCloud)window.CepheProPrivacy?.ready(currentUser);
     if(tok&&reloadCloud&&location.protocol!=='file:'){
       const k='cp_v113_login_reload',sig=tok.slice(0,16);if(sessionStorage.getItem(k)!==sig){sessionStorage.setItem(k,sig);setTimeout(()=>location.reload(),60)}
     }
@@ -31717,7 +31703,7 @@ body.v113-member .v113-role-note{display:block}
   function showCloudLogin(message){
     prefillFounder();
     const status=document.getElementById('loginStatus');if(status&&message)status.textContent=message;
-    const auth=document.getElementById('authScreen');if(auth)auth.style.display='grid';
+    const auth=document.getElementById('authScreen');if(auth)auth.style.display='grid';window.CepheProPrivacy?.lock();
   }
   async function ensureAutomaticCloudSession(options={}){
     if(!isPublished())throw new Error('Ortak bulut yalnız yayınlanan CephePro site bağlantısında çalışır.');
@@ -32403,9 +32389,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=195"></script>
-<script src="/assets/firma-template-v208.js?v=208"></script>
-<script src="/assets/claims-v182.js?v=208"></script>
+<script src="/assets/claims-report-v191.js?v=211.0"></script>
+<script src="/assets/firma-template-v208.js?v=211.0"></script>
+<script src="/assets/claims-v182.js?v=211.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
@@ -32416,7 +32402,7 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <link rel="stylesheet" href="/assets/activity-v189.css">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=210.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=211.0">
 <script src="/assets/jszip.min.js"></script>
 <script src="/assets/puantaj-model.js?v=207"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
@@ -32438,7 +32424,7 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=210.0"></script>
+<script src="/assets/puantaj.js?v=211.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

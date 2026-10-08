@@ -25,7 +25,7 @@ function cleanRecords(input,workDate){
   return out;
 }
 
-export default async function handler(req,res){
+export function createActivityHandler({getSql,noStore,bearer,ensureSchema,sessionUser}){return async function handler(req,res){
   if(!noStore(req,res))return res.status(403).json({error:'Bu istek güvenlik nedeniyle reddedildi.',code:'ORIGIN_DENIED'});
   if(req.method==='OPTIONS')return res.status(204).end();
   try{
@@ -40,7 +40,7 @@ export default async function handler(req,res){
         ?await sql`SELECT s.user_id,s.user_name,s.work_date,u.role AS owner_role,jsonb_array_length(s.records) AS count,COALESCE(lower(trim(u.email))=${MASTER_EMAIL},false) AS protected FROM cephepro_daily_activity_snapshots s LEFT JOIN cephepro_users u ON u.id=s.user_id WHERE s.expires_at>now() ORDER BY s.work_date DESC,s.user_name`
         :await sql`SELECT user_id,user_name,work_date,jsonb_array_length(records) AS count FROM cephepro_daily_activity_snapshots WHERE expires_at>now() AND user_id=${String(me.id)} ORDER BY work_date DESC`;
       const uploads=records.map(row=>({...row,work_date:dateOnly(row.work_date),canDelete:founder||String(row.user_id)===String(me.id)||manager&&!row.protected&&row.owner_role==='member'}));
-      return res.status(200).json({uploads,canDeleteAll:founder,canManageUploads:manager,canDeleteMany:manager,currentUserId:String(me.id)});
+      return res.status(200).json({uploads,canDeleteAll:founder,canManageUploads:manager,canDeleteMany:true,currentUserId:String(me.id)});
     }
     if(req.method==='DELETE'){
       const {scope='one',workDate,userId,uploads}=req.body||{};
@@ -51,14 +51,11 @@ export default async function handler(req,res){
         return res.status(200).json({ok:true,deleted:deleted.length});
       }
       if(scope==='mine'){
-        if(!manager)return res.status(403).json({error:'Üyeler kendi yüklemelerini tek tek silebilir.'});
         const deleted=await sql`DELETE FROM cephepro_daily_activity_snapshots WHERE user_id=${String(me.id)} RETURNING user_id`;
         return res.status(200).json({ok:true,deleted:deleted.length});
       }
-      if(scope==='one'&&String(userId??me.id)!==String(me.id))return res.status(403).json({error:'Yüklemeni sil yalnız kendi yüklemenizi silebilir.'});
       const input=scope==='one'?[{userId:userId??me.id,workDate}]:uploads;
       if(!Array.isArray(input)||!input.length||input.length>200)return res.status(400).json({error:'1 ile 200 arasında yükleme seçin.'});
-      if(!manager&&input.length>1)return res.status(403).json({error:'Üyeler kendi yüklemelerini tek tek silebilir.'});
       const targets=[],seen=new Set();
       for(const item of input){
         const target=String(item?.userId??''),day=String(item?.workDate??'');
@@ -119,3 +116,5 @@ export default async function handler(req,res){
     return res.status(405).json({error:'Desteklenmeyen istek yöntemi.'});
   }catch(error){console.error('[api/activity]',{message:String(error?.message||error),method:req.method,userId:req.query?.userId||null});return res.status(500).json({error:'Admin/Üye hareket kayıtları işlenemedi.'});}
 }
+}
+export default createActivityHandler({getSql,noStore,bearer,ensureSchema,sessionUser});

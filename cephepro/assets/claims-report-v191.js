@@ -17,7 +17,7 @@ async function build({ExcelJS,templateUrl,periods,selectedPeriodId,rowOrder=[]})
  const s=wb.addWorksheet('Özet'),h=wb.addWorksheet('Hakediş'),t=wb.addWorksheet('Tutanak ve Ekler'),k=wb.addWorksheet('Kesintiler'),g=wb.addWorksheet('Kullanım Kılavuzu');
  const ts=template.getWorksheet('Özet'),th=template.getWorksheet('Hakediş'),tt=template.getWorksheet('Tutanak ve Ekler'),tk=template.getWorksheet('Kesintiler');
  const slots=periods.map(p=>({...p}));while(slots.length<3)slots.push({number:Math.max(0,...slots.map(p=>num(p.number)))+1,snapshot:null});
- const n=slots.length,bound=7+3*n,controlCol=bound+3,endCol=bound+4,summaryBound=n+2,summaryTotal=n+3;
+ const n=slots.length,bound=8+3*n,controlCol=bound+3,endCol=bound+4,summaryBound=n+2,summaryTotal=n+3;
  const last=column(bound),sumLast=column(summaryBound),totalCol=column(summaryTotal);
  const metadata=new Map(),discovered=[];for(const per of periods)for(const r of per.snapshot.rows){if(!metadata.has(r.key))discovered.push(r.key);metadata.set(r.key,r);}
  const remembered=rowOrder.length?rowOrder:[...periods].reverse().find(p=>p.snapshot.rowOrder195?.length)?.snapshot.rowOrder195||[];
@@ -40,31 +40,32 @@ async function build({ExcelJS,templateUrl,periods,selectedPeriodId,rowOrder=[]})
  value(s,`${sumLast}10`,'Dönem sonu');value(s,`${totalCol}10`,'GENEL TOPLAM');
  value(s,'B28','Tutarlar TL. Seçili dönem ve önceki kayıtlı dönemler gösterilir.');value(s,'B29','Sonraki dönemler ve kayıt dışı ekran filtreleri rapora alınmaz.');
  for(let c=1;c<=endCol;c++){
-  const source=c===endCol?9:c<=6?c:c===bound?16:c>bound?17+c-bound-1:7+(c-7)%3;
+  const source=c===3?2:c===endCol?9:c<=7?(c<3?c:c-1):c===bound?16:c>bound?17+c-bound-1:7+(c-8)%3;
   h.getColumn(c).width=th.getColumn(source).width;
   for(let r=1;r<=end;r++)style(h,`${column(c)}${r}`,th,`${column(source)}${r<=7?r:8}`);
  }
  value(h,'A2',th.getCell('A2').value);value(h,'A3','Toplam ve kümülatif metraj kayıtlı dönem verisidir. Verilecek Miktar yalnız ilgili hakedişin ödeme miktarıdır.');value(h,'A4','Dönem no');
- const headers=['Blok','Cephe','İş Kalemi','Toplam Metraj','Kümülatif Metraj','Birim'];
+ h.getColumn(3).width=14;
+ const headers=['Blok','Cephe','Poz No','İş Kalemi','Toplam Metraj','Kümülatif Metraj','Birim'];
  for(const per of slots)headers.push(`Birim Fiyat ${per.number}`,`Verilecek Miktar ${per.number}`,`Tutar ${per.number}`);
  headers.push('Dönem sonu','Toplam Verilen','Verilebilir Bakiye','Kontrol','Kümülatif Tutar');
  const maps=slots.map(p=>new Map((p.snapshot?.rows||[]).map(r=>[r.key,r])));
  const workRows=[];let workWarnings=0;
  for(let i=0;i<count;i++){
-  const r=8+i,key=keys[i],meta=metadata.get(key),line=meta?[meta.block,meta.facade,meta.item,meta.total??null,meta.done??null,meta.unit]:[null,null,null,null,null,null];
+  const r=8+i,key=keys[i],meta=metadata.get(key),line=meta?[meta.block,meta.facade,String(meta.pozNo??''),meta.item,meta.total??null,meta.done??null,meta.unit]:[null,null,null,null,null,null,null];
   let paid=0;
-  slots.forEach((per,j)=>{const row=maps[j].get(key),p=column(7+j*3),q=column(8+j*3);if(row)paid+=num(row.quantity);line.push(row?numeric(row.price):null,row?numeric(row.quantity):null,{formula:`IF(AND(${p}${r}="",${q}${r}=""),"",IF(COUNT(${p}${r}:${q}${r})<2,"Eksik giriş",ROUND(${p}${r}*${q}${r},2)))`,result:row?rowAmount(row):''});});
+  slots.forEach((per,j)=>{const row=maps[j].get(key),p=column(8+j*3),q=column(9+j*3);if(row)paid+=num(row.quantity);line.push(row?numeric(row.price):null,row?numeric(row.quantity):null,{formula:`IF(AND(${p}${r}="",${q}${r}=""),"",IF(COUNT(${p}${r}:${q}${r})<2,"Eksik giriş",ROUND(${p}${r}*${q}${r},2)))`,result:row?rowAmount(row):''});});
   const given=column(bound+1),balance=column(bound+2),status=!meta?'':!meta.block||!meta.facade||!meta.item||!meta.unit?'Tanım eksik':meta.total==null||meta.done==null?'Metraj eksik':maps.some(m=>m.has(key)&&rowAmount(m.get(key))==='Eksik giriş')?'Fiyat / miktar eksik':num(meta.done)>num(meta.total)?'Kümülatif > toplam':paid>num(meta.done)+1e-7?'Verilen > kümülatif':'Uygun';if(status&&status!=='Uygun')workWarnings++;
-  line.push(null,{formula:`IF(AND(COUNTA($A${r}:$F${r})=0,COUNT($G${r}:$${last}${r})=0),"",SUMIFS($G${r}:$${last}${r},$G$4:$${last}$4,"Miktar"))`,result:meta?paid:''},{formula:`IF($E${r}="","",$E${r}-${given}${r})`,result:meta&&meta.done!=null?num(meta.done)-paid:''},{formula:`IF(AND(COUNTA($A${r}:$F${r})=0,COUNT($G${r}:$${last}${r})=0),"",IF(OR($A${r}="",$B${r}="",$C${r}="",$F${r}=""),"Tanım eksik",IF(COUNT($D${r}:$E${r})<2,"Metraj eksik",IF(COUNTIFS($G${r}:$${last}${r},"Eksik giriş")>0,"Fiyat / miktar eksik",IF(MIN($D${r}:$${last}${r})<0,"Negatif giriş",IF($E${r}>$D${r},"Kümülatif > toplam",IF(${given}${r}>$E${r},"Verilen > kümülatif","Uygun")))))))`,result:status});
+  line.push(null,{formula:`IF(AND(COUNTA($A${r}:$G${r})=0,COUNT($H${r}:$${last}${r})=0),"",SUMIFS($H${r}:$${last}${r},$H$4:$${last}$4,"Miktar"))`,result:meta?paid:''},{formula:`IF($F${r}="","",$F${r}-${given}${r})`,result:meta&&meta.done!=null?num(meta.done)-paid:''},{formula:`IF(AND(COUNTA($A${r}:$G${r})=0,COUNT($H${r}:$${last}${r})=0),"",IF(OR($A${r}="",$B${r}="",$D${r}="",$G${r}=""),"Tanım eksik",IF(COUNT($E${r}:$F${r})<2,"Metraj eksik",IF(COUNTIFS($H${r}:$${last}${r},"Eksik giriş")>0,"Fiyat / miktar eksik",IF(MIN($E${r}:$${last}${r})<0,"Negatif giriş",IF($F${r}>$E${r},"Kümülatif > toplam",IF(${given}${r}>$F${r},"Verilen > kümülatif","Uygun")))))))`,result:status});
   const amounts=maps.map(m=>m.get(key)).filter(Boolean).map(rowAmount),totalAmount=amounts.includes('Eksik giriş')?'Eksik giriş':round(amounts.reduce((sum,value)=>sum+num(value),0));
-  line.push({formula:`IF(AND(COUNTA($A${r}:$F${r})=0,COUNT($G${r}:$${last}${r})=0),"",IF(COUNTIF($G${r}:$${last}${r},"Eksik giriş")>0,"Eksik giriş",SUM(${slots.map((_,j)=>column(9+j*3)+r).join(',')})))`,result:meta?totalAmount:''});
+  line.push({formula:`IF(AND(COUNTA($A${r}:$G${r})=0,COUNT($H${r}:$${last}${r})=0),"",IF(COUNTIF($H${r}:$${last}${r},"Eksik giriş")>0,"Eksik giriş",SUM(${slots.map((_,j)=>column(10+j*3)+r).join(',')})))`,result:meta?totalAmount:''});
   workRows.push(line);
  }
  h.addTable({name:'tblHakedis',ref:'A7',headerRow:true,style:{theme:'TableStyleMedium2',showRowStripes:false},columns:headers.map(name=>({name,filterButton:true})),rows:workRows});header(h,7,1,endCol);
- slots.forEach((per,j)=>{const p=column(7+j*3),q=column(8+j*3),a=column(9+j*3);value(h,`${q}4`,'Miktar');value(h,`${a}4`,per.number);h.mergeCells(`${p}5:${a}5`);style(h,`${p}5`,th,'G5');formula(h,`${p}5`,`${a}4&". Hakediş Dönemi"`,`${per.number}. Hakediş Dönemi`);formula(h,`${a}6`,`IF(COUNTIFS(tblHakedis[Tutar ${per.number}],"Eksik giriş")>0,"Eksik giriş",SUM(tblHakedis[Tutar ${per.number}]))`,workTotal(per.snapshot));h.getCell(`${a}6`).numFmt=money;});
+ slots.forEach((per,j)=>{const p=column(8+j*3),q=column(9+j*3),a=column(10+j*3);value(h,`${q}4`,'Miktar');value(h,`${a}4`,per.number);h.mergeCells(`${p}5:${a}5`);style(h,`${p}5`,th,'G5');formula(h,`${p}5`,`${a}4&". Hakediş Dönemi"`,`${per.number}. Hakediş Dönemi`);formula(h,`${a}6`,`IF(COUNTIFS(tblHakedis[Tutar ${per.number}],"Eksik giriş")>0,"Eksik giriş",SUM(tblHakedis[Tutar ${per.number}]))`,workTotal(per.snapshot));h.getCell(`${a}6`).numFmt=money;});
  const amountTotals=slots.map(p=>workTotal(p.snapshot)),cumulativeAmount=amountTotals.some(v=>typeof v!=='number')?'Eksik giriş':round(amountTotals.reduce((sum,v)=>sum+v,0));
  formula(h,`${column(endCol)}6`,'IF(COUNTIFS(tblHakedis[Kümülatif Tutar],"Eksik giriş")>0,"Eksik giriş",SUM(tblHakedis[Kümülatif Tutar]))',cumulativeAmount);h.getCell(`${column(endCol)}6`).numFmt=money;
- h.views=[{state:'frozen',xSplit:6,ySplit:7,showGridLines:false}];
+ h.views=[{state:'frozen',xSplit:7,ySplit:7,showGridLines:false}];
  const ledger=(sheet,src,tableName,field)=>{
   const records=[];for(const per of periods)for(const entry of per.snapshot[field]||[])records.push({entry,per});
   const len=Math.max(100,records.length),rows=[];
@@ -87,7 +88,7 @@ async function build({ExcelJS,templateUrl,periods,selectedPeriodId,rowOrder=[]})
   const c=column(i+2),snap=per.snapshot,work=workTotal(snap),extras=round((snap?.extraRows||[]).reduce((sum,r)=>sum+round(r.qty*r.price),0)),cuts=round((snap?.cutRows||[]).reduce((sum,r)=>sum+round(r.amount),0)),gross=typeof work==='number'?round(work+extras):'Eksik giriş',retention=typeof gross==='number'?round(gross*0.1):'Eksik giriş',net=typeof gross==='number'?round(gross-cuts-retention):'Eksik giriş';values.push([work,extras,gross,cuts,retention,net]);
   value(s,`${c}10`,per.number);s.getCell(`${c}10`).numFmt='0". Hakediş Dönemi"';value(s,`${c}13`,0.1);
   if(per.month){value(s,`${c}11`,date(per.month+'-01'));const d=new Date(per.month+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);d.setUTCDate(0);value(s,`${c}12`,d);}
-  formula(s,`${c}15`,`INDEX('Hakediş'!$G$6:$${last}$6,1,MATCH(${c}$10,'Hakediş'!$G$4:$${last}$4,0))`,work);
+  formula(s,`${c}15`,`INDEX('Hakediş'!$H$6:$${last}$6,1,MATCH(${c}$10,'Hakediş'!$H$4:$${last}$4,0))`,work);
   formula(s,`${c}16`,`IF(COUNTIFS(tblTutanak[Hakediş Dönemi],${c}$10,tblTutanak[Tutar],"Eksik giriş")>0,"Eksik giriş",SUMIFS(tblTutanak[Tutar],tblTutanak[Hakediş Dönemi],${c}$10))`,extras);
   formula(s,`${c}17`,`IF(COUNT(${c}15:${c}16)=2,SUM(${c}15:${c}16),"Eksik giriş")`,gross);
   formula(s,`${c}18`,`IF(COUNTIFS(tblKesinti[Hakediş Dönemi],${c}$10,tblKesinti[Tutar],"Eksik giriş")>0,"Eksik giriş",SUMIFS(tblKesinti[Tutar],tblKesinti[Hakediş Dönemi],${c}$10))`,cuts);

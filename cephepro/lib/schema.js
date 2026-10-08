@@ -87,6 +87,8 @@ async function initializeSchema(sql) {
     details jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now()
   )`);
+  statements.push(sql`ALTER TABLE cephepro_activity_log ADD COLUMN IF NOT EXISTS deleted_at timestamptz`);
+  statements.push(sql`ALTER TABLE cephepro_activity_log ADD COLUMN IF NOT EXISTS deleted_by text`);
   statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_activity_created_idx ON cephepro_activity_log(created_at DESC)`);
   statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_activity_user_idx ON cephepro_activity_log(user_id,created_at DESC)`);
   statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_activity_daily_user_idx ON cephepro_activity_log(user_id,created_at DESC) WHERE action_type='daily_production'`);
