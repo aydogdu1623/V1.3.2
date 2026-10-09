@@ -32,7 +32,7 @@ export function noStore(req,res) {
   res.setHeader('Vary', 'Origin');
   if (origin && originAllowed(req)) res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Project-Token');
   res.setHeader('Access-Control-Max-Age', '86400');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');

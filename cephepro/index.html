@@ -1,22 +1,24 @@
 <!doctype html>
-<html lang="tr" data-cp-auth="locked">
+<html lang="tr" data-cp-auth="locked" data-cp-project="locked">
 <head>
 <style id="cp-session-privacy">
-html[data-cp-auth="locked"] body > :not(#authScreen):not(script):not(style):not(link){display:none!important}
+html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cpProjectEditor):not(script):not(style):not(link){display:none!important}
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<script src="/assets/session-privacy.js?v=212.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=213.0">
+<script src="/assets/project-access.js?v=213.0"></script>
+<script src="/assets/session-privacy.js?v=213.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta name="cephepro-version" content="V212"/>
-<meta name="cephepro-build" content="V212.0"/>
+<meta name="cephepro-version" content="V213"/>
+<meta name="cephepro-build" content="V213.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V212";window.CEPHEPRO_BUILD="V212.0";</script>
+<script>window.CEPHEPRO_VERSION="V213";window.CEPHEPRO_BUILD="V213.0";</script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" data-v167-external="true"></script>
@@ -5188,7 +5190,7 @@ header .actions{gap:5px!important}
    <button class="settingsTab active" data-pane="settingsGeneral">Genel</button>
    <button class="settingsTab" data-pane="settingsUsers">Kullanıcılar</button>
    <button class="settingsTab" data-pane="settingsReport">Rapor</button>
-   <button class="settingsTab" data-pane="settingsSave">Kaydet</button>
+   <button class="settingsTab" data-pane="settingsSave">Projeler</button>
    <button class="settingsTab" data-pane="settingsSaveAs">Farklı Kaydet</button>
    <button class="settingsTab" data-pane="settingsOpen">Aç</button>
   </div>
@@ -5283,11 +5285,8 @@ header .actions{gap:5px!important}
    </section>
 
    <section class="settings-pane" id="settingsSave">
-    <div class="file-action-card">
-     <b>Kaydet</b>
-     <p>Mevcut proje dosyasına son değişiklikleri kaydeder. İlk kez kaydediyorsan Farklı Kaydet ekranı açılır.</p>
-     <button class="btn primary" id="saveProjectBtn">Kaydet (.cephe_rpr)</button>
-    </div>
+    <div id="cpProjectsPanel"><div class="cp-project-toolbar"><h2>Projeler</h2><button type="button" id="cpProjectCreate" hidden>+ Proje Ekle</button></div><p class="cp-project-hint">Proje değiştirirken firma kodu, proje kodu ve şifre ile giriş yapın. İlerleme, puantaj ve hakediş kayıtları her proje için ayrıdır.</p><p id="cpProjectsMessage" role="status"></p><div id="cpProjectsList"></div></div>
+    <button id="saveProjectBtn" hidden style="display:none">Dosyaya Kaydet</button>
    </section>
 
    <section class="settings-pane" id="settingsSaveAs">
@@ -5535,39 +5534,16 @@ window.addEventListener('error',function(ev){
   }catch(_){}
 });
 
-const DATA={
- "A1":{"GC1":{pct:72,items:[
-  ["Ankraj Montajı",820,780,95,"2026-07-02","2026-07-14",11],
-  ["Düşey Karkas",1120,980,88,"2026-07-08","2026-07-29",17],
-  ["Yatay Karkas",980,770,79,"2026-07-15","2026-08-05",15],
-  ["Cam Montajı",1460,920,63,"2026-07-25","2026-08-18",18],
-  ["Kompozit Panel",720,360,50,"2026-08-01","2026-08-21",14],
-  ["Silikon / Fitil",640,250,39,"2026-08-05","2026-08-21",11]
- ]},
- "GC2":{pct:61,items:[
-  ["Ankraj Montajı",760,690,91,"2026-07-06","2026-07-18",10],["Düşey Karkas",980,760,78,"2026-07-12","2026-08-01",15],
-  ["Yatay Karkas",860,620,72,"2026-07-18","2026-08-08",14],["Cam Montajı",1320,690,52,"2026-07-30","2026-08-20",15],
-  ["Kompozit Panel",680,260,38,"2026-08-05","2026-08-21",10],["Silikon / Fitil",570,160,28,"2026-08-10","2026-08-21",8]
- ]}},
- "A2":{"GC1":{pct:64,items:[
-  ["Ankraj Montajı",810,730,90,"2026-07-04","2026-07-17",10],["Düşey Karkas",1050,820,78,"2026-07-11","2026-08-02",16],
-  ["Yatay Karkas",900,650,72,"2026-07-18","2026-08-08",14],["Cam Montajı",1410,760,54,"2026-07-29","2026-08-21",16],
-  ["Kompozit Panel",710,300,42,"2026-08-05","2026-08-21",10],["Silikon / Fitil",600,190,32,"2026-08-11","2026-08-21",7]
- ]}},
- "B1":{"GC1":{pct:55,items:[
-  ["Ankraj Montajı",900,780,87,"2026-07-10","2026-07-24",10],["Düşey Karkas",1180,820,69,"2026-07-18","2026-08-08",15],
-  ["Yatay Karkas",1020,620,61,"2026-07-25","2026-08-15",14],["Cam Montajı",1500,690,46,"2026-08-01","2026-08-21",13],
-  ["Kompozit Panel",800,260,33,"2026-08-08","2026-08-21",8],["Silikon / Fitil",670,150,22,"2026-08-12","2026-08-21",6]
- ]}}
-};
+const DATA={};
 let currentBlock="A1",currentFacade="GC1";
-const blockSummary=[["A1",72],["A2",64],["B1",55],["C1",48],["D1",36]];
+const blockSummary=[];
 
 function chart(el,data){
  el.innerHTML=data.map(([x,v])=>`<div class="bar" style="height:${Math.max(v,8)}%"><span class="v">%${v}</span><span class="x">${x}</span></div>`).join("");
 }
 function renderFacade(){
- const d=DATA[currentBlock][currentFacade];
+ const d=DATA[currentBlock]?.[currentFacade];
+ if(!d?.items?.length)return;
  const items=d.items.map(effectiveItem);
  const weightAll=items.reduce((s,r)=>s+Math.max(0,Number(r[7]||0)),0);
  const facadeProgress=weightAll>0
@@ -6532,7 +6508,7 @@ function renderOverallChartType(){
 }
 
 function renderFacadeChartByType(){
- const d=DATA[currentBlock][currentFacade];
+ const d=DATA[currentBlock]?.[currentFacade]||{items:[],pct:0};
  if(!d||!itemChart)return;
  const items=d.items.map(effectiveItem);
  const type=graphPrefs.facade||"column";
@@ -6555,7 +6531,7 @@ function renderFacadeChartByType(){
 }
 
 function renderTimelineType(){
- const d=DATA[currentBlock][currentFacade]; if(!d||!timeline)return;
+ const d=DATA[currentBlock]?.[currentFacade]||{items:[],pct:0}; if(!d||!timeline)return;
  const items=d.items.map(effectiveItem), type=graphPrefs.timeline||"progress";
  if(type==="progress"){
    timeline.className="timeline";
@@ -25260,6 +25236,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
   let cloudToken=readCloudToken();
   let cloudRevision=Number(localStorage.getItem(REV_KEY)||0);
   let cloudApplying=false;
+  let projectHydrated=false;
   let pushTimer=0;
   let pushInFlight=false;
   let pullInFlight=false;
@@ -25334,6 +25311,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
   }
 
   function applySnapshot(state,revision){
+    state={...SHARED_DEFAULTS,...(state||{})};
     cloudApplying=true;
     try{
       SHARED_KEYS.forEach(k=>{
@@ -25358,7 +25336,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
 
   async function pushState(force=false){
     cloudToken=readCloudToken()||cloudToken;
-    if(!cloudToken||pushInFlight||cloudApplying)return false;
+    if(!cloudToken||pushInFlight||cloudApplying||!projectHydrated||!window.CepheProProjects?.isReady())return false;
     pushInFlight=true;
     const sendingEditVersion=localEditVersion;
     const memberEdits=window.__member190?.pendingEdits()||[];
@@ -25393,7 +25371,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
 
   function schedulePush(){
     cloudToken=readCloudToken()||cloudToken;
-    if(!cloudToken||cloudApplying)return;
+    if(!cloudToken||cloudApplying||!projectHydrated||!window.CepheProProjects?.isReady())return;
     setCloudStatus('Buluta yükleme bekliyor',false);
     clearTimeout(pushTimer);
     pushTimer=setTimeout(()=>pushState(),900);
@@ -25401,15 +25379,15 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
 
   store.set=function(k,v){
     localSet(k,v);
-    if(SHARED.has(k) && !cloudApplying){if(readCloudToken())localEditVersion++;schedulePush();}
+    if(SHARED.has(k) && !cloudApplying && projectHydrated){if(readCloudToken())localEditVersion++;schedulePush();}
   };
   store.remove=function(k){
     localRemove(k);
-    if(SHARED.has(k) && !cloudApplying){if(readCloudToken())localEditVersion++;schedulePush();}
+    if(SHARED.has(k) && !cloudApplying && projectHydrated){if(readCloudToken())localEditVersion++;schedulePush();}
   };
 
   async function pullState({reload=true,bootstrap=true}={}){
-    if(!cloudToken||pullInFlight||pushInFlight||localEditVersion>savedEditVersion)return;
+    if(!cloudToken||!window.CepheProProjects?.isVerified()||pullInFlight||pushInFlight||localEditVersion>savedEditVersion)return;
     pullInFlight=true;
     const requestedEditVersion=localEditVersion;
     try{
@@ -25417,14 +25395,13 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
       if(pushInFlight||localEditVersion!==requestedEditVersion||localEditVersion>savedEditVersion)return;
       const rev=Number(data.revision||0);
       const remote=data.state||{};
-      if(rev===0 && bootstrap && currentUser?.role==='admin' && hasMeaningfulLocalProject()){
-        await pushState(true);
-        return;
-      }
-      if(rev>cloudRevision){
+      if(!projectHydrated||rev>cloudRevision){
+        const wasHydrated=projectHydrated;
         applySnapshot(remote,rev);
+        projectHydrated=true;
+        window.CepheProProjects?.ready();
         setCloudStatus('Bulut güncel',true);
-        if(reload){
+        if(reload&&wasHydrated){
           sessionStorage.setItem('cp_cloud_reload_once','1');
           location.reload();
         }
@@ -25433,6 +25410,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
       }
     }catch(err){
       console.error('cloud pull',err);
+      if(!projectHydrated)window.CepheProProjects?.loadFailed('Proje verileri yüklenemedi. Yeniden Dene ile tekrar bağlanın.');
       setCloudStatus('Bulut bağlantısı yok',false);
       if(err.status===401)clearCloudSession(false);
     }finally{
@@ -25493,6 +25471,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
 
   async function completeLogin(user,token,remember){
     setCloudUser(user,token,remember);
+    if(!await window.CepheProProjects.ensure(user))return;
     await fetchCloudUsers();
     await pullState({reload:true,bootstrap:true});
     window.CepheProPrivacy?.ready(currentUser);
@@ -25637,6 +25616,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     try{
       const data=await request(AUTH,{method:'POST',body:JSON.stringify({action:'me'})});
       setCloudUser(data.user,cloudToken,true);
+      if(!await window.CepheProProjects.ensure(data.user))return;
       await fetchCloudUsers();
       await pullState({reload:true,bootstrap:true});
       window.CepheProPrivacy?.ready(currentUser);
@@ -32389,9 +32369,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=212.0"></script>
-<script src="/assets/firma-template-v208.js?v=212.0"></script>
-<script src="/assets/claims-v182.js?v=212.0"></script>
+<script src="/assets/claims-report-v191.js?v=213.0"></script>
+<script src="/assets/firma-template-v208.js?v=213.0"></script>
+<script src="/assets/claims-v182.js?v=213.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
@@ -32402,7 +32382,7 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <link rel="stylesheet" href="/assets/activity-v189.css">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=212.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=213.0">
 <script src="/assets/jszip.min.js"></script>
 <script src="/assets/puantaj-model.js?v=207"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
@@ -32424,7 +32404,7 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=212.0"></script>
+<script src="/assets/puantaj.js?v=213.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

@@ -1,3 +1,4 @@
+import {requireProject} from '../lib/project-access.js';
 import { getSql,noStore,bearer } from '../lib/db.js';
 import { ensureSchema } from '../lib/schema.js';
 import { sessionUser,MASTER_EMAIL,norm } from '../lib/authutil.js';
@@ -32,13 +33,14 @@ export function createActivityHandler({getSql,noStore,bearer,ensureSchema,sessio
     const sql=getSql();await ensureSchema(sql);
     const me=await sessionUser(sql,bearer(req));
     if(!me)return res.status(401).json({error:'Bulut oturumu gerekli. Yeniden giriş yapın.'});
-    await sql`DELETE FROM cephepro_daily_activity_snapshots WHERE expires_at<=now()`;
+    if(!await requireProject(sql,req,me,res))return;
+    await sql`DELETE FROM cephepro_daily_activity_snapshots WHERE project_key=${me.projectId} AND expires_at<=now()`;
     const founder=norm(me.email)===MASTER_EMAIL;
     const manager=founder||me.role==='admin';
     if(req.method==='GET'&&req.query?.view==='uploads'){
       const records=manager
-        ?await sql`SELECT s.user_id,s.user_name,s.work_date,u.role AS owner_role,jsonb_array_length(s.records) AS count,COALESCE(lower(trim(u.email))=${MASTER_EMAIL},false) AS protected FROM cephepro_daily_activity_snapshots s LEFT JOIN cephepro_users u ON u.id=s.user_id WHERE s.expires_at>now() ORDER BY s.work_date DESC,s.user_name`
-        :await sql`SELECT user_id,user_name,work_date,jsonb_array_length(records) AS count FROM cephepro_daily_activity_snapshots WHERE expires_at>now() AND user_id=${String(me.id)} ORDER BY work_date DESC`;
+        ?await sql`SELECT s.user_id,s.user_name,s.work_date,u.role AS owner_role,jsonb_array_length(s.records) AS count,COALESCE(lower(trim(u.email))=${MASTER_EMAIL},false) AS protected FROM cephepro_daily_activity_snapshots s LEFT JOIN cephepro_users u ON u.id=s.user_id WHERE s.project_key=${me.projectId} AND s.expires_at>now() ORDER BY s.work_date DESC,s.user_name`
+        :await sql`SELECT user_id,user_name,work_date,jsonb_array_length(records) AS count FROM cephepro_daily_activity_snapshots WHERE project_key=${me.projectId} AND expires_at>now() AND user_id=${String(me.id)} ORDER BY work_date DESC`;
       const uploads=records.map(row=>({...row,work_date:dateOnly(row.work_date),canDelete:founder||String(row.user_id)===String(me.id)||manager&&!row.protected&&row.owner_role==='member'}));
       return res.status(200).json({uploads,canDeleteAll:founder,canManageUploads:manager,canDeleteMany:true,currentUserId:String(me.id)});
     }
@@ -47,11 +49,11 @@ export function createActivityHandler({getSql,noStore,bearer,ensureSchema,sessio
       if(!['one','selected','mine','all'].includes(scope))return res.status(400).json({error:'Silme kapsamı geçersiz.'});
       if(scope==='all'){
         if(!founder)return res.status(403).json({error:'Tüm yüklemeleri yalnız kurucu admin silebilir.'});
-        const deleted=await sql`DELETE FROM cephepro_daily_activity_snapshots RETURNING user_id`;
+        const deleted=await sql`DELETE FROM cephepro_daily_activity_snapshots WHERE project_key=${me.projectId} RETURNING user_id`;
         return res.status(200).json({ok:true,deleted:deleted.length});
       }
       if(scope==='mine'){
-        const deleted=await sql`DELETE FROM cephepro_daily_activity_snapshots WHERE user_id=${String(me.id)} RETURNING user_id`;
+        const deleted=await sql`DELETE FROM cephepro_daily_activity_snapshots WHERE project_key=${me.projectId} AND user_id=${String(me.id)} RETURNING user_id`;
         return res.status(200).json({ok:true,deleted:deleted.length});
       }
       const input=scope==='one'?[{userId:userId??me.id,workDate}]:uploads;
@@ -74,7 +76,7 @@ export function createActivityHandler({getSql,noStore,bearer,ensureSchema,sessio
            OR (NOT ${founder} AND r.user_id<>${String(me.id)} AND COALESCE(u.role,'')<>'member')
       ), deleted AS (
         DELETE FROM cephepro_daily_activity_snapshots s USING requested r
-        WHERE s.user_id=r.user_id AND s.work_date=r.work_date
+        WHERE s.project_key=${me.projectId} AND s.user_id=r.user_id AND s.work_date=r.work_date
           AND NOT EXISTS(SELECT 1 FROM forbidden)
         RETURNING s.user_id
       ) SELECT EXISTS(SELECT 1 FROM forbidden) AS forbidden,(SELECT count(*)::int FROM deleted) AS deleted`;
@@ -88,18 +90,18 @@ export function createActivityHandler({getSql,noStore,bearer,ensureSchema,sessio
       let snapshots=[];
       if(me.role==='admin'){
         snapshots=userId
-          ?await sql`SELECT DISTINCT ON (s.user_id) s.user_id,s.user_name,s.username,u.role,s.work_date,s.records,s.uploaded_at,s.expires_at FROM cephepro_daily_activity_snapshots s JOIN cephepro_users u ON u.id=s.user_id WHERE s.expires_at>now() AND s.user_id=${userId} ORDER BY s.user_id,s.uploaded_at DESC LIMIT 100`
-          :await sql`SELECT DISTINCT ON (s.user_id) s.user_id,s.user_name,s.username,u.role,s.work_date,s.records,s.uploaded_at,s.expires_at FROM cephepro_daily_activity_snapshots s JOIN cephepro_users u ON u.id=s.user_id WHERE s.expires_at>now() ORDER BY s.user_id,s.uploaded_at DESC LIMIT 100`;
+          ?await sql`SELECT DISTINCT ON (s.user_id) s.user_id,s.user_name,s.username,u.role,s.work_date,s.records,s.uploaded_at,s.expires_at FROM cephepro_daily_activity_snapshots s JOIN cephepro_users u ON u.id=s.user_id WHERE s.project_key=${me.projectId} AND s.expires_at>now() AND s.user_id=${userId} ORDER BY s.user_id,s.uploaded_at DESC LIMIT 100`
+          :await sql`SELECT DISTINCT ON (s.user_id) s.user_id,s.user_name,s.username,u.role,s.work_date,s.records,s.uploaded_at,s.expires_at FROM cephepro_daily_activity_snapshots s JOIN cephepro_users u ON u.id=s.user_id WHERE s.project_key=${me.projectId} AND s.expires_at>now() ORDER BY s.user_id,s.uploaded_at DESC LIMIT 100`;
       }else{
         snapshots=userId
-          ?await sql`SELECT DISTINCT ON (s.user_id) s.user_id,s.user_name,s.username,s.role,s.work_date,s.records,s.uploaded_at,s.expires_at FROM cephepro_daily_activity_snapshots s JOIN cephepro_users u ON u.id=s.user_id WHERE s.expires_at>now() AND s.user_id=${userId} AND s.role<>'admin' AND u.role<>'admin' ORDER BY s.user_id,s.uploaded_at DESC LIMIT 100`
-          :await sql`SELECT DISTINCT ON (s.user_id) s.user_id,s.user_name,s.username,s.role,s.work_date,s.records,s.uploaded_at,s.expires_at FROM cephepro_daily_activity_snapshots s JOIN cephepro_users u ON u.id=s.user_id WHERE s.expires_at>now() AND s.role<>'admin' AND u.role<>'admin' ORDER BY s.user_id,s.uploaded_at DESC LIMIT 100`;
+          ?await sql`SELECT DISTINCT ON (s.user_id) s.user_id,s.user_name,s.username,s.role,s.work_date,s.records,s.uploaded_at,s.expires_at FROM cephepro_daily_activity_snapshots s JOIN cephepro_users u ON u.id=s.user_id WHERE s.project_key=${me.projectId} AND s.expires_at>now() AND s.user_id=${userId} AND s.role<>'admin' AND u.role<>'admin' ORDER BY s.user_id,s.uploaded_at DESC LIMIT 100`
+          :await sql`SELECT DISTINCT ON (s.user_id) s.user_id,s.user_name,s.username,s.role,s.work_date,s.records,s.uploaded_at,s.expires_at FROM cephepro_daily_activity_snapshots s JOIN cephepro_users u ON u.id=s.user_id WHERE s.project_key=${me.projectId} AND s.expires_at>now() AND s.role<>'admin' AND u.role<>'admin' ORDER BY s.user_id,s.uploaded_at DESC LIMIT 100`;
       }
       const activities=[];
       snapshots.forEach(snapshot=>(Array.isArray(snapshot.records)?snapshot.records:[]).forEach((record,index)=>activities.push({id:`${snapshot.user_id}:${dateOnly(snapshot.work_date)}:${record.id||index}`,user_id:snapshot.user_id,user_name:snapshot.user_name,username:snapshot.username,role:snapshot.role,action_type:'daily_production',summary:record.item,details:{...record,workDate:dateOnly(snapshot.work_date)},work_date:dateOnly(snapshot.work_date),created_at:snapshot.uploaded_at,expires_at:snapshot.expires_at})));
       const users=me.role==='admin'
-        ?await sql`SELECT id,name,username,role FROM cephepro_users WHERE approved=true ORDER BY name`
-        :await sql`SELECT id,name,username,role FROM cephepro_users WHERE approved=true AND role<>'admin' ORDER BY name`;
+        ?await sql`SELECT id,name,username,role FROM cephepro_users WHERE id IN(SELECT user_id FROM cephepro_project_members WHERE project_key=${me.projectId}) AND approved=true ORDER BY name`
+        :await sql`SELECT id,name,username,role FROM cephepro_users WHERE id IN(SELECT user_id FROM cephepro_project_members WHERE project_key=${me.projectId}) AND approved=true AND role<>'admin' ORDER BY name`;
       return res.status(200).json({activities,users,serverTime:new Date().toISOString(),retentionHours:48,currentUserId:String(me.id),currentUserRole:me.role});
     }
     if(req.method==='POST'){
@@ -110,7 +112,7 @@ export function createActivityHandler({getSql,noStore,bearer,ensureSchema,sessio
       if(workDate!==today)return res.status(400).json({error:'Yalnız bugünün imalat hareketleri yüklenebilir.'});
       if(!validDay(workDate))return res.status(400).json({error:'Çalışma tarihi geçersiz.'});
       if(!records?.length)return res.status(400).json({error:'Buluta yüklenecek geçerli günlük imalat kaydı yok.'});
-      const rows=await sql`INSERT INTO cephepro_daily_activity_snapshots (user_id,work_date,user_name,username,role,records,uploaded_at,expires_at) VALUES(${me.id},${workDate}::date,${me.name||me.username},${me.username},${me.role},${JSON.stringify(records)}::jsonb,now(),now()+interval '48 hours') ON CONFLICT(user_id,work_date) DO UPDATE SET user_name=excluded.user_name,username=excluded.username,role=excluded.role,records=excluded.records,uploaded_at=now(),expires_at=now()+interval '48 hours' RETURNING uploaded_at,expires_at`;
+      const rows=await sql`INSERT INTO cephepro_daily_activity_snapshots (project_key,user_id,work_date,user_name,username,role,records,uploaded_at,expires_at) VALUES(${me.projectId},${me.id},${workDate}::date,${me.name||me.username},${me.username},${me.role},${JSON.stringify(records)}::jsonb,now(),now()+interval '48 hours') ON CONFLICT(project_key,user_id,work_date) DO UPDATE SET user_name=excluded.user_name,username=excluded.username,role=excluded.role,records=excluded.records,uploaded_at=now(),expires_at=now()+interval '48 hours' RETURNING uploaded_at,expires_at`;
       return res.status(200).json({ok:true,count:records.length,workDate,uploadedAt:rows[0]?.uploaded_at,expiresAt:rows[0]?.expires_at});
     }
     return res.status(405).json({error:'Desteklenmeyen istek yöntemi.'});

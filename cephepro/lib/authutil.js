@@ -36,6 +36,6 @@ export async function newSession(sql,userId){
 }
 export async function logActivity(sql,me,actionType,summary,details={}){
   if(!summary)return;
-  await sql`INSERT INTO cephepro_activity_log(user_id,user_name,username,role,action_type,summary,details)
-            VALUES(${String(me?.id||'')},${String(me?.name||me?.username||'Kullanıcı')},${String(me?.username||'')},${String(me?.role||'member')},${String(actionType||'update')},${String(summary)},${JSON.stringify(details)}::jsonb)`;
+  await sql`INSERT INTO cephepro_activity_log(project_key,user_id,user_name,username,role,action_type,summary,details)
+            VALUES(${me?.projectId||null},${String(me?.id||'')},${String(me?.name||me?.username||'Kullanıcı')},${String(me?.username||'')},${String(me?.role||'member')},${String(actionType||'update')},${String(summary)},${JSON.stringify(details)}::jsonb)`;
 }

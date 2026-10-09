@@ -1,3 +1,4 @@
+import {requireProject} from '../lib/project-access.js';
 import crypto from 'node:crypto';
 import { getSql,noStore,bearer } from '../lib/db.js';
 import { ensureSchema } from '../lib/schema.js';
@@ -145,6 +146,7 @@ export function createAuthHandler({getSql,noStore,bearer,ensureSchema,sessionUse
       return res.status(200).json({ok:true});
     }
 
+    if(!await requireProject(sql,req,me,res))return;
     // Expired access returns to the approval queue even without a login attempt.
     if((action==='list'||action==='list_pending')&&me.role==='admin'){
       await sql`UPDATE cephepro_users SET approved=false,approval_request_visible=true,approval_notice_pending=false,requested_at=access_expires_at,updated_at=now()
@@ -156,7 +158,7 @@ export function createAuthHandler({getSql,noStore,bearer,ensureSchema,sessionUse
       // Engellenen hesap approved=false olur; yönetici listesinde tutulmazsa
       // ok menüsündeki “İzin Ver” işlemi bir daha kullanılamaz. Bu nedenle
       // onaylı ve engellenmiş hesaplar birlikte döndürülür.
-      const rows=await sql`SELECT id,name,username,email,role,approved,blocked,profile_data,access_unlimited,access_expires_at,created_at FROM cephepro_users WHERE approved=true OR blocked=true ORDER BY blocked ASC,created_at ASC`;
+      const rows=await sql`SELECT id,name,username,email,role,approved,blocked,profile_data,access_unlimited,access_expires_at,created_at FROM cephepro_users WHERE (approved=true OR blocked=true) AND id IN(SELECT user_id FROM cephepro_project_members WHERE project_key=${me.projectId}) ORDER BY blocked ASC,created_at ASC`;
       return res.status(200).json({users:rows.map(r=>{const u=publicUser(r);if(String(r.id)!==String(me.id))delete u.profileData;return u;})});
     }
     if(action==='list_pending'){
@@ -175,6 +177,10 @@ export function createAuthHandler({getSql,noStore,bearer,ensureSchema,sessionUse
         if(rows[0])await logActivity(sql,me,'user_admin',`${rows[0].name} kullanıcısının giriş talebini reddetti.`,{targetUserId:userId});
       }
       return res.status(200).json({ok:true});
+    }
+    if(['role','block','duration','delete_user'].includes(action)&&!isOwner(me)){
+      const [member]=await sql`SELECT user_id FROM cephepro_project_members WHERE project_key=${me.projectId} AND user_id=${String(body.userId||'')}`;
+      if(!member)return res.status(403).json({error:'Bu kullanıcı projenize kayıtlı değil.'});
     }
     if(action==='role'){
       if(me.role!=='admin')return res.status(403).json({error:'Admin yetkisi gerekli.'});

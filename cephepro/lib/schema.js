@@ -102,13 +102,6 @@ async function initializeSchema(sql) {
   statements.push(sql`ALTER TABLE cephepro_puantaj ADD COLUMN IF NOT EXISTS previous_data jsonb`);
   statements.push(sql`ALTER TABLE cephepro_puantaj ADD COLUMN IF NOT EXISTS previous_revision integer`);
   statements.push(sql`ALTER TABLE cephepro_puantaj ADD COLUMN IF NOT EXISTS previous_updated_at timestamptz`);
-  // Apply the same two-version limit to legacy upload summaries. Historical
-  // payloads that were never stored cannot be reconstructed from these summaries.
-  statements.push(sql`DELETE FROM cephepro_activity_log l USING cephepro_puantaj p
-    WHERE l.action_type='puantaj_upload' AND l.user_id=p.owner_id
-      AND l.details->>'year'=p.work_year::text
-      AND CASE WHEN l.details->>'revision' ~ '^[0-9]{1,10}$'
-        THEN (l.details->>'revision')::bigint < p.revision::bigint-1 ELSE false END`);
 
   statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_daily_activity_snapshots (
     user_id text NOT NULL,
@@ -133,5 +126,66 @@ async function initializeSchema(sql) {
     updated_at timestamptz NOT NULL DEFAULT now()
   )`);
   statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_photos_facade_idx ON cephepro_photos(facade_key,created_at DESC)`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_projects (
+    project_key text PRIMARY KEY, name text NOT NULL, company_code text, project_code text,
+    password_hash text, password_salt text, access_version integer NOT NULL DEFAULT 1,
+    owner_id text, deleted_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`);
+  statements.push(sql`CREATE UNIQUE INDEX IF NOT EXISTS cephepro_project_codes_uq ON cephepro_projects(company_code,project_code)`);
+  statements.push(sql`INSERT INTO cephepro_projects(project_key,name,owner_id)
+    VALUES('main','Mevcut Proje',(SELECT id FROM cephepro_users WHERE lower(email)='aydogdu1623@gmail.com' LIMIT 1))
+    ON CONFLICT(project_key) DO NOTHING`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_project_members (
+    project_key text NOT NULL, user_id text NOT NULL, joined_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY(project_key,user_id)
+  )`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_project_sessions (
+    token_hash text PRIMARY KEY, auth_token_hash text NOT NULL, user_id text NOT NULL,
+    project_key text NOT NULL, access_version integer NOT NULL, expires_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`);
+  statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_project_sessions_auth_idx ON cephepro_project_sessions(auth_token_hash)`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_migrations(name text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now())`);
+  statements.push(sql`INSERT INTO cephepro_project_members(project_key,user_id)
+    SELECT 'main',id FROM cephepro_users WHERE NOT EXISTS(SELECT 1 FROM cephepro_migrations WHERE name='project_scope_v213')
+    ON CONFLICT DO NOTHING`);
+  statements.push(sql`ALTER TABLE cephepro_claims ADD COLUMN IF NOT EXISTS project_key text NOT NULL DEFAULT 'main'`);
+  statements.push(sql`DO $$ BEGIN
+    IF EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='cephepro_claims'::regclass AND contype='p' AND pg_get_constraintdef(oid) NOT LIKE 'PRIMARY KEY (project_key,%') THEN
+      ALTER TABLE cephepro_claims DROP CONSTRAINT cephepro_claims_pkey;
+      ALTER TABLE cephepro_claims ADD PRIMARY KEY(project_key,owner_id);
+    END IF;
+  END $$`);
+  statements.push(sql`ALTER TABLE cephepro_puantaj ADD COLUMN IF NOT EXISTS project_key text NOT NULL DEFAULT 'main'`);
+  statements.push(sql`DO $$ BEGIN
+    IF EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='cephepro_puantaj'::regclass AND contype='p' AND pg_get_constraintdef(oid) NOT LIKE 'PRIMARY KEY (project_key,%') THEN
+      ALTER TABLE cephepro_puantaj DROP CONSTRAINT cephepro_puantaj_pkey;
+      ALTER TABLE cephepro_puantaj ADD PRIMARY KEY(project_key,owner_id,work_year);
+    END IF;
+  END $$`);
+  statements.push(sql`ALTER TABLE cephepro_daily_activity_snapshots ADD COLUMN IF NOT EXISTS project_key text NOT NULL DEFAULT 'main'`);
+  statements.push(sql`DO $$ BEGIN
+    IF EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='cephepro_daily_activity_snapshots'::regclass AND contype='p' AND pg_get_constraintdef(oid) NOT LIKE 'PRIMARY KEY (project_key,%') THEN
+      ALTER TABLE cephepro_daily_activity_snapshots DROP CONSTRAINT cephepro_daily_activity_snapshots_pkey;
+      ALTER TABLE cephepro_daily_activity_snapshots ADD PRIMARY KEY(project_key,user_id,work_date);
+    END IF;
+  END $$`);
+  statements.push(sql`ALTER TABLE cephepro_photos ADD COLUMN IF NOT EXISTS project_key text NOT NULL DEFAULT 'main'`);
+  statements.push(sql`DO $$ BEGIN
+    IF EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='cephepro_photos'::regclass AND contype='p' AND pg_get_constraintdef(oid) NOT LIKE 'PRIMARY KEY (project_key,%') THEN
+      ALTER TABLE cephepro_photos DROP CONSTRAINT cephepro_photos_pkey;
+      ALTER TABLE cephepro_photos ADD PRIMARY KEY(project_key,photo_id);
+    END IF;
+  END $$`);
+  statements.push(sql`ALTER TABLE cephepro_activity_log ADD COLUMN IF NOT EXISTS project_key text DEFAULT 'main'`);
+  statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_activity_project_idx ON cephepro_activity_log(project_key,user_id,id DESC)`);
+  statements.push(sql`INSERT INTO cephepro_migrations(name) VALUES('project_scope_v213') ON CONFLICT DO NOTHING`);
+  // Retention is isolated by project as well as payroll owner and year.
+  statements.push(sql`DELETE FROM cephepro_activity_log l USING cephepro_puantaj p
+    WHERE l.action_type='puantaj_upload' AND l.user_id=p.owner_id AND l.project_key=p.project_key
+      AND l.details->>'year'=p.work_year::text
+      AND CASE WHEN l.details->>'revision' ~ '^[0-9]{1,10}$'
+        THEN (l.details->>'revision')::bigint < p.revision::bigint-1 ELSE false END`);
   await sql.transaction(statements);
 }

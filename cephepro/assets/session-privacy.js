@@ -17,6 +17,7 @@
  function lock(){verifiedId='';root.dataset.cpAuth='locked';clearPrivate();document.dispatchEvent(new CustomEvent('cephepro:locked'));}
  function accept(user){
   if(!user?.id)return;
+  window.CepheProProjects?.accept(user);
   const previous=localStorage.getItem('cp_private_owner');
   if(previous!==String(user.id)){
    clearPrivate();
@@ -25,7 +26,7 @@
   }
   localStorage.setItem('cp_private_owner',String(user.id));verifiedId=String(user.id);
  }
- function ready(user){if(verifiedId&&verifiedId===String(user?.id)&&token())root.dataset.cpAuth='ready';}
+ function ready(user){if(window.CepheProProjects&&!window.CepheProProjects.isReady())return;if(verifiedId&&verifiedId===String(user?.id)&&token())root.dataset.cpAuth='ready';}
  if(!token())clearPrivate();
  document.addEventListener('click',event=>{if(event.target.closest?.('#v35AccountLogout')){root.dataset.cpAuth='locked';setTimeout(lock,0);}},true);
  window.addEventListener('storage',event=>{if(['cp_cloud_token','cp_remembered_cloud_token','cp_session'].includes(event.key)&&!token())lock();});

@@ -1,3 +1,4 @@
+import {requireProject} from '../lib/project-access.js';
 import { getSql,noStore,bearer } from '../lib/db.js';
 import { ensureSchema } from '../lib/schema.js';
 import { sessionUser,logActivity,norm } from '../lib/authutil.js';
@@ -144,14 +145,15 @@ export function publicProjectState(state={}){
  return clone(Object.fromEntries(allowed.filter(k=>Object.hasOwn(state,k)).map(k=>[k,state[k]])));
 }
 
-export default async function handler(req,res){
+export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUser,logActivity}){return async function handler(req,res){
   if(!noStore(req,res))return res.status(403).json({error:'Bu istek güvenlik nedeniyle reddedildi.',code:'ORIGIN_DENIED'});
   if(req.method==='OPTIONS')return res.status(204).end();
   try{
     const sql=getSql();await ensureSchema(sql);
     const me=await sessionUser(sql,bearer(req));if(!me)return res.status(401).json({error:'Oturum geçersiz.'});
+    if(!await requireProject(sql,req,me,res))return;
     if(req.method==='GET'){
-      const rows=await sql`SELECT state,revision,updated_at,updated_by FROM cephepro_project_state WHERE project_key='main' LIMIT 1`;
+      const rows=await sql`SELECT state,revision,updated_at,updated_by FROM cephepro_project_state WHERE project_key=${me.projectId} LIMIT 1`;
       const r=rows[0]||{state:{},revision:0};
       let visibleState=publicProjectState(r.state);
       if(me.role!=='admin'){
@@ -165,7 +167,7 @@ export default async function handler(req,res){
     const allowed=['cp_dynamic_data','cp_block_order','cp_facade_overrides','cp_daily_entries','cp_attendance_logs','cp_project_info','cp_no_work_notes'];
     const submitted=input&&typeof input==='object'&&!Array.isArray(input)?Object.fromEntries(allowed.filter(k=>Object.hasOwn(input,k)).map(k=>[k,input[k]])):null;
     if(!submitted||typeof submitted!=='object'||Array.isArray(submitted))return res.status(400).json({error:'Geçersiz proje durumu.'});
-    const curRows=await sql`SELECT state,revision FROM cephepro_project_state WHERE project_key='main' LIMIT 1`;
+    const curRows=await sql`SELECT state,revision FROM cephepro_project_state WHERE project_key=${me.projectId} LIMIT 1`;
     const oldState=clone(curRows[0]?.state||{}),oldRevision=Number(curRows[0]?.revision||0);
     let nextState,corrected=false,logs=[];
     if(me.role==='admin'){
@@ -193,7 +195,7 @@ export default async function handler(req,res){
     }
     const serialized=JSON.stringify(nextState);
     if(Buffer.byteLength(serialized,'utf8')>6_000_000)return res.status(413).json({error:'Proje verisi çok büyük. Fotoğraflar ayrı bulut alanında tutulur.'});
-    const rows=await sql`UPDATE cephepro_project_state SET state=${serialized}::jsonb,revision=revision+1,updated_at=now(),updated_by=${String(me.id)} WHERE project_key='main' AND revision=${oldRevision} RETURNING revision,updated_at`;
+    const rows=await sql`UPDATE cephepro_project_state SET state=${serialized}::jsonb,revision=revision+1,updated_at=now(),updated_by=${String(me.id)} WHERE project_key=${me.projectId} AND revision=${oldRevision} RETURNING revision,updated_at`;
     if(!rows.length){
       req.cepheproRetry=(req.cepheproRetry||0)+1;
       if(req.cepheproRetry<4)return handler(req,res);
@@ -209,3 +211,6 @@ export default async function handler(req,res){
     return res.status(200).json({ok:true,revision:Number(rows[0]?.revision||oldRevision+1),updatedAt:rows[0]?.updated_at||null,corrected,state:responseState});
   }catch(err){if(err.status===400||err.status===409)return res.status(err.status).json({error:err.message});console.error(err);return res.status(500).json({error:'Sunucu hatası.'});}
 }
+
+}
+export default createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUser,logActivity});
