@@ -52,3 +52,43 @@ test('complete app boots with an empty protected project and mounts the Projects
  assert.deepEqual([...errors],[]);assert.equal(dom.window.CepheProProjects.isReady(),true);assert.equal(dom.window.CepheProPrivacy.isReady(),true);assert.equal(dom.window.document.querySelector('[data-pane="settingsSave"]').textContent,'Projeler');assert.equal(dom.window.eval('Object.keys(DATA).length'),0);
  assert.ok(requests.includes('/api/state'));assert.ok(dom.window.document.getElementById('cpProjectCreate'));
 });
+
+test('a late pre-verification auth response cannot invalidate a newly verified project',async t=>{
+ const dom=new JSDOM('<html><body></body></html>',{url:'https://example.invalid/',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());let reply;
+ Object.assign(w,{Headers,Response,Request,fetch:async input=>String(input).includes('/auth')?new Promise(resolve=>reply=resolve):new Response(JSON.stringify({projects:[],activeProject:ctx.project,canCreate:true}),{status:200})});
+ w.localStorage.setItem('cp_cloud_token','ACCOUNT');w.sessionStorage.setItem('cp_project_access',JSON.stringify(ctx));w.eval(source);
+ const stale=w.fetch('/api/auth',{method:'POST',body:JSON.stringify({action:'list'})});
+ assert.equal(await w.CepheProProjects.ensure(user),true);w.CepheProProjects.ready();
+ reply(new Response(JSON.stringify({code:'PROJECT_LOCKED'}),{status:403}));await stale;
+ assert.equal(w.CepheProProjects.isReady(),true);assert.equal(w.document.documentElement.dataset.cpProject,'ready');
+});
+test('password eyes toggle the login and creation fields without submitting forms',async t=>{
+ const {w}=mini(t,null);await w.CepheProProjects.ensure(user);
+ const login=w.document.getElementById('cpProjectPassword'),eye=login.parentElement.querySelector('button');assert.ok(eye);assert.equal(eye.type,'button');
+ eye.click();assert.equal(login.type,'text');assert.equal(eye.getAttribute('aria-pressed'),'true');eye.click();assert.equal(login.type,'password');
+ w.document.getElementById('cpGateCreate').click();const form=w.document.getElementById('cpProjectEditForm');
+ for(const field of ['password','repeatPassword']){const input=form.elements[field],toggle=input.parentElement.querySelector('button');assert.ok(toggle);toggle.click();assert.equal(input.type,'text');toggle.click();assert.equal(input.type,'password');}
+});
+
+test('deleting another locked project submits deletion without switching or flushing the active project',async t=>{
+ const dom=new JSDOM('<html><body><div id="cpProjectsList"></div><div id="cpProjectsMessage"></div></body></html>',{url:'https://example.invalid/',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
+ let deleted=false,flushes=0,confirmed=false;const actions=[];
+ Object.assign(w,{Headers,Response,Request,confirm:()=>confirmed,__v89CloudSync:{flush:async()=>flushes++},fetch:async(input,init={})=>{
+  if(init.body){const body=JSON.parse(init.body);actions.push(body);if(body.action==='delete')deleted=true;return new Response('{"ok":true}',{status:200});}
+  return new Response(JSON.stringify({projects:[{...ctx.project,configured:true,canManage:true},{id:'b',name:'Proje B',configured:true,canManage:true,deletedAt:deleted?'2026-10-09':null}],activeProject:ctx.project,canCreate:true}),{status:200});
+ }});
+ w.localStorage.setItem('cp_cloud_token','ACCOUNT');w.sessionStorage.setItem('cp_project_access',JSON.stringify(ctx));w.eval(source);await w.CepheProProjects.ensure(user);w.CepheProProjects.ready();
+ const click=()=>w.document.querySelector('#cpProjectsList [data-project-action="delete"][data-id="b"]').click();
+ click();await new Promise(r=>setTimeout(r,0));assert.equal(actions.length,0);
+ confirmed=true;click();await new Promise(r=>setTimeout(r,10));
+ assert.deepEqual(actions,[{action:'delete',id:'b'}]);assert.equal(flushes,0);assert.equal(w.CepheProProjects.isReady(),true);assert.equal(w.CepheProProjects.project().id,'a');
+ assert.equal(w.document.querySelector('#cpProjectsList [data-project-action="delete"][data-id="b"]'),null);
+ assert.ok(w.document.querySelector('#cpProjectsList [data-project-action="restore"][data-id="b"]'));
+ assert.equal(w.document.getElementById('cpProjectsMessage').textContent,'Proje silindi.');
+});
+test('an expired current grant still closes the project and clears access',async t=>{
+ const dom=new JSDOM('<html><body></body></html>',{url:'https://example.invalid/',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
+ Object.assign(w,{Headers,Response,Request,fetch:async input=>String(input).includes('/projects')?new Response(JSON.stringify({projects:[],activeProject:ctx.project}),{status:200}):new Response(JSON.stringify({code:'PROJECT_LOCKED'}),{status:403})});
+ w.sessionStorage.setItem('cp_project_access',JSON.stringify(ctx));w.eval(source);await w.CepheProProjects.ensure(user);w.CepheProProjects.ready();await w.fetch('/api/state');
+ assert.equal(w.CepheProProjects.isReady(),false);assert.equal(w.sessionStorage.getItem('cp_project_access'),null);
+});

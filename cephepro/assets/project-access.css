@@ -15,3 +15,9 @@ html[data-cp-project="locked"][data-cp-account="verified"] #authScreen{display:n
 @media(max-width:560px){#cpProjectGate{padding:20px 12px}.cp-gate-card{padding:20px 16px}.cp-gate-card h1{font-size:22px}.cp-code-grid{grid-template-columns:1fr;gap:0}.cp-project-row{align-items:flex-start;flex-direction:column}.cp-project-actions{align-self:flex-end}#cpProjectEditForm{padding:20px}#cpActiveProject{max-width:135px}}
 
 .cp-project-actions details:not([open]):hover>div,.cp-project-actions details:not([open]):focus-within>div{display:grid}
+
+.cp-password-field{position:relative;display:block;width:100%}
+#cpProjectGate .cp-password-field input,#cpProjectEditor .cp-password-field input{padding-right:48px}
+#cpProjectGate button.cp-password-eye,#cpProjectEditor button.cp-password-eye{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:36px;height:34px;min-height:34px;padding:6px;background:transparent;border:0;color:#aec4d4;border-radius:6px}
+#cpProjectGate button.cp-password-eye:hover,#cpProjectEditor button.cp-password-eye:hover{background:#294255;color:#67dac0}
+.cp-password-eye:focus-visible{outline:2px solid #67dac0;outline-offset:1px}.cp-password-eye .cp-eye-slash{display:none}.cp-password-eye[aria-pressed="true"] .cp-eye-slash{display:block}

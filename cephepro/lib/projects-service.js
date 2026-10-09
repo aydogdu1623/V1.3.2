@@ -8,7 +8,13 @@ const founder=me=>norm(me.email)===MASTER_EMAIL;
 const manages=(me,p)=>founder(me)||(me.role==='admin'&&p.owner_id===String(me.id));
 const view=(p,me,active)=>({id:p.project_key,name:p.name,companyCode:p.company_code||'',projectCode:p.project_code||'',configured:!!p.password_hash,canManage:manages(me,p),deletedAt:p.deleted_at||null,unlocked:p.project_key===active?.project_key});
 
-export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessionUser}){return async(req,res)=>{
+function founderPassword(me,password,secret){
+ if(!founder(me)||typeof secret!=='string'||password.length>128)return false;
+ const [salt,hash]=secret.split(':');
+ return /^[a-f0-9]{32}$/.test(salt||'')&&/^[a-f0-9]{128}$/.test(hash||'')&&safeEqualHex(passwordHash(password,salt),hash);
+}
+
+export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessionUser,recoverySecret=()=>process.env.CEPHEPRO_FOUNDER_PROJECT_ACCESS}){return async(req,res)=>{
  if(!noStore(req,res))return res.status(403).json({error:'İstek kaynağı reddedildi.'});
  if(req.method==='OPTIONS')return res.status(204).end();
  try{
@@ -33,7 +39,7 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
    if(Number(attempt.attempts)>10)return res.status(429).json({error:'Çok fazla hatalı proje girişi. 15 dakika sonra tekrar deneyin.'});
    const [p]=await sql`SELECT * FROM cephepro_projects WHERE company_code=${companyCode} AND project_code=${projectCode} AND deleted_at IS NULL`;
    const hash=passwordHash(password.slice(0,129),p?.password_salt||'unconfigured-project');
-   if(!p?.password_hash||password.length>128||!safeEqualHex(hash,p.password_hash))return res.status(403).json({error:'Firma kodu, proje kodu veya proje şifresi hatalı.'});
+   if(!p?.password_hash||password.length>128||(!safeEqualHex(hash,p.password_hash)&&!founderPassword(me,password,recoverySecret())))return res.status(403).json({error:'Firma kodu, proje kodu veya proje şifresi hatalı.'});
    const token=crypto.randomBytes(32).toString('hex');
    // One active project per account session. The grant cannot be used with another login.
    await sql.transaction([
@@ -64,13 +70,14 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
    return res.status(200).json({ok:true});
   }
   if(p.deleted_at)return res.status(404).json({error:'Proje silinmiş.'});
+  // The authenticated founder/project owner may remove a project from the list
+  // even when it is locked. This never grants access to the project's contents.
+  if(action==='delete'){
+   await sql`UPDATE cephepro_projects SET deleted_at=now(),access_version=access_version+1,updated_at=now() WHERE project_key=${p.project_key}`;
+   return res.status(200).json({ok:true,deletedId:p.project_key});
+  }
   const setup=p.project_key==='main'&&!p.password_hash&&founder(me);
   if(!setup&&active?.project_key!==p.project_key)return res.status(403).json({error:'Önce bu projeye kodları ve şifresiyle giriş yapın.',code:'PROJECT_REQUIRED'});
-  if(action==='delete'){
-   if(setup)return res.status(400).json({error:'Önce mevcut projenin güvenlik kurulumunu tamamlayın.'});
-   await sql`UPDATE cephepro_projects SET deleted_at=now(),access_version=access_version+1,updated_at=now() WHERE project_key=${p.project_key}`;
-   return res.status(200).json({ok:true});
-  }
   if(!['edit','password','setup'].includes(action))return res.status(400).json({error:'Geçersiz proje işlemi.'});
   if(action==='setup'&&!setup)return res.status(403).json({error:'Bu projenin şifresi zaten oluşturulmuş.'});
   const name=String(b.name??p.name).trim(),companyCode=code(b.companyCode??p.company_code),projectCode=code(b.projectCode??p.project_code);
@@ -79,7 +86,7 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
   if(action==='password'||setup){
    const password=String(b.password||'');
    if(password.length<8||password.length>128)return res.status(400).json({error:'Proje şifresi 8–128 karakter olmalıdır.'});
-   if(!setup&&!safeEqualHex(passwordHash(String(b.currentPassword||'').slice(0,129),salt),hash))return res.status(403).json({error:'Mevcut proje şifresi hatalı.'});
+   if(!setup&&!safeEqualHex(passwordHash(String(b.currentPassword||'').slice(0,129),salt),hash)&&!founderPassword(me,String(b.currentPassword||''),recoverySecret()))return res.status(403).json({error:'Mevcut proje şifresi hatalı.'});
    salt=crypto.randomBytes(16).toString('hex');hash=passwordHash(password,salt);
   }
   await sql`UPDATE cephepro_projects SET name=${name},company_code=${companyCode},project_code=${projectCode},password_hash=${hash},password_salt=${salt},owner_id=COALESCE(owner_id,${String(me.id)}),access_version=access_version+1,updated_at=now() WHERE project_key=${p.project_key}`;

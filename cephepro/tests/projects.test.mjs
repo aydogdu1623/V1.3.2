@@ -101,3 +101,38 @@ test('existing main data stays locked until founder setup, and additive migratio
  const source=fs.readFileSync(new URL('../lib/schema.js',import.meta.url),'utf8');await vm.runInNewContext(source.slice(source.indexOf('async function initializeSchema'))+';initializeSchema(sql)',{sql:d.sql});
  assert.equal((await d.call(createStateHandler(d.deps),'GET','founder')).body.revision,5);
 });
+
+test('founder recovery remains valid after another admin changes passwords and never authorizes other accounts',async t=>{
+ const d=await database(t),salt='1234567890abcdef1234567890abcdef',key='SYNTHETIC-founder-recovery';
+ const h=createProjectsHandler({...d.deps,recoverySecret:()=>salt+':'+passwordHash(key,salt)});
+ const {id}=await second(d,'admin-a');
+ assert.equal((await d.call(h,'POST','admin-a',{action:'password',id,currentPassword:credentials.password,password:'SYNTHETIC-changed-by-admin'})).code,200);
+ const unlock={action:'unlock',...credentials,password:key};
+ for(const person of ['admin-a','admin-b','member-a'])assert.equal((await d.call(h,'POST',person,{...unlock,isFounder:true,email:'aydogdu1623@gmail.com'})).code,403);
+ assert.equal((await d.call(h,'POST','unknown',unlock)).code,401);
+ assert.equal((await d.call(h,'POST','founder',{...unlock,projectCode:'WRONG'})).code,403);
+ let opened=await d.call(h,'POST','founder',unlock);assert.equal(opened.code,200);d.projectTokens.founder=opened.body.token;
+ assert.equal((await d.call(createStateHandler(d.deps),'GET','founder')).code,200);
+ assert.equal((await d.call(h,'POST','founder',{action:'password',id,currentPassword:key,password:'SYNTHETIC-changed-again'})).code,200);
+ assert.equal((await d.call(h,'POST','founder',unlock)).code,200);
+ assert.equal((await d.call(h,'POST','founder',{action:'unlock',companyCode:'TEST',projectCode:'MAIN',password:key})).code,200);
+ for(const badSecret of [undefined,'malformed']){
+  const noRecovery=createProjectsHandler({...d.deps,recoverySecret:()=>badSecret});
+  assert.equal((await d.call(noRecovery,'POST','founder',unlock)).code,403);
+ }
+ assert.equal((await d.call(h,'POST','founder',{action:'delete',id},{},{'x-project-token':''})).code,200);
+ assert.equal((await d.call(h,'POST','founder',unlock)).code,403);
+});
+test('locked project deletion is limited to founder or owning admin and revokes access without losing stored data',async t=>{
+ const d=await database(t),h=createProjectsHandler(d.deps),{id}=await second(d,'admin-a');
+ await d.sql`UPDATE cephepro_project_state SET state='{"marker":"PRESERVED"}'::jsonb WHERE project_key=${id}`;
+ const noGrant={'x-project-token':''};
+ for(const person of ['member-a','admin-b'])assert.equal((await d.call(h,'POST',person,{action:'delete',id},{},noGrant)).code,403);
+ assert.equal((await d.call(h,'POST','admin-a',{action:'delete',id},{},noGrant)).code,200);
+ assert.equal((await d.call(createStateHandler(d.deps),'GET','admin-a')).code,403);
+ assert.equal((await d.call(createStateHandler(d.deps),'GET','founder')).code,200);
+ assert.equal((await d.sql`SELECT state FROM cephepro_project_state WHERE project_key=${id}`)[0].state.marker,'PRESERVED');
+ assert.equal((await d.call(h,'POST','founder',{action:'restore',id},{},noGrant)).code,200);
+ assert.equal((await d.call(h,'POST','founder',{action:'delete',id},{},noGrant)).code,200);
+ const list=(await d.call(h,'GET','founder')).body.projects;assert.ok(list.find(p=>p.id===id).deletedAt);
+});
