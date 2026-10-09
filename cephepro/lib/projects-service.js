@@ -23,8 +23,17 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
   if(!me)return res.status(401).json({error:'Önce hesabınıza giriş yapın.'});
   const active=await projectAccess(sql,req,me),accountHash=tokenHash(accountToken);
   if(req.method==='GET'){
-   const rows=await sql`SELECT p.* FROM cephepro_projects p WHERE ${founder(me)} OR p.owner_id=${String(me.id)} OR EXISTS(SELECT 1 FROM cephepro_project_members m WHERE m.project_key=p.project_key AND m.user_id=${String(me.id)}) ORDER BY p.created_at,p.name`;
-   return res.status(200).json({projects:rows.map(p=>view(p,me,active)),activeProject:active?view({...active,password_hash:true},me,active):null,canCreate:me.role==='admin'});
+   // Joining one project reveals that company's directory, never its project data.
+   const known=await sql`SELECT DISTINCT p.company_code FROM cephepro_projects p
+    WHERE p.company_code IS NOT NULL AND (${founder(me)} OR p.owner_id=${String(me.id)} OR
+     (p.deleted_at IS NULL AND EXISTS(SELECT 1 FROM cephepro_project_members m WHERE m.project_key=p.project_key AND m.user_id=${String(me.id)}))) ORDER BY p.company_code`;
+   const companies=known.map(p=>p.company_code),requested=code(req.query?.companyCode);
+   if(requested&&!companies.includes(requested))return res.status(403).json({error:'Bu firmanın projelerini görmek için önce firma kodu, proje kodu ve şifresiyle giriş yapın.',code:'COMPANY_ACCESS_REQUIRED'});
+   const selectedCompany=requested||(companies.includes(active?.company_code)?active.company_code:companies[0])||'';
+   const rows=await sql`SELECT p.* FROM cephepro_projects p WHERE
+    (p.company_code=${selectedCompany} AND (p.deleted_at IS NULL OR ${founder(me)} OR p.owner_id=${String(me.id)}))
+    OR (p.project_key='main' AND p.company_code IS NULL AND ${founder(me)}) ORDER BY p.created_at,p.name`;
+   return res.status(200).json({projects:rows.map(p=>view(p,me,active)),companies,selectedCompany,activeProject:active?view({...active,password_hash:true},me,active):null,canCreate:me.role==='admin'});
   }
   if(req.method!=='POST')return res.status(405).json({error:'Yöntem desteklenmiyor.'});
   const b=req.body||{},action=String(b.action||'');
@@ -55,13 +64,24 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
    const name=String(b.name||'').trim(),companyCode=code(b.companyCode),projectCode=code(b.projectCode),password=String(b.password||'');
    if(!name||name.length>120||!validCode(companyCode)||!validCode(projectCode)||password.length<8||password.length>128)return res.status(400).json({error:'Proje adı, 2–40 karakter firma/proje kodları ve en az 8 karakter şifre girin. Kodlarda boşluk kullanmayın.'});
    const id=crypto.randomUUID(),salt=crypto.randomBytes(16).toString('hex'),hash=passwordHash(password,salt);
-   await sql.transaction([
-    sql`INSERT INTO cephepro_projects(project_key,name,company_code,project_code,password_hash,password_salt,owner_id) VALUES(${id},${name},${companyCode},${projectCode},${hash},${salt},${String(me.id)})`,
-    sql`INSERT INTO cephepro_project_members(project_key,user_id) VALUES(${id},${String(me.id)})`,
-    sql`INSERT INTO cephepro_project_state(project_key,state) VALUES(${id},'{}'::jsonb)`,
-    sql`INSERT INTO cephepro_financial_state(project_key,data) VALUES(${id},'{}'::jsonb)`
-   ]);
-   return res.status(201).json({ok:true,id});
+   // Reserve a unique login code and all empty stores in one atomic statement.
+   // A duplicate code must not block creation or overwrite an existing project.
+   for(let attempt=1;attempt<=24;attempt++){
+    const suffix=attempt===1?'':attempt<=20?'_'+attempt:'_'+crypto.randomBytes(4).toString('hex').toUpperCase();
+    const assignedCode=projectCode.slice(0,40-suffix.length)+suffix;
+    const created=await sql`WITH created AS (
+     INSERT INTO cephepro_projects(project_key,name,company_code,project_code,password_hash,password_salt,owner_id)
+     VALUES(${id},${name},${companyCode},${assignedCode},${hash},${salt},${String(me.id)}) ON CONFLICT(company_code,project_code) DO NOTHING RETURNING *
+    ), member AS (
+     INSERT INTO cephepro_project_members(project_key,user_id) SELECT project_key,${String(me.id)} FROM created
+    ), state AS (
+     INSERT INTO cephepro_project_state(project_key,state) SELECT project_key,'{}'::jsonb FROM created
+    ), finance AS (
+     INSERT INTO cephepro_financial_state(project_key,data) SELECT project_key,'{}'::jsonb FROM created
+    ) SELECT * FROM created`;
+    if(created.length)return res.status(201).json({ok:true,id,project:view(created[0],me,active),codeAdjusted:assignedCode!==projectCode});
+   }
+   return res.status(503).json({error:'Proje kodu şu anda ayrılamadı. Lütfen yeniden deneyin.'});
   }
   const [p]=await sql`SELECT * FROM cephepro_projects WHERE project_key=${String(b.id||'')}`;
   if(!p||!manages(me,p))return res.status(403).json({error:'Bu projeyi yönetme yetkiniz yok.'});
@@ -92,7 +112,7 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
   await sql`UPDATE cephepro_projects SET name=${name},company_code=${companyCode},project_code=${projectCode},password_hash=${hash},password_salt=${salt},owner_id=COALESCE(owner_id,${String(me.id)}),access_version=access_version+1,updated_at=now() WHERE project_key=${p.project_key}`;
   return res.status(200).json({ok:true,requiresUnlock:true});
  }catch(e){
-  if(e.code==='23505')return res.status(409).json({error:'Bu firma ve proje kodu zaten kullanılıyor. Silinen projeleri de kontrol edin.'});
+  if(e.code==='23505')return res.status(409).json({error:'Bu kod başka bir projeye ait. Düzenlerken farklı bir proje kodu kullanın.'});
   console.error('[projects]',e.code||e.name);return res.status(503).json({error:'Proje işlemi tamamlanamadı. Lütfen tekrar deneyin.'});
  }
 };}

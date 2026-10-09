@@ -14,7 +14,7 @@
  const nativeFetch=window.fetch.bind(window),$=id=>document.getElementById(id);
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const accountToken=()=>read(localStorage,'cp_cloud_token')||read(localStorage,'cp_remembered_cloud_token')||'';
- let user=null,verified=false,hydrated=false,projects=[],canCreate=false,checking=null,editMode=null;
+ let user=null,verified=false,hydrated=false,projects=[],companies=[],selectedCompany='',directoryRequest=0,canCreate=false,checking=null,editMode=null;
  const lockedReply=()=>new Response(JSON.stringify({error:'Önce proje girişini tamamlayın.',code:'PROJECT_LOCKED'}),{status:403,headers:{'Content-Type':'application/json'}});
  window.fetch=async function(input,init={}){
   const url=new URL(typeof input==='string'||input instanceof URL?String(input):input.url,location.href);
@@ -33,7 +33,7 @@
  async function api(body){
   const headers={'Content-Type':'application/json',Authorization:'Bearer '+accountToken()};
   if(context?.token)headers['X-Project-Token']=context.token;
-  const response=await nativeFetch('/api/projects',{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined,cache:'no-store'});
+  const response=await nativeFetch('/api/projects'+(!body&&selectedCompany?'?companyCode='+encodeURIComponent(selectedCompany):''),{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined,cache:'no-store'});
   const data=await response.json();if(!response.ok){const error=Error(data.error||'Proje işlemi tamamlanamadı.');error.code=data.code;throw error;}return data;
  }
  function accept(account){
@@ -58,7 +58,7 @@
   checking=(async()=>{
    mount();showGate();status('Proje erişimi kontrol ediliyor…');
    try{
-    const data=await api();projects=data.projects||[];canCreate=!!data.canCreate;
+    const data=await api();directory(data);
     if(context&&data.activeProject?.id===context.project.id&&String(context.userId)===String(user.id)){
      context.project=data.activeProject;verified=true;write(sessionStorage,CONTEXT,JSON.stringify(context));migrateLegacy();
      status('Proje verileri yükleniyor…');render();return true;
@@ -85,13 +85,28 @@
   let button=$('cpActiveProject');if(!button){button=document.createElement('button');button.id='cpActiveProject';button.className='btn';button.onclick=()=>{try{openSettings('settingsSave');}catch{}refresh();};host.prepend(button);}
   button.textContent=context.project.name+' ▾';button.title='Projeleri görüntüle ve proje değiştir';
  }
- async function refresh(){try{const data=await api();projects=data.projects||[];canCreate=!!data.canCreate;render();}catch(e){if($('cpProjectsMessage'))$('cpProjectsMessage').textContent=e.message;}}
+ function directory(data){
+  projects=data.projects||[];companies=data.companies||[...new Set(projects.map(p=>p.companyCode).filter(Boolean))];
+  selectedCompany=data.selectedCompany??(companies.includes(selectedCompany)?selectedCompany:data.activeProject?.companyCode||companies[0]||'');canCreate=!!data.canCreate;
+ }
+ async function refresh(company){
+  const request=++directoryRequest,previous=selectedCompany;if(typeof company==='string')selectedCompany=company;
+  try{const data=await api();if(request!==directoryRequest)return false;directory(data);render();return true;}catch(e){if(request!==directoryRequest)return false;selectedCompany=previous;render();if(root.dataset.cpProject==='locked')status(e.message,true);else if($('cpProjectsMessage'))$('cpProjectsMessage').textContent=e.message;return false;}
+ }
+ function companyControls(){
+  for(const listId of ['cpKnownProjects','cpProjectsList']){
+   const list=$(listId);if(!list)continue;let host=$(listId+'Company');
+   if(!host){host=document.createElement('div');host.id=listId+'Company';host.className='cp-company-picker';list.before(host);}
+   host.innerHTML=`<label>Firma kodu<select data-company-select aria-label="Firma koduna göre projeler">${companies.length?companies.map(c=>`<option value="${esc(c)}" ${c===selectedCompany?'selected':''}>${esc(c)}</option>`).join(''):'<option value="">Henüz firma erişimi yok</option>'}</select></label><button type="button" data-company-login>Başka Firmaya Giriş</button><p>${esc(selectedCompany?selectedCompany+' firmasının projeleri':'Firma ve proje bilgileriyle giriş yapın.')}</p>`;
+  }
+ }
  function progress(){try{return Number(v63OverviewProgress()).toLocaleString('tr-TR',{maximumFractionDigits:1});}catch{return '0';}}
- function rows(deleted=false){return projects.filter(p=>!!p.deletedAt===deleted&&(!deleted||p.canManage)).map(p=>{
+ function rows(deleted=false){return projects.filter(p=>(!p.companyCode||!selectedCompany||p.companyCode===selectedCompany)&&!!p.deletedAt===deleted&&(!deleted||p.canManage)).map(p=>{
   const active=verified&&context?.project.id===p.id;
   return `<article class="cp-project-row${active?' active':''}"><div><strong>${esc(p.name)}</strong><small>${esc(p.companyCode||'Firma kodu bekleniyor')} / ${esc(p.projectCode||'Proje kodu bekleniyor')}</small><span class="cp-project-state">${deleted?'Silinen proje':active&&hydrated?'Açık proje · İlerleme %'+progress():p.configured?'Kilitli · İlerleme için projeye giriş yapın':'İlk güvenlik kurulumu gerekli'}</span></div><div class="cp-project-actions">${deleted?`<button type="button" data-project-action="restore" data-id="${esc(p.id)}">Geri Al</button>`:`<button type="button" data-project-action="switch" data-id="${esc(p.id)}" ${active?'disabled':''}>${active?'Açık':'Projeye Geç'}</button>${p.canManage?`<details><summary aria-label="${esc(p.name)} proje işlemleri">İşlemler ▾</summary><div><button type="button" data-project-action="edit" data-id="${esc(p.id)}">Düzenle</button><button type="button" data-project-action="${p.configured?'password':'setup'}" data-id="${esc(p.id)}">${p.configured?'Şifre Değiştir':'Şifre Oluştur'}</button><button type="button" data-project-action="delete" data-id="${esc(p.id)}">Sil</button></div></details>`:''}`}</div></article>`;
  }).join('')||'<p class="cp-project-hint">Henüz proje yok. Size verilen kodlarla projeye giriş yapabilirsiniz.</p>';}
  function render(){
+  companyControls();
   if($('cpKnownProjects'))$('cpKnownProjects').innerHTML=rows()+(projects.some(p=>p.deletedAt&&p.canManage)?`<details class="cp-deleted"><summary>Silinen Projeler</summary>${rows(true)}</details>`:'');
   if($('cpGateCreate'))$('cpGateCreate').hidden=!canCreate;
   if($('cpProjectsList'))$('cpProjectsList').innerHTML=rows()+ (projects.some(p=>p.deletedAt&&p.canManage)?`<details class="cp-deleted"><summary>Silinen Projeler</summary>${rows(true)}</details>`:'');
@@ -113,17 +128,18 @@
   });
  }
  function form(mode,p){
+  if(mode==='create')p={companyCode:selectedCompany};
   editMode={mode,p};const isPassword=mode==='password',needsPassword=['create','setup','password'].includes(mode);
   const title={create:'Yeni Proje Ekle',setup:'Mevcut Projeye Şifre Oluştur',edit:'Projeyi Düzenle',password:'Proje Şifresini Değiştir'}[mode];
-  const host=$('cpProjectEditor');host.innerHTML=`<form id="cpProjectEditForm"><h2>${title}</h2><p class="cp-project-hint">${mode==='setup'?'Mevcut kayıtlarınız korunur. Bu bilgiler projeye girişte sorulur.':'Proje kodlarını ve şifresini yalnız erişim vermek istediğiniz kişilerle paylaşın.'}</p>${!isPassword?`<label>Proje adı<input name="name" required maxlength="120" value="${esc(p?.name||'')}"></label><div class="cp-code-grid"><label>Firma kodu<input name="companyCode" required minlength="2" maxlength="40" value="${esc(p?.companyCode||'')}" autocomplete="off"></label><label>Proje kodu<input name="projectCode" required minlength="2" maxlength="40" value="${esc(p?.projectCode||'')}" autocomplete="off"></label></div>`:''}${isPassword?'<label>Mevcut proje şifresi<input name="currentPassword" type="password" required maxlength="128" autocomplete="current-password"></label>':''}${needsPassword?'<label>Proje şifresi<input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label><label>Şifre tekrar<input name="repeatPassword" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label>':''}<p id="cpProjectEditStatus" role="status" aria-live="polite"></p><div class="cp-project-toolbar"><button type="submit" class="primary">${mode==='create'?'Proje Ekle':'Kaydet'}</button><button type="button" id="cpProjectEditCancel">Vazgeç</button></div></form>`;
+  const host=$('cpProjectEditor');host.innerHTML=`<form id="cpProjectEditForm"><h2>${title}</h2><p class="cp-project-hint">${mode==='setup'?'Mevcut kayıtlarınız korunur. Bu bilgiler projeye girişte sorulur.':mode==='create'?'Aynı firmaya birden çok proje ekleyebilirsiniz. Proje kodu doluysa sonuna _2, _3 gibi bir ek verilir.':'Proje kodlarını ve şifresini yalnız erişim vermek istediğiniz kişilerle paylaşın.'}</p>${!isPassword?`<label>Proje adı<input name="name" required maxlength="120" value="${esc(p?.name||'')}"></label><div class="cp-code-grid"><label>Firma kodu<input name="companyCode" required minlength="2" maxlength="40" value="${esc(p?.companyCode||'')}" autocomplete="off"></label><label>Proje kodu<input name="projectCode" required minlength="2" maxlength="40" value="${esc(p?.projectCode||'')}" autocomplete="off"></label></div>`:''}${isPassword?'<label>Mevcut proje şifresi<input name="currentPassword" type="password" required maxlength="128" autocomplete="current-password"></label>':''}${needsPassword?'<label>Proje şifresi<input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label><label>Şifre tekrar<input name="repeatPassword" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label>':''}<p id="cpProjectEditStatus" role="status" aria-live="polite"></p><div class="cp-project-toolbar"><button type="submit" class="primary">${mode==='create'?'Proje Ekle':'Kaydet'}</button><button type="button" id="cpProjectEditCancel">Vazgeç</button></div></form>`;
   passwordEyes(host);host.hidden=false;$('cpProjectEditCancel').onclick=()=>{host.hidden=true;host.replaceChildren();};
   $('cpProjectEditForm').onsubmit=async event=>{
    event.preventDefault();const fields=Object.fromEntries(new FormData(event.currentTarget));
    if(needsPassword&&fields.password!==fields.repeatPassword){$('cpProjectEditStatus').textContent='Şifreler aynı olmalıdır.';return;}
    const submit=event.currentTarget.querySelector('[type=submit]');submit.disabled=true;
-   try{const result=await api({action:mode,id:p?.id,...fields});const target={...p,...fields,id:result.id||p?.id};host.hidden=true;host.replaceChildren();await refresh();
-    if(mode==='create'&&!hydrated){select(target);status('Proje oluşturuldu. Şifrenizle giriş yapabilirsiniz.');}
-    else if(mode==='create'){if($('cpProjectsMessage'))$('cpProjectsMessage').textContent='Proje eklendi. Projeye Geç ile açabilirsiniz.';}
+   try{const result=await api({action:mode,id:p?.id,...fields});const target={...p,...fields,...result.project,id:result.id||p?.id};host.hidden=true;host.replaceChildren();await refresh(target.companyCode);
+    if(mode==='create'&&!hydrated){select(target);status('Proje oluşturuldu. Firma: '+target.companyCode+' · Proje kodu: '+target.projectCode+'. Şifrenizle giriş yapabilirsiniz.');}
+    else if(mode==='create'){if($('cpProjectsMessage'))$('cpProjectsMessage').textContent='Proje eklendi. Firma: '+target.companyCode+' · Proje kodu: '+target.projectCode+(result.codeAdjusted?' (Kod dolu olduğu için otomatik düzenlendi.)':'')+'. Projeye Geç ile açabilirsiniz.';}
     else{lock(false);select(target);status('Kaydedildi. Yeni bilgilerle projeye giriş yapın.');}
    }catch(e){$('cpProjectEditStatus').textContent=e.message;submit.disabled=false;}
   };host.querySelector('input')?.focus();
@@ -165,7 +181,8 @@
   $('cpGateCreate').onclick=()=>form('create');$('cpProjectCreate')?.addEventListener('click',()=>form('create'));
   $('cpProjectRetry').onclick=()=>location.reload();
   $('cpProjectLogout').onclick=async()=>{try{await nativeFetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+accountToken()},body:JSON.stringify({action:'logout'})});}catch{}for(const key of ['cp_cloud_token','cp_remembered_cloud_token','cp_session'])nativeRemove.call(localStorage,key);lock(true);location.reload();};
-  document.addEventListener('click',event=>{const button=event.target.closest('[data-project-action]');if(button){event.preventDefault();action(button.dataset.projectAction,button.dataset.id);}if(event.target.closest('[data-pane="settingsSave"]'))refresh();});
+  document.addEventListener('change',event=>{if(event.target.matches('[data-company-select]'))refresh(event.target.value);});
+  document.addEventListener('click',event=>{if(event.target.closest('[data-company-login]')){switchProject(null).then(()=>status('Giriş yapmak istediğiniz firmanın kodunu, proje kodunu ve şifresini girin.')).catch(e=>status(e.message,true));return;}const button=event.target.closest('[data-project-action]');if(button){event.preventDefault();action(button.dataset.projectAction,button.dataset.id);}if(event.target.closest('[data-pane="settingsSave"]'))refresh();});
   render();
  }
  document.addEventListener('DOMContentLoaded',mount);

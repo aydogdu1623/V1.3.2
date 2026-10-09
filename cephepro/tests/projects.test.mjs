@@ -36,7 +36,7 @@ test('project CRUD validates permissions, stores only salted hashes and invalida
  let list=(await d.call(h,'GET','member-a')).body;assert.equal(list.projects.length,1);assert.equal(list.activeProject.id,'main');
  const wrong=await d.call(h,'POST','member-a',{action:'unlock',...credentials,password:'wrong'});assert.equal(wrong.code,403);
  const unlocked=await d.call(h,'POST','member-a',{action:'unlock',...credentials});assert.equal(unlocked.code,200);d.projectTokens['member-a']=unlocked.body.token;
- list=(await d.call(h,'GET','member-a')).body;assert.equal(list.projects.length,2);assert.ok(!JSON.stringify(list).includes(stored.password_hash));assert.ok(!JSON.stringify(list).includes('password_salt'));
+ list=(await d.call(h,'GET','member-a')).body;assert.equal(list.projects.length,1);assert.equal(list.selectedCompany,'FIRMA1');assert.deepEqual(list.companies,['FIRMA1','TEST']);assert.ok(!JSON.stringify(list).includes(stored.password_hash));assert.ok(!JSON.stringify(list).includes('password_salt'));
  assert.equal((await d.call(h,'POST','admin-a',{action:'edit',id,name:'Forged',...credentials})).code,403);
  const changed=await d.call(h,'POST','founder',{action:'password',id,currentPassword:credentials.password,password:'SYNTHETIC-new'});assert.equal(changed.code,200);
  assert.equal((await d.call(createStateHandler(d.deps),'GET','member-a')).code,403);
@@ -134,5 +134,37 @@ test('locked project deletion is limited to founder or owning admin and revokes 
  assert.equal((await d.sql`SELECT state FROM cephepro_project_state WHERE project_key=${id}`)[0].state.marker,'PRESERVED');
  assert.equal((await d.call(h,'POST','founder',{action:'restore',id},{},noGrant)).code,200);
  assert.equal((await d.call(h,'POST','founder',{action:'delete',id},{},noGrant)).code,200);
- const list=(await d.call(h,'GET','founder')).body.projects;assert.ok(list.find(p=>p.id===id).deletedAt);
+ const list=(await d.call(h,'GET','founder',null,{companyCode:'FIRMA1'})).body.projects;assert.ok(list.find(p=>p.id===id).deletedAt);
+});
+
+test('duplicate project codes create independent projects with visible automatic codes, including deleted and concurrent duplicates',async t=>{
+ const d=await database(t),h=createProjectsHandler(d.deps),body={action:'create',...credentials};
+ const first=await d.call(h,'POST','founder',body);assert.equal(first.code,201);assert.equal(first.body.project.projectCode,'PROJE2');assert.equal(first.body.codeAdjusted,false);
+ const second=await d.call(h,'POST','founder',body);assert.equal(second.code,201);assert.equal(second.body.project.projectCode,'PROJE2_2');assert.equal(second.body.codeAdjusted,true);
+ assert.notEqual(first.body.id,second.body.id);
+ await d.call(h,'POST','founder',{action:'delete',id:first.body.id});
+ const concurrent=await Promise.all([d.call(h,'POST','founder',body),d.call(h,'POST','founder',body)]);assert.ok(concurrent.every(r=>r.code===201));
+ const codes=new Set([first,second,...concurrent].map(r=>r.body.project.projectCode));assert.equal(codes.size,4);
+ for(const response of [second,...concurrent]){
+  const id=response.body.id;
+  assert.equal((await d.sql`SELECT * FROM cephepro_project_state WHERE project_key=${id}`).length,1);
+  assert.equal((await d.sql`SELECT * FROM cephepro_financial_state WHERE project_key=${id}`).length,1);
+  assert.equal((await d.sql`SELECT * FROM cephepro_project_members WHERE project_key=${id}`).length,1);
+  assert.equal((await d.call(h,'POST','founder',{action:'unlock',...credentials,projectCode:response.body.project.projectCode})).code,200);
+ }
+ const another=await d.call(h,'POST','founder',{...body,companyCode:'ANOTHER'});assert.equal(another.body.project.projectCode,'PROJE2');assert.equal(another.body.codeAdjusted,false);
+ const long={...body,projectCode:'X'.repeat(40)};await d.call(h,'POST','founder',long);const duplicate=await d.call(h,'POST','founder',long);assert.equal(duplicate.code,201);assert.equal(duplicate.body.project.projectCode.length,40);assert.ok(duplicate.body.project.projectCode.endsWith('_2'));
+});
+test('company directory shows all sibling projects only after authorized company access, while project data stays locked',async t=>{
+ const d=await database(t),h=createProjectsHandler(d.deps);
+ for(const companyCode of ['FIRMA_A','FIRMA_B'])for(let i=1;i<=4;i++)assert.equal((await d.call(h,'POST','founder',{action:'create',...credentials,companyCode,projectCode:'PROJE_'+i})).code,201);
+ assert.equal((await d.call(h,'GET','member-a',null,{companyCode:'FIRMA_B'})).code,403);
+ const open=async companyCode=>{const r=await d.call(h,'POST','member-a',{action:'unlock',companyCode,projectCode:'PROJE_1',password:credentials.password});assert.equal(r.code,200);d.projectTokens['member-a']=r.body.token;};
+ await open('FIRMA_A');let list=(await d.call(h,'GET','member-a')).body;assert.equal(list.selectedCompany,'FIRMA_A');assert.equal(list.projects.length,4);assert.ok(list.projects.every(p=>p.companyCode==='FIRMA_A'&&!p.canManage));assert.ok(!list.companies.includes('FIRMA_B'));
+ const sibling=list.projects.find(p=>!p.unlocked);assert.equal((await d.call(createStateHandler(d.deps),'GET','member-a',null,{projectId:sibling.id},{'x-project-token':''})).code,403);
+ assert.equal((await d.call(h,'POST','member-a',{action:'unlock',companyCode:'FIRMA_B',projectCode:'PROJE_1',password:'wrong'})).code,403);
+ assert.equal((await d.call(h,'GET','member-a',null,{companyCode:'FIRMA_B'})).code,403);
+ await open('FIRMA_B');list=(await d.call(h,'GET','member-a')).body;assert.equal(list.selectedCompany,'FIRMA_B');assert.equal(list.projects.length,4);assert.ok(list.projects.every(p=>p.companyCode==='FIRMA_B'));assert.ok(list.companies.includes('FIRMA_A'));
+ const selected=(await d.call(h,'GET','member-a',null,{companyCode:'FIRMA_A'})).body;assert.equal(selected.projects.length,4);assert.equal(selected.activeProject.companyCode,'FIRMA_B');assert.equal(selected.selectedCompany,'FIRMA_A');
+ const b2=list.projects.find(p=>p.projectCode==='PROJE_2');await d.call(h,'POST','founder',{action:'delete',id:b2.id});assert.equal((await d.call(h,'GET','member-a')).body.projects.length,3);
 });
