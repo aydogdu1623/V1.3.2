@@ -100,7 +100,7 @@ test('an expired current grant still closes the project and clears access',async
  assert.equal(w.CepheProProjects.isReady(),false);assert.equal(w.sessionStorage.getItem('cp_project_access'),null);
 });
 
-test('company selector filters the list, prefills new projects and displays the actual assigned code after creation',async t=>{
+test('directory has no company switch controls and prefills projects from the signed-in company',async t=>{
  const dom=new JSDOM('<html><body><div id="cpProjectsList"></div><div id="cpProjectsMessage"></div><button id="cpProjectCreate"></button></body></html>',{url:'https://example.invalid/',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
  const projects=[{...ctx.project,configured:true,canManage:true},{id:'b',name:'Proje B',companyCode:'B_FIRMA',projectCode:'B1',configured:true,canManage:true}],posts=[];
  Object.assign(w,{Headers,Response,Request,fetch:async(input,init={})=>{
@@ -110,13 +110,12 @@ test('company selector filters the list, prefills new projects and displays the 
  }});
  w.localStorage.setItem('cp_cloud_token','ACCOUNT');w.sessionStorage.setItem('cp_project_access',JSON.stringify(ctx));w.eval(source);await w.CepheProProjects.ensure(user);w.CepheProProjects.ready();
  assert.match(w.document.getElementById('cpProjectsList').textContent,/Proje A/);assert.doesNotMatch(w.document.getElementById('cpProjectsList').textContent,/Proje B/);
- let selector=w.document.querySelector('#cpProjectsListCompany select');selector.value='B_FIRMA';selector.dispatchEvent(new w.Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,10));
- assert.match(w.document.getElementById('cpProjectsList').textContent,/Proje B/);assert.doesNotMatch(w.document.getElementById('cpProjectsList').textContent,/Proje A/);assert.equal(w.CepheProProjects.project().id,'a');
- w.document.getElementById('cpProjectCreate').click();const form=w.document.getElementById('cpProjectEditForm');assert.equal(form.elements.companyCode.value,'B_FIRMA');
+ assert.equal(w.document.querySelector('[data-company-login],#cpProjectsListCompany select'),null);
+ w.document.getElementById('cpProjectCreate').click();const form=w.document.getElementById('cpProjectEditForm');assert.equal(form.elements.companyCode.value,'FIRMA');
  for(const[k,v]of Object.entries({name:'New project',projectCode:'B1',password:'SYNTHETIC-new',repeatPassword:'SYNTHETIC-new'}))form.elements[k].value=v;
  await form.onsubmit({preventDefault(){},currentTarget:form});assert.equal(posts[0].action,'create');assert.match(w.document.getElementById('cpProjectsMessage').textContent,/B1_2/);assert.match(w.document.getElementById('cpProjectsList').textContent,/B1_2/);
- w.document.querySelector('#cpProjectsList [data-project-action="switch"][data-id="new"]').click();await new Promise(r=>setTimeout(r,10));assert.equal(w.CepheProProjects.isReady(),false);assert.equal(w.document.getElementById('cpCompanyCode').value,'B_FIRMA');assert.equal(w.document.getElementById('cpProjectCode').value,'B1_2');
- w.document.querySelector('#cpKnownProjectsCompany [data-company-login]').click();await new Promise(r=>setTimeout(r,10));assert.equal(w.document.getElementById('cpCompanyCode').value,'');assert.equal(w.document.getElementById('cpProjectCode').value,'');assert.match(w.document.getElementById('cpProjectStatus').textContent,/firmanın kodunu/);
+ w.document.querySelector('#cpProjectsList [data-project-action="switch"][data-id="new"]').click();await new Promise(r=>setTimeout(r,10));assert.equal(w.CepheProProjects.isReady(),false);assert.equal(w.document.getElementById('cpCompanyCode').value,'FIRMA');assert.equal(w.document.getElementById('cpProjectCode').value,'B1_2');
+ assert.equal(w.document.querySelector('[data-company-login],#cpKnownProjectsCompany select'),null);
 });
 
 test('trash exposes permanent delete only for managed projects, requires typed confirmation and removes the row',async t=>{

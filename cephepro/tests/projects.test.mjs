@@ -36,7 +36,7 @@ test('project CRUD validates permissions, stores only salted hashes and invalida
  let list=(await d.call(h,'GET','member-a')).body;assert.equal(list.projects.length,1);assert.equal(list.activeProject.id,'main');
  const wrong=await d.call(h,'POST','member-a',{action:'unlock',...credentials,password:'wrong'});assert.equal(wrong.code,403);
  const unlocked=await d.call(h,'POST','member-a',{action:'unlock',...credentials});assert.equal(unlocked.code,200);d.projectTokens['member-a']=unlocked.body.token;
- list=(await d.call(h,'GET','member-a')).body;assert.equal(list.projects.length,1);assert.equal(list.selectedCompany,'FIRMA1');assert.deepEqual(list.companies,['FIRMA1','TEST']);assert.ok(!JSON.stringify(list).includes(stored.password_hash));assert.ok(!JSON.stringify(list).includes('password_salt'));
+ list=(await d.call(h,'GET','member-a')).body;assert.equal(list.projects.length,1);assert.equal(list.selectedCompany,'FIRMA1');assert.deepEqual(list.companies,['FIRMA1']);assert.ok(!JSON.stringify(list).includes(stored.password_hash));assert.ok(!JSON.stringify(list).includes('password_salt'));
  assert.equal((await d.call(h,'POST','admin-a',{action:'edit',id,name:'Forged',...credentials})).code,403);
  const changed=await d.call(h,'POST','founder',{action:'password',id,currentPassword:credentials.password,password:'SYNTHETIC-new'});assert.equal(changed.code,200);
  assert.equal((await d.call(createStateHandler(d.deps),'GET','member-a')).code,403);
@@ -134,7 +134,7 @@ test('locked project deletion is limited to founder or owning admin and revokes 
  assert.equal((await d.sql`SELECT state FROM cephepro_project_state WHERE project_key=${id}`)[0].state.marker,'PRESERVED');
  assert.equal((await d.call(h,'POST','founder',{action:'restore',id},{},noGrant)).code,200);
  assert.equal((await d.call(h,'POST','founder',{action:'delete',id},{},noGrant)).code,200);
- const list=(await d.call(h,'GET','founder',null,{companyCode:'FIRMA1'})).body.projects;assert.ok(list.find(p=>p.id===id).deletedAt);
+ assert.ok((await d.sql`SELECT deleted_at FROM cephepro_projects WHERE project_key=${id}`)[0].deleted_at);
 });
 
 test('duplicate project codes create independent projects with visible automatic codes, including deleted and concurrent duplicates',async t=>{
@@ -164,9 +164,9 @@ test('company directory shows all sibling projects only after authorized company
  const sibling=list.projects.find(p=>!p.unlocked);assert.equal((await d.call(createStateHandler(d.deps),'GET','member-a',null,{projectId:sibling.id},{'x-project-token':''})).code,403);
  assert.equal((await d.call(h,'POST','member-a',{action:'unlock',companyCode:'FIRMA_B',projectCode:'PROJE_1',password:'wrong'})).code,403);
  assert.equal((await d.call(h,'GET','member-a',null,{companyCode:'FIRMA_B'})).code,403);
- await open('FIRMA_B');list=(await d.call(h,'GET','member-a')).body;assert.equal(list.selectedCompany,'FIRMA_B');assert.equal(list.projects.length,4);assert.ok(list.projects.every(p=>p.companyCode==='FIRMA_B'));assert.ok(list.companies.includes('FIRMA_A'));
- const selected=(await d.call(h,'GET','member-a',null,{companyCode:'FIRMA_A'})).body;assert.equal(selected.projects.length,4);assert.equal(selected.activeProject.companyCode,'FIRMA_B');assert.equal(selected.selectedCompany,'FIRMA_A');
- const b2=list.projects.find(p=>p.projectCode==='PROJE_2');await d.call(h,'POST','founder',{action:'delete',id:b2.id});assert.equal((await d.call(h,'GET','member-a')).body.projects.length,3);
+ await open('FIRMA_B');list=(await d.call(h,'GET','member-a')).body;assert.equal(list.selectedCompany,'FIRMA_B');assert.equal(list.projects.length,4);assert.ok(list.projects.every(p=>p.companyCode==='FIRMA_B'));assert.deepEqual(list.companies,['FIRMA_B']);
+ assert.equal((await d.call(h,'GET','member-a',null,{companyCode:'FIRMA_A'})).code,403);await open('FIRMA_A');assert.equal((await d.call(h,'GET','member-a')).body.selectedCompany,'FIRMA_A');
+ await open('FIRMA_B');await d.call(h,'POST','member-a',{action:'lock'});assert.equal((await d.call(h,'GET','member-a')).body.selectedCompany,'FIRMA_B');const b2=list.projects.find(p=>p.projectCode==='PROJE_2');await d.call(h,'POST','founder',{action:'delete',id:b2.id});assert.equal((await d.call(h,'GET','member-a')).body.projects.length,3);
 });
 
 test('legacy production singleton id reproduces the create error; migration preserves rows and allows many projects',async t=>{

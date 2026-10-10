@@ -78,7 +78,7 @@ test('six then seven preserves exact current/previous payloads and deletes older
  const payloads=[];
  for(let i=1;i<=7;i++){
   const d=record();d.employees[0].name='Snapshot '+i;d.employees[0].base=30000+i;
-  d.entries={'1:person-1':{codes:{2:i%2?'X':'R'},hours:{3:i},advance:i*100}};payloads.push(d);
+  d.entries={'1:person-1':{codes:{2:i%2?'X':'R'},hours:{3:i},advance:i*100}};payloads.push(M.protectFinance(d));
   const r=await h.call('PUT','member-a',{data:d,revision:i-1,workDate:'2026-01-02'});assert.equal(r.code,200);
   assert.deepEqual(r.body.versions.map(x=>x.revision),i===1?[1]:[i,i-1]);
   if(i===6){const five=await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'5'});assert.deepEqual(five.body.data,payloads[4]);assert.equal(five.body.isCurrent,false);}
@@ -114,7 +114,7 @@ test('legacy revision five becomes the retrievable previous copy when six is upl
  const initial=(await h.call('GET','member-a')).body;assert.deepEqual(initial.versions.map(x=>x.revision),[5]);assert.deepEqual(initial.uploads.map(x=>x.details.revision),[5,4]);assert.equal(initial.uploads[1].canOpen,false);
  assert.equal((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'4'})).code,404);
  assert.equal((await h.call('PUT','member-a',{data:record(),revision:5,workDate:'2026-01-02'})).code,200);
- const previous=(await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'5'})).body;assert.deepEqual(previous.data,legacy);
+ const previous=(await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'5'})).body;assert.deepEqual(previous.data,M.protectFinance(legacy));
  assert.deepEqual((await h.call('GET','member-a')).body.uploads.map(x=>x.details.revision),[6,5]);
  assert.equal((await h.db.query("SELECT count(*)::int n FROM cephepro_activity_log WHERE action_type='daily_production'")).rows[0].n,1);
 });
@@ -123,5 +123,18 @@ test('competing uploads leave one winner, one previous copy and two summaries',a
  const a=record(),b=record();a.employees[0].name='Winner A';b.employees[0].name='Winner B';
  const results=await Promise.all([a,b].map(data=>h.call('PUT','member-a',{data,revision:1,workDate:'2026-01-02'})));assert.deepEqual(results.map(x=>x.code).sort(),[200,409]);
  const state=(await h.call('GET','member-a')).body;assert.equal(state.revision,2);assert.equal(state.uploads.length,2);
- assert.deepEqual((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'1'})).body.data,record());
+ assert.deepEqual((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'1'})).body.data,M.protectFinance(record()));
+});
+
+test('members cannot read or overwrite financial fields, including archived payroll',async t=>{
+ const h=await harness(t),saved=record();saved.employees[0].iban='TR000000000000000000000000';saved.entries={'1:person-1':{codes:{2:'X'},hours:{},advance:1700}};
+ await h.sql`INSERT INTO cephepro_puantaj(owner_id,work_year,data,revision) VALUES('member-a',2026,${JSON.stringify(saved)}::jsonb,1)`;
+ const response=await h.call('GET','member-a');assert.equal(response.body.data.employees[0].base,0);assert.equal(response.body.data.employees[0].iban,'');assert.equal(response.body.data.entries['1:person-1'].advance,0);
+ for(const view of ['dashboard','salary','bank','receipt']){const denied=await h.call('GET','member-a',null,{year:'2026',view});assert.equal(denied.code,403);assert.equal(denied.body.error,'Yetkiniz yetersiz. Sadece adminler geçiş yapabilir.');}
+ const edited=structuredClone(response.body.data);edited.employees[0].base=999999;edited.entries['1:person-1'].advance=999;edited.entries['1:person-1'].codes[2]='R';
+ assert.equal((await h.call('PUT','member-a',{data:edited,revision:1,workDate:'2026-01-02'})).code,200);
+ const stored=(await h.sql`SELECT data FROM cephepro_puantaj WHERE owner_id='member-a' AND work_year=2026`)[0].data;
+ assert.equal(stored.employees[0].base,30000);assert.equal(stored.employees[0].iban,'TR000000000000000000000000');assert.equal(stored.entries['1:person-1'].advance,1700);assert.equal(stored.entries['1:person-1'].codes[2],'R');
+ assert.equal((await h.call('GET','member-a',null,{year:'2026',view:'version',revision:'1'})).body.data.employees[0].base,0);
+ assert.equal((await h.call('PUT','admin-a',{data:saved,revision:0,workDate:'2026-01-02'})).code,200);assert.equal((await h.call('GET','admin-a')).body.data.employees[0].base,30000);
 });

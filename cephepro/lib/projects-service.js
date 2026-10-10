@@ -23,13 +23,14 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
   if(!me)return res.status(401).json({error:'Önce hesabınıza giriş yapın.'});
   const active=await projectAccess(sql,req,me),accountHash=tokenHash(accountToken);
   if(req.method==='GET'){
-   // Joining one project reveals that company's directory, never its project data.
-   const known=await sql`SELECT DISTINCT p.company_code FROM cephepro_projects p
-    WHERE p.company_code IS NOT NULL AND (${founder(me)} OR p.owner_id=${String(me.id)} OR
-     (p.deleted_at IS NULL AND EXISTS(SELECT 1 FROM cephepro_project_members m WHERE m.project_key=p.project_key AND m.user_id=${String(me.id)}))) ORDER BY p.company_code`;
-   const companies=known.map(p=>p.company_code),requested=code(req.query?.companyCode);
-   if(requested&&!companies.includes(requested))return res.status(403).json({error:'Bu firmanın projelerini görmek için önce firma kodu, proje kodu ve şifresiyle giriş yapın.',code:'COMPANY_ACCESS_REQUIRED'});
-   const selectedCompany=requested||(companies.includes(active?.company_code)?active.company_code:companies[0])||'';
+   // The directory is tied to the authenticated account's current/last company.
+   // Company codes supplied in a query cannot switch the directory.
+   const [last]=await sql`SELECT p.company_code FROM cephepro_project_sessions s JOIN cephepro_projects p ON p.project_key=s.project_key
+    WHERE s.auth_token_hash=${accountHash} AND s.user_id=${String(me.id)} ORDER BY s.created_at DESC LIMIT 1`;
+   const [registered]=await sql`SELECT p.company_code FROM cephepro_project_members m JOIN cephepro_projects p ON p.project_key=m.project_key
+    WHERE m.user_id=${String(me.id)} AND p.company_code IS NOT NULL AND p.deleted_at IS NULL ORDER BY m.joined_at DESC,p.created_at LIMIT 1`;
+   const selectedCompany=active?.company_code||last?.company_code||registered?.company_code||'',requested=code(req.query?.companyCode),companies=selectedCompany?[selectedCompany]:[];
+   if(requested&&requested!==selectedCompany)return res.status(403).json({error:'Yalnız giriş yaptığınız firmanın projeleri listelenebilir.',code:'COMPANY_ACCESS_REQUIRED'});
    const rows=await sql`SELECT p.* FROM cephepro_projects p WHERE
     (p.company_code=${selectedCompany} AND (p.deleted_at IS NULL OR ${founder(me)} OR p.owner_id=${String(me.id)}))
     OR (p.project_key='main' AND p.company_code IS NULL AND ${founder(me)}) ORDER BY p.created_at,p.name`;
@@ -54,7 +55,7 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
    await sql.transaction([
     sql`DELETE FROM cephepro_project_sessions WHERE auth_token_hash=${accountHash} OR expires_at<=now()`,
     sql`INSERT INTO cephepro_project_sessions(token_hash,auth_token_hash,user_id,project_key,access_version,expires_at) VALUES(${tokenHash(token)},${accountHash},${String(me.id)},${p.project_key},${p.access_version},now()+interval '12 hours')`,
-    sql`INSERT INTO cephepro_project_members(project_key,user_id) VALUES(${p.project_key},${String(me.id)}) ON CONFLICT DO NOTHING`,
+    sql`INSERT INTO cephepro_project_members(project_key,user_id) VALUES(${p.project_key},${String(me.id)}) ON CONFLICT(project_key,user_id) DO UPDATE SET joined_at=now()`,
     sql`DELETE FROM cephepro_auth_failures WHERE failure_key=${key}`
    ]);
    return res.status(200).json({ok:true,token,project:view(p,me,p),userId:String(me.id)});

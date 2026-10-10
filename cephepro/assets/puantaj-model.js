@@ -63,5 +63,12 @@ function validate(data){
  }
  return data;
 }
-root.PuantajModel={months,codes,blank,holidays,iso,active,entry,dayCode,salary,calc,validate};
+const financeFields=['base','raise1','raise2','raise1Month','raise2Month','iban'];
+function protectFinance(input,stored=null){
+ if(!input)return input;const out=JSON.parse(JSON.stringify(input)),old=new Map((stored?.employees||[]).map(p=>[p.id,p]));
+ for(const p of out.employees||[])for(const key of financeFields)p[key]=old.get(p.id)?.[key]??(key==='iban'?'':0);
+ for(const [key,e] of Object.entries(out.entries||{}))e.advance=stored?.entries?.[key]?.advance||0;
+ return out;
+}
+root.PuantajModel={financeFields,protectFinance,months,codes,blank,holidays,iso,active,entry,dayCode,salary,calc,validate};
 })(typeof window==='undefined'?globalThis:window);

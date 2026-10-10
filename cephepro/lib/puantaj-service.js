@@ -18,6 +18,7 @@ export function createPuantajHandler({getSql,noStore,bearer,sessionUser,ensureSc
    const own=String(me.id),founder=isFounder(me),manager=founder||me.role==='admin';
    // Only publication metadata is shared. Payroll, identity and bank data stay owner scoped.
    const publicUpload=row=>({id:String(row.id),user_id:row.user_id,user_name:row.user_name,username:row.username,role:row.owner_role||row.role,details:row.details,created_at:row.created_at,canOpen:row.user_id===own&&!!row.can_open,canDelete:canDeleteUpload(me,{id:row.user_id,role:row.owner_role||row.role,email:row.owner_email}),isFounder:row.owner_email?.toLowerCase()===MASTER_EMAIL});
+   if(req.method==='GET'&&!manager&&['dashboard','salary','bank','receipt'].includes(req.query?.view))return res.status(403).json({error:'Yetkiniz yetersiz. Sadece adminler geçiş yapabilir.'});
    if(req.method==='DELETE'){
     const ids=req.body?.ids;
     if(!Array.isArray(ids)||!ids.length||ids.length>200||ids.some(id=>!/^\d{1,18}$/.test(String(id))))return res.status(400).json({error:'1 ile 200 arasında yükleme seçin.'});
@@ -50,7 +51,7 @@ export function createPuantajHandler({getSql,noStore,bearer,sessionUser,ensureSc
       FROM cephepro_puantaj WHERE project_key=${me.projectId} AND owner_id=${own} AND work_year=${year}
        AND (revision=${requested} OR (previous_revision=${requested} AND previous_data IS NOT NULL))`;
      if(!row)return res.status(404).json({error:'Bu sürümün puantaj verisi bulunamadı. Yalnız güncel ve bir önceki sürüm saklanır.'});
-     return res.status(200).json({data:row.data,revision:requested,updatedAt:row.updated_at,currentRevision:Number(row.current_revision),isCurrent:requested===Number(row.current_revision)});
+     return res.status(200).json({data:manager?row.data:M.protectFinance(row.data),revision:requested,updatedAt:row.updated_at,currentRevision:Number(row.current_revision),isCurrent:requested===Number(row.current_revision)});
     }
     if(req.query?.view==='activity'){
      const workDate=String(req.query?.date||turkeyDay());
@@ -72,13 +73,14 @@ export function createPuantajHandler({getSql,noStore,bearer,sessionUser,ensureSc
     const history={uploads:uploads.slice(0,50).map(publicUpload),nextBefore:uploads.length>50?String(uploads[49].id):null,currentUserId:own,canManage:manager};
     if(req.query?.view==='uploads')return res.status(200).json(history);
     const rows=await sql`SELECT data,revision,updated_at,previous_revision,previous_updated_at FROM cephepro_puantaj WHERE project_key=${me.projectId} AND owner_id=${own} AND work_year=${year}`;
-    return res.status(200).json({data:rows[0]?.data||null,revision:Number(rows[0]?.revision||0),updatedAt:rows[0]?.updated_at||null,versions:versionsOf(rows[0]),...history});
+    return res.status(200).json({data:manager?rows[0]?.data||null:M.protectFinance(rows[0]?.data||null),revision:Number(rows[0]?.revision||0),updatedAt:rows[0]?.updated_at||null,versions:versionsOf(rows[0]),...history});
    }
-   const {data,revision}=req.body||{},workDate=String(req.body?.workDate||turkeyDay());
+   let {data}=req.body||{};const {revision}=req.body||{},workDate=String(req.body?.workDate||turkeyDay());
    if(!validWorkDate(workDate)||Number(workDate.slice(0,4))!==year||workDate>turkeyDay())return res.status(400).json({error:'Çalışma tarihi seçili yıl içinde, bugün veya geçmiş bir gün olmalıdır.'});
    if(!Number.isSafeInteger(revision)||revision<0)return res.status(400).json({error:'Kayıt sürümü geçersiz.'});
-   const encoded=JSON.stringify(data);if(!encoded)return res.status(400).json({error:'Puantaj verisi gerekli.'});if(Buffer.byteLength(encoded)>500000)return res.status(413).json({error:'Puantaj kaydı çok büyük.'});
+   let encoded=JSON.stringify(data);if(!encoded)return res.status(400).json({error:'Puantaj verisi gerekli.'});if(Buffer.byteLength(encoded)>500000)return res.status(413).json({error:'Puantaj kaydı çok büyük.'});
    try{M.validate(data);}catch(e){return res.status(400).json({error:e.message});}
+   if(!manager){const [previous]=await sql`SELECT data FROM cephepro_puantaj WHERE project_key=${me.projectId} AND owner_id=${own} AND work_year=${year}`;data=M.protectFinance(data,previous?.data);encoded=JSON.stringify(data);}
    const mm=Number(workDate.slice(5,7)),dd=Number(workDate.slice(8,10));
    const workingCount=data.employees.filter(p=>M.active(p,year,mm,dd)&&['X','PM','BM'].includes(M.dayCode(data,p,mm,dd))).length;
    const rows=await sql`WITH input(project_key,owner_id,work_year,data,expected_revision,user_name,username,role,work_date,working_count) AS (

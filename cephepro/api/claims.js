@@ -13,7 +13,7 @@ export function createClaimsHandler({getSql,noStore,bearer,ensureSchema,sessionU
   const sql=getSql();await ensureSchema(sql);const me=await sessionUser(sql,bearer(req));
   if(!me)return res.status(401).json({error:'Oturum gerekli.'});
     if(!await requireProject(sql,req,me,res))return;
-  if(me.role!=='admin')return res.status(403).json({error:'Hakediş yalnız yöneticiler tarafından kullanılabilir.'});
+  if(me.role!=='admin')return res.status(403).json({error:'Yetkiniz yetersiz. Sadece adminler geçiş yapabilir.'});
   const ownId=String(me.id);
   if(req.method==='GET'&&String(req.query?.list||'')==='1'){
    const rows=await sql`SELECT c.owner_id,c.revision,c.published_at,u.name,u.username
