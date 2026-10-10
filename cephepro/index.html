@@ -6,19 +6,19 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=217.0">
-<script src="/assets/project-access.js?v=217.0"></script>
-<script src="/assets/session-privacy.js?v=217.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=218.0">
+<script src="/assets/project-access.js?v=218.0"></script>
+<script src="/assets/session-privacy.js?v=218.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<meta name="cephepro-build" content="V217.0"/>
+<meta name="cephepro-build" content="V218.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V214";window.CEPHEPRO_BUILD="V217.0";</script>
+<script>window.CEPHEPRO_VERSION="V214";window.CEPHEPRO_BUILD="V218.0";</script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" data-v167-external="true"></script>
@@ -12009,8 +12009,8 @@ function v38EnsureSaveStatus(){
   const s=document.createElement("span");
   s.id="v38SaveStatus";s.className="v38-save-status";
   s.innerHTML=`<span class="v38-save-dot"></span><span id="v38SaveText">Kaydedildi</span>`;
-  const puantaj=document.getElementById("puantajBtn");
-  if(puantaj?.parentElement===headerActions)puantaj.before(s);else headerActions.prepend(s);
+  const anchor=document.getElementById("cpActiveProject")||document.getElementById("puantajBtn");
+  if(anchor?.parentElement===headerActions)anchor.before(s);else headerActions.prepend(s);
 }
 let v38SaveTimer=null;
 function v38MarkSaved(){
@@ -32369,9 +32369,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=217.0"></script>
-<script src="/assets/firma-template-v208.js?v=217.0"></script>
-<script src="/assets/claims-v182.js?v=217.0"></script>
+<script src="/assets/claims-report-v191.js?v=218.0"></script>
+<script src="/assets/firma-template-v208.js?v=218.0"></script>
+<script src="/assets/claims-v182.js?v=218.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
@@ -32382,9 +32382,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <link rel="stylesheet" href="/assets/activity-v189.css">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=217.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=218.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=217.0"></script>
+<script src="/assets/puantaj-model.js?v=218.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -32404,7 +32404,7 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=217.0"></script>
+<script src="/assets/puantaj.js?v=218.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

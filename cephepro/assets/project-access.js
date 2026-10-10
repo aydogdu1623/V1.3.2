@@ -82,7 +82,8 @@
  }
  function header(){
   if(!hydrated)return;const host=$('settingsBtn')?.parentElement||document.querySelector('header .actions');if(!host)return;
-  let button=$('cpActiveProject');if(!button){button=document.createElement('button');button.id='cpActiveProject';button.className='btn';button.onclick=()=>{try{openSettings('settingsSave');}catch{}refresh();};host.prepend(button);}
+  let button=$('cpActiveProject');if(!button){button=document.createElement('button');button.id='cpActiveProject';button.className='btn';button.onclick=()=>{try{openSettings('settingsSave');}catch{}refresh();};}
+  const puantaj=$('puantajBtn');if(puantaj?.parentElement===host)puantaj.before(button);else host.prepend(button);
   button.textContent=context.project.name+' ▾';button.title='Projeleri görüntüle ve proje değiştir';
  }
  function directory(data){
