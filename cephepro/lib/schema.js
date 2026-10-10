@@ -12,6 +12,7 @@ export function ensureSchema(sql) {
 
 async function initializeSchema(sql) {
   const statements=[];
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_migrations(name text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now())`);
   statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_claims (owner_id text PRIMARY KEY, data jsonb NOT NULL DEFAULT '{}'::jsonb, revision integer NOT NULL DEFAULT 0)`);
   statements.push(sql`ALTER TABLE cephepro_claims ADD COLUMN IF NOT EXISTS is_shared boolean NOT NULL DEFAULT false`);
   statements.push(sql`ALTER TABLE cephepro_claims ADD COLUMN IF NOT EXISTS published_at timestamptz`);
@@ -61,8 +62,19 @@ async function initializeSchema(sql) {
     updated_at timestamptz NOT NULL DEFAULT now(),
     updated_by text
   )`);
+  statements.push(sql`DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public'
+  AND table_name='cephepro_project_state' AND column_name='id'
+  AND data_type='integer' AND column_default='1' AND is_identity='NO') THEN
+  LOCK TABLE cephepro_project_state IN ACCESS EXCLUSIVE MODE;
+  CREATE SEQUENCE IF NOT EXISTS cephepro_project_state_legacy_id_seq;
+  PERFORM setval('cephepro_project_state_legacy_id_seq',GREATEST(COALESCE((SELECT MAX(id) FROM cephepro_project_state),0)+1,1),false);
+  ALTER TABLE cephepro_project_state ALTER COLUMN id SET DEFAULT nextval('cephepro_project_state_legacy_id_seq');
+  ALTER SEQUENCE cephepro_project_state_legacy_id_seq OWNED BY cephepro_project_state.id;
+ END IF;
+END $$`);
   statements.push(sql`INSERT INTO cephepro_project_state(project_key,state,revision)
-            VALUES('main','{}'::jsonb,0) ON CONFLICT (project_key) DO NOTHING`);
+            SELECT 'main','{}'::jsonb,0 WHERE NOT EXISTS(SELECT 1 FROM cephepro_migrations WHERE name='main_project_purged_v216') ON CONFLICT (project_key) DO NOTHING`);
 
   // Birim fiyatlar ortak proje durumundan ayrı ve yalnız Admin API'sinden
   // erişilebilen tabloda tutulur; Üye tarayıcısına finans verisi gönderilmez.
@@ -74,7 +86,7 @@ async function initializeSchema(sql) {
     updated_by text
   )`);
   statements.push(sql`INSERT INTO cephepro_financial_state(project_key,data,revision)
-            VALUES('main','{}'::jsonb,0) ON CONFLICT (project_key) DO NOTHING`);
+            SELECT 'main','{}'::jsonb,0 WHERE NOT EXISTS(SELECT 1 FROM cephepro_migrations WHERE name='main_project_purged_v216') ON CONFLICT (project_key) DO NOTHING`);
 
   statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_activity_log (
     id bigserial PRIMARY KEY,
@@ -134,7 +146,7 @@ async function initializeSchema(sql) {
   )`);
   statements.push(sql`CREATE UNIQUE INDEX IF NOT EXISTS cephepro_project_codes_uq ON cephepro_projects(company_code,project_code)`);
   statements.push(sql`INSERT INTO cephepro_projects(project_key,name,owner_id)
-    VALUES('main','Mevcut Proje',(SELECT id FROM cephepro_users WHERE lower(email)='aydogdu1623@gmail.com' LIMIT 1))
+    SELECT 'main','Mevcut Proje',(SELECT id FROM cephepro_users WHERE lower(email)='aydogdu1623@gmail.com' LIMIT 1) WHERE NOT EXISTS(SELECT 1 FROM cephepro_migrations WHERE name='main_project_purged_v216')
     ON CONFLICT(project_key) DO NOTHING`);
   statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_project_members (
     project_key text NOT NULL, user_id text NOT NULL, joined_at timestamptz NOT NULL DEFAULT now(),
@@ -146,7 +158,6 @@ async function initializeSchema(sql) {
     created_at timestamptz NOT NULL DEFAULT now()
   )`);
   statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_project_sessions_auth_idx ON cephepro_project_sessions(auth_token_hash)`);
-  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_migrations(name text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now())`);
   statements.push(sql`INSERT INTO cephepro_project_members(project_key,user_id)
     SELECT 'main',id FROM cephepro_users WHERE NOT EXISTS(SELECT 1 FROM cephepro_migrations WHERE name='project_scope_v213')
     ON CONFLICT DO NOTHING`);

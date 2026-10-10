@@ -19,7 +19,7 @@ export default async function handler(req,res){
     if(!check?.schema_ready)return res.status(503).json({ok:false,error:'Veritabanında gerekli uygulama tabloları eksik.',code:'DB_SCHEMA_MISSING'});
     const host=new URL(process.env.DATABASE_URL).hostname.replace('-pooler','');
     const endpointFingerprint=createHash('sha256').update(host).digest('hex').slice(0,12);
-    return res.status(200).json({ok:true,service:'CephePro Cloud',version:'215',build:'215.0',database:{connected:true,transport:'https',endpointFingerprint},schema:{ready:true}});
+    return res.status(200).json({ok:true,service:'CephePro Cloud',version:'216',build:'216.0',database:{connected:true,transport:'https',endpointFingerprint},schema:{ready:true}});
   }catch(err){
     console.error(err);
     const msg=String(err?.message||'');

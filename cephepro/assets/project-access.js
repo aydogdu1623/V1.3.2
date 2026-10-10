@@ -103,7 +103,7 @@
  function progress(){try{return Number(v63OverviewProgress()).toLocaleString('tr-TR',{maximumFractionDigits:1});}catch{return '0';}}
  function rows(deleted=false){return projects.filter(p=>(!p.companyCode||!selectedCompany||p.companyCode===selectedCompany)&&!!p.deletedAt===deleted&&(!deleted||p.canManage)).map(p=>{
   const active=verified&&context?.project.id===p.id;
-  return `<article class="cp-project-row${active?' active':''}"><div><strong>${esc(p.name)}</strong><small>${esc(p.companyCode||'Firma kodu bekleniyor')} / ${esc(p.projectCode||'Proje kodu bekleniyor')}</small><span class="cp-project-state">${deleted?'Silinen proje':active&&hydrated?'Açık proje · İlerleme %'+progress():p.configured?'Kilitli · İlerleme için projeye giriş yapın':'İlk güvenlik kurulumu gerekli'}</span></div><div class="cp-project-actions">${deleted?`<button type="button" data-project-action="restore" data-id="${esc(p.id)}">Geri Al</button>`:`<button type="button" data-project-action="switch" data-id="${esc(p.id)}" ${active?'disabled':''}>${active?'Açık':'Projeye Geç'}</button>${p.canManage?`<details><summary aria-label="${esc(p.name)} proje işlemleri">İşlemler ▾</summary><div><button type="button" data-project-action="edit" data-id="${esc(p.id)}">Düzenle</button><button type="button" data-project-action="${p.configured?'password':'setup'}" data-id="${esc(p.id)}">${p.configured?'Şifre Değiştir':'Şifre Oluştur'}</button><button type="button" data-project-action="delete" data-id="${esc(p.id)}">Sil</button></div></details>`:''}`}</div></article>`;
+  return `<article class="cp-project-row${active?' active':''}"><div><strong>${esc(p.name)}</strong><small>${esc(p.companyCode||'Firma kodu bekleniyor')} / ${esc(p.projectCode||'Proje kodu bekleniyor')}</small><span class="cp-project-state">${deleted?'Silinen proje':active&&hydrated?'Açık proje · İlerleme %'+progress():p.configured?'Kilitli · İlerleme için projeye giriş yapın':'İlk güvenlik kurulumu gerekli'}</span></div><div class="cp-project-actions">${deleted?`<button type="button" data-project-action="restore" data-id="${esc(p.id)}">Geri Al</button><button type="button" class="cp-project-danger" data-project-action="purge" data-id="${esc(p.id)}">Kalıcı Sil</button>`:`<button type="button" data-project-action="switch" data-id="${esc(p.id)}" ${active?'disabled':''}>${active?'Açık':'Projeye Geç'}</button>${p.canManage?`<details><summary aria-label="${esc(p.name)} proje işlemleri">İşlemler ▾</summary><div><button type="button" data-project-action="edit" data-id="${esc(p.id)}">Düzenle</button><button type="button" data-project-action="${p.configured?'password':'setup'}" data-id="${esc(p.id)}">${p.configured?'Şifre Değiştir':'Şifre Oluştur'}</button><button type="button" data-project-action="delete" data-id="${esc(p.id)}">Sil</button></div></details>`:''}`}</div></article>`;
  }).join('')||'<p class="cp-project-hint">Henüz proje yok. Size verilen kodlarla projeye giriş yapabilirsiniz.</p>';}
  function render(){
   companyControls();
@@ -150,6 +150,15 @@
    if(name==='create'){form('create');return;}
    if(!p)return;
    if(name==='switch'){if(!p.configured&&p.canManage){form('setup',p);return;}await switchProject(p);return;}
+   if(name==='purge'){
+    if(!p.canManage||!p.deletedAt)throw Error('Yalnızca yetkili olduğunuz silinmiş projeleri kalıcı silebilirsiniz.');
+    const confirmation=prompt('“'+p.name+'” ve bu projeye ait puantaj, hakediş, fotoğraf ve tüm kayıtlar kalıcı silinecek. Bu işlem geri alınamaz. Onay için proje kodunu yazın: '+(p.projectCode||p.name));
+    if(confirmation===null)return;
+    await api({action:'purge',id,confirmProjectCode:confirmation});
+    projects=projects.filter(item=>item.id!==id);selectedCompany='';await refresh();
+    if(root.dataset.cpProject==='locked')status('Proje ve kayıtları kalıcı olarak silindi.');else if($('cpProjectsMessage'))$('cpProjectsMessage').textContent='Proje ve kayıtları kalıcı olarak silindi.';
+    return;
+   }
    if(name==='restore'){await api({action:'restore',id});await refresh();return;}
    if(!p.canManage)throw Error('Bu projeyi yönetme yetkiniz yok.');
    if(name==='delete'){

@@ -51,6 +51,13 @@ test('complete app boots with an empty protected project and mounts the Projects
  await new Promise(resolve=>dom.window.addEventListener('load',resolve,{once:true}));await new Promise(resolve=>setTimeout(resolve,400));
  assert.deepEqual([...errors],[]);assert.equal(dom.window.CepheProProjects.isReady(),true);assert.equal(dom.window.CepheProPrivacy.isReady(),true);assert.equal(dom.window.document.querySelector('[data-pane="settingsSave"]').textContent,'Projeler');assert.equal(dom.window.eval('Object.keys(DATA).length'),0);
  assert.ok(requests.includes('/api/state'));assert.ok(dom.window.document.getElementById('cpProjectCreate'));
+ dom.window.document.getElementById('cpProjectCreate').click();
+ const editor=dom.window.document.getElementById('cpProjectEditForm'),style=dom.window.getComputedStyle(editor);
+ assert.equal(style.width,'min(400px,100%)');assert.equal(style.backgroundColor,'rgb(248, 252, 251)');
+ assert.match(dom.window.getComputedStyle(editor.querySelector('h2')).color,/rgb\((16, 47, 61|33, 79, 84)\)/);
+ assert.equal(dom.window.getComputedStyle(editor.querySelector('input')).height,'34px');
+ assert.equal(dom.window.getComputedStyle(dom.window.document.querySelector('.cp-gate-card')).width,'min(460px,100%)');
+
 });
 
 test('a late pre-verification auth response cannot invalidate a newly verified project',async t=>{
@@ -110,4 +117,16 @@ test('company selector filters the list, prefills new projects and displays the 
  await form.onsubmit({preventDefault(){},currentTarget:form});assert.equal(posts[0].action,'create');assert.match(w.document.getElementById('cpProjectsMessage').textContent,/B1_2/);assert.match(w.document.getElementById('cpProjectsList').textContent,/B1_2/);
  w.document.querySelector('#cpProjectsList [data-project-action="switch"][data-id="new"]').click();await new Promise(r=>setTimeout(r,10));assert.equal(w.CepheProProjects.isReady(),false);assert.equal(w.document.getElementById('cpCompanyCode').value,'B_FIRMA');assert.equal(w.document.getElementById('cpProjectCode').value,'B1_2');
  w.document.querySelector('#cpKnownProjectsCompany [data-company-login]').click();await new Promise(r=>setTimeout(r,10));assert.equal(w.document.getElementById('cpCompanyCode').value,'');assert.equal(w.document.getElementById('cpProjectCode').value,'');assert.match(w.document.getElementById('cpProjectStatus').textContent,/firmanın kodunu/);
+});
+
+test('trash exposes permanent delete only for managed projects, requires typed confirmation and removes the row',async t=>{
+ const dom=new JSDOM('<html><body><div id="cpProjectsList"></div><div id="cpProjectsMessage"></div></body></html>',{url:'https://example.invalid/',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());let confirmed=null,purged=false;const posts=[];
+ Object.assign(w,{Headers,Response,Request,prompt:()=>confirmed,fetch:async(input,init={})=>{
+  if(init.body){const body=JSON.parse(init.body);posts.push(body);assert.equal(body.action,'purge');assert.equal(body.confirmProjectCode,'OLD');purged=true;return new Response('{"ok":true}',{status:200});}
+  return new Response(JSON.stringify({projects:[{...ctx.project,configured:true,canManage:true},...purged?[]:[{id:'old',name:'Old project',companyCode:'FIRMA',projectCode:'OLD',configured:true,canManage:true,deletedAt:'2026-10-10'},{id:'other',name:'Other trash',companyCode:'FIRMA',projectCode:'OTHER',canManage:false,deletedAt:'2026-10-10'}]],companies:['FIRMA'],selectedCompany:'FIRMA',activeProject:ctx.project,canCreate:true}),{status:200});
+ }});
+ w.sessionStorage.setItem('cp_project_access',JSON.stringify(ctx));w.eval(source);await w.CepheProProjects.ensure(user);w.CepheProProjects.ready();
+ const button=()=>w.document.querySelector('#cpProjectsList [data-project-action="purge"][data-id="old"]');assert.ok(button());assert.equal(w.document.querySelector('[data-project-action="purge"][data-id="other"]'),null);
+ button().click();await new Promise(r=>setTimeout(r,0));assert.equal(posts.length,0);
+ confirmed='OLD';button().click();await new Promise(r=>setTimeout(r,10));assert.equal(posts.length,1);assert.equal(button(),null);assert.equal(w.CepheProProjects.isReady(),true);assert.match(w.document.getElementById('cpProjectsMessage').textContent,/kalıcı olarak silindi/);
 });

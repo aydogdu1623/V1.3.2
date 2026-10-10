@@ -23,3 +23,39 @@ html[data-cp-project="locked"][data-cp-account="verified"] #authScreen{display:n
 .cp-password-eye:focus-visible{outline:2px solid #67dac0;outline-offset:1px}.cp-password-eye .cp-eye-slash{display:none}.cp-password-eye[aria-pressed="true"] .cp-eye-slash{display:block}
 
 .cp-company-picker{display:flex;align-items:end;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid #38506a;border-radius:10px;background:#142639;margin:12px 0;color:#c1d1df}.cp-company-picker label{display:grid;gap:6px;flex:1;min-width:180px;margin:0!important;font-size:12px}.cp-company-picker select{width:100%;padding:9px 10px;border:1px solid #38506a;border-radius:8px;background:#0a1525;color:#f3f8ff;font-size:13px}.cp-company-picker p{flex-basis:100%;margin:0;font-size:11px;color:#a2b7cc}
+
+/* V216: compact panels using the site's light teal palette. Scoped important
+   rules prevent the legacy global theme from overriding text contrast. */
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel){color:#214f54!important;font:12px/1.45 system-ui,sans-serif}
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel) *{box-sizing:border-box}
+#cpProjectGate{place-items:center;padding:16px;background:linear-gradient(145deg,#d7e9e6,#edf5f3)!important}
+#cpProjectGate .cp-gate-card{width:min(460px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:18px;background:#f8fcfb!important;border-color:#93bbb7;border-radius:14px;box-shadow:0 16px 50px #214f5426}
+#cpProjectGate .cp-gate-brand{font-size:10px;letter-spacing:2px;color:#21615c!important}#cpProjectGate .cp-gate-brand span{font-size:9px;color:#577a7d!important}
+#cpProjectGate h1{color:#214f54!important;font-size:19px!important;margin:12px 0 6px!important;line-height:1.3}
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel) .cp-project-hint{color:#526f74!important;font-size:11px!important;line-height:1.5;margin:6px 0 10px}
+.cp-code-grid{gap:10px}
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel) label{gap:4px;font-size:11px!important;margin:7px 0;color:#335e62!important}
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel) :is(input,select){width:100%;min-width:0;height:34px!important;min-height:34px!important;border:1px solid #9dbfbc!important;border-radius:7px;padding:6px 9px!important;background:#fff!important;color:#214f54!important;font-size:12px!important;outline:none}
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel) :is(input,select):focus{border-color:#2f7477!important;box-shadow:0 0 0 2px #2f747722!important}
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel) button,:is(#cpProjectGate,#cpProjectsPanel) .cp-project-actions summary{border:1px solid #97bdb8!important;border-radius:7px!important;background:#eaf5f2!important;color:#214f54!important;padding:5px 9px!important;font-size:11px!important;min-height:30px!important;line-height:1.3}
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel) button:hover{background:#dceee8!important}
+:is(#cpProjectGate,#cpProjectEditor) button.primary{background:#2f7477!important;color:#fff!important;border-color:#2f7477!important;font-weight:700}
+.cp-project-toolbar{gap:8px;margin:12px 0 7px}
+:is(#cpProjectGate,#cpProjectEditor,#cpProjectsPanel) h2{color:#214f54!important;font-size:14px!important;margin:0!important}
+#cpProjectsPanel{max-width:720px;margin:auto;padding:12px;background:#f8fcfb!important;border:1px solid #a3c2be;border-radius:10px}
+:is(#cpProjectGate,#cpProjectsPanel) .cp-project-row{gap:8px;padding:9px;border-color:#b3cdc7;border-radius:8px;margin:7px 0;background:#fff!important;color:#214f54!important}
+:is(#cpProjectGate,#cpProjectsPanel) .cp-project-row.active{border-color:#2f7477;background:#edf7f3!important}
+.cp-project-row>div:first-child{min-width:0;overflow-wrap:anywhere}
+:is(#cpProjectGate,#cpProjectsPanel) .cp-project-row strong{font-size:12px!important;color:#214f54!important}
+.cp-project-row small{color:#526f74!important;font-size:10px}.cp-project-state{font-size:10px;color:#38736b!important;margin-top:4px}
+.cp-project-actions{gap:5px;flex-wrap:wrap}.cp-project-actions details>div{min-width:130px;padding:5px;background:#f5faf8!important;border-color:#97bdb8;box-shadow:0 6px 18px #214f5426}
+#cpProjectStatus,#cpProjectsMessage,#cpProjectEditStatus{font-size:11px!important;color:#426d70!important;min-height:16px;margin:7px 0}
+#cpProjectStatus[data-error="true"],#cpProjectEditStatus{color:#a63e36!important}.cp-deleted{margin-top:12px;font-size:11px;color:#526f74!important}
+:is(#cpProjectGate,#cpProjectsPanel) button.cp-project-danger{background:#fff0ed!important;border-color:#d5a19a!important;color:#914b44!important}
+#cpKnownProjects{max-height:220px;overflow:auto;padding-right:3px}
+#cpProjectEditor{background:#173b4266!important;padding:12px}#cpProjectEditForm{width:min(400px,100%);max-height:calc(100dvh - 24px);padding:16px;background:#f8fcfb!important;border-color:#93bbb7;border-radius:12px;box-shadow:0 18px 50px #173b4233}#cpProjectEditor h2{font-size:17px!important}
+:is(#cpProjectGate,#cpProjectEditor) .cp-password-field input{padding-right:38px!important}
+:is(#cpProjectGate,#cpProjectEditor) button.cp-password-eye{right:3px;width:30px;height:28px!important;min-height:28px!important;padding:4px!important;background:transparent!important;border:0!important;color:#397775!important}
+:is(#cpProjectGate,#cpProjectEditor) button.cp-password-eye:hover{background:#e3f0ec!important}
+.cp-company-picker{gap:7px;padding:9px;border-color:#b3cdc7;border-radius:8px;background:#edf6f2!important;margin:9px 0;color:#335e62!important}.cp-company-picker label{min-width:140px}.cp-company-picker p{font-size:10px;color:#526f74!important}
+@media(max-width:480px){#cpProjectGate{padding:10px}#cpProjectGate .cp-gate-card{padding:14px;max-height:calc(100dvh - 20px)}.cp-gate-brand{letter-spacing:1px}.cp-code-grid{grid-template-columns:1fr 1fr;gap:7px}#cpProjectEditForm{padding:13px}}

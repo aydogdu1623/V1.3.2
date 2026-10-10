@@ -168,3 +168,36 @@ test('company directory shows all sibling projects only after authorized company
  const selected=(await d.call(h,'GET','member-a',null,{companyCode:'FIRMA_A'})).body;assert.equal(selected.projects.length,4);assert.equal(selected.activeProject.companyCode,'FIRMA_B');assert.equal(selected.selectedCompany,'FIRMA_A');
  const b2=list.projects.find(p=>p.projectCode==='PROJE_2');await d.call(h,'POST','founder',{action:'delete',id:b2.id});assert.equal((await d.call(h,'GET','member-a')).body.projects.length,3);
 });
+
+test('legacy production singleton id reproduces the create error; migration preserves rows and allows many projects',async t=>{
+ const d=await database(t),h=createProjectsHandler(d.deps);
+ await d.sql`ALTER TABLE cephepro_project_state ADD COLUMN id integer NOT NULL DEFAULT 1`;
+ await d.sql`ALTER TABLE cephepro_project_state DROP CONSTRAINT cephepro_project_state_pkey`;
+ await d.sql`ALTER TABLE cephepro_project_state ADD PRIMARY KEY(id)`;
+ await d.sql`ALTER TABLE cephepro_project_state ADD UNIQUE(project_key)`;
+ await d.sql`UPDATE cephepro_project_state SET state='{"marker":"KEEP"}'::jsonb,revision=190 WHERE project_key='main'`;
+ const failed=await d.call(h,'POST','founder',{action:'create',...credentials});assert.equal(failed.code,503);assert.doesNotMatch(failed.body.error,/kod başka/);
+ const migration=fs.readFileSync(new URL('../migrations/216-legacy-project-id.sql',import.meta.url),'utf8');await d.db.exec(migration);await d.db.exec(migration);
+ for(const companyCode of ['SAME_COMPANY','OTHER_COMPANY'])for(const projectCode of ['PROJECT_1','PROJECT_2'])assert.equal((await d.call(h,'POST','founder',{action:'create',...credentials,companyCode,projectCode})).code,201);
+ const rows=await d.sql`SELECT id,project_key,state,revision FROM cephepro_project_state`;
+ assert.equal(rows.length,5);assert.equal(new Set(rows.map(r=>r.id)).size,5);const main=rows.find(r=>r.project_key==='main');assert.equal(main.id,1);assert.equal(main.state.marker,'KEEP');assert.equal(Number(main.revision),190);
+ const schema=fs.readFileSync(new URL('../lib/schema.js',import.meta.url),'utf8');await vm.runInNewContext(schema.slice(schema.indexOf('async function initializeSchema'))+';initializeSchema(sql)',{sql:d.sql});
+ assert.equal((await d.call(h,'POST','founder',{action:'create',...credentials})).code,201);
+});
+test('permanent deletion requires trash, managing role and typed code, removes only target data and never recreates main',async t=>{
+ const d=await database(t),h=createProjectsHandler(d.deps),{id}=await second(d,'admin-a');
+ assert.equal((await d.call(h,'POST','admin-a',{action:'purge',id,confirmProjectCode:credentials.projectCode})).code,409);
+ await d.call(h,'POST','admin-a',{action:'delete',id});
+ for(const person of ['member-a','admin-b'])assert.equal((await d.call(h,'POST',person,{action:'purge',id,confirmProjectCode:credentials.projectCode})).code,403);
+ assert.equal((await d.call(h,'POST','admin-a',{action:'purge',id,confirmProjectCode:'WRONG'})).code,400);
+ assert.equal((await d.call(h,'POST','admin-a',{action:'purge',id,confirmProjectCode:credentials.projectCode})).code,200);
+ for(const table of ['cephepro_projects','cephepro_project_state','cephepro_financial_state','cephepro_project_members','cephepro_project_sessions']){
+  assert.equal((await d.db.query('SELECT * FROM '+table+' WHERE project_key=$1',[id])).rows.length,0);
+  assert.ok((await d.db.query('SELECT * FROM '+table+" WHERE project_key='main'")).rows.length>0);
+ }
+ assert.equal((await d.call(h,'POST','admin-a',{action:'restore',id})).code,403);
+ await d.call(h,'POST','founder',{action:'delete',id:'main'});assert.equal((await d.call(h,'POST','founder',{action:'purge',id:'main',confirmProjectCode:'MAIN'})).code,200);
+ const source=fs.readFileSync(new URL('../lib/schema.js',import.meta.url),'utf8');await vm.runInNewContext(source.slice(source.indexOf('async function initializeSchema'))+';initializeSchema(sql)',{sql:d.sql});
+ for(const table of ['cephepro_projects','cephepro_project_state','cephepro_financial_state'])assert.equal((await d.db.query('SELECT * FROM '+table+" WHERE project_key='main'")).rows.length,0);
+ assert.equal((await d.call(h,'POST','founder',{action:'create',...credentials,companyCode:'TEST',projectCode:'MAIN'})).code,201);
+});

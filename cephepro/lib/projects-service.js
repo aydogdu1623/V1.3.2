@@ -85,6 +85,26 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
   }
   const [p]=await sql`SELECT * FROM cephepro_projects WHERE project_key=${String(b.id||'')}`;
   if(!p||!manages(me,p))return res.status(403).json({error:'Bu projeyi yönetme yetkiniz yok.'});
+  if(action==='purge'){
+   if(!p.deleted_at)return res.status(409).json({error:'Kalıcı silmeden önce projeyi Silinen Projeler bölümüne taşıyın.'});
+   if(code(b.confirmProjectCode)!==code(p.project_code||p.name))return res.status(400).json({error:'Kalıcı silmeyi onaylamak için proje kodunu doğru yazın.'});
+   const removed=await sql`WITH target AS (
+    SELECT project_key FROM cephepro_projects WHERE project_key=${p.project_key} AND deleted_at IS NOT NULL FOR UPDATE
+   ), marker AS (
+    INSERT INTO cephepro_migrations(name) SELECT 'main_project_purged_v216' FROM target WHERE project_key='main' ON CONFLICT DO NOTHING
+   ), sessions AS (DELETE FROM cephepro_project_sessions x USING target t WHERE x.project_key=t.project_key),
+   members AS (DELETE FROM cephepro_project_members x USING target t WHERE x.project_key=t.project_key),
+   payroll AS (DELETE FROM cephepro_puantaj x USING target t WHERE x.project_key=t.project_key),
+   claims AS (DELETE FROM cephepro_claims x USING target t WHERE x.project_key=t.project_key),
+   activity AS (DELETE FROM cephepro_activity_log x USING target t WHERE x.project_key=t.project_key),
+   snapshots AS (DELETE FROM cephepro_daily_activity_snapshots x USING target t WHERE x.project_key=t.project_key),
+   photos AS (DELETE FROM cephepro_photos x USING target t WHERE x.project_key=t.project_key),
+   state AS (DELETE FROM cephepro_project_state x USING target t WHERE x.project_key=t.project_key),
+   finance AS (DELETE FROM cephepro_financial_state x USING target t WHERE x.project_key=t.project_key)
+   DELETE FROM cephepro_projects x USING target t WHERE x.project_key=t.project_key RETURNING x.project_key`;
+   if(!removed.length)return res.status(409).json({error:'Projenin durumu değişti. Listeyi yenileyin.'});
+   return res.status(200).json({ok:true,purgedId:p.project_key});
+  }
   if(action==='restore'){
    await sql`UPDATE cephepro_projects SET deleted_at=null,access_version=access_version+1,updated_at=now() WHERE project_key=${p.project_key}`;
    return res.status(200).json({ok:true});
@@ -112,7 +132,8 @@ export function createProjectsHandler({getSql,noStore,bearer,ensureSchema,sessio
   await sql`UPDATE cephepro_projects SET name=${name},company_code=${companyCode},project_code=${projectCode},password_hash=${hash},password_salt=${salt},owner_id=COALESCE(owner_id,${String(me.id)}),access_version=access_version+1,updated_at=now() WHERE project_key=${p.project_key}`;
   return res.status(200).json({ok:true,requiresUnlock:true});
  }catch(e){
-  if(e.code==='23505')return res.status(409).json({error:'Bu kod başka bir projeye ait. Düzenlerken farklı bir proje kodu kullanın.'});
-  console.error('[projects]',e.code||e.name);return res.status(503).json({error:'Proje işlemi tamamlanamadı. Lütfen tekrar deneyin.'});
+  console.error('[projects]',e.code||e.name,e.constraint||'');
+  if(e.code==='23505'&&e.constraint==='cephepro_project_codes_uq')return res.status(409).json({error:'Bu kod başka bir projeye ait. Düzenlerken farklı bir proje kodu kullanın.'});
+  return res.status(503).json({error:'Proje işlemi tamamlanamadı. Lütfen tekrar deneyin.'});
  }
 };}
