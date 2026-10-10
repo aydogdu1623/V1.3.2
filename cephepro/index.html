@@ -6,19 +6,19 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=218.0">
-<script src="/assets/project-access.js?v=218.0"></script>
-<script src="/assets/session-privacy.js?v=218.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=219.0">
+<script src="/assets/project-access.js?v=219.0"></script>
+<script src="/assets/session-privacy.js?v=219.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<meta name="cephepro-build" content="V218.0"/>
+<meta name="cephepro-build" content="V219.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V214";window.CEPHEPRO_BUILD="V218.0";</script>
+<script>window.CEPHEPRO_VERSION="V214";window.CEPHEPRO_BUILD="V219.0";</script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" data-v167-external="true"></script>
@@ -32225,7 +32225,7 @@ body.v113-member #v32WorkModal .v34-work-row{
   const fmt=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?d.toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'}):'—'};
   const qty=v=>v==null?'—':new Intl.NumberFormat('tr-TR',{maximumFractionDigits:3}).format(Number(v)||0);
   let timer,z=1000000,sequence=0;
-  const panels=new Map();
+  const panels=new Map(),selections=new WeakMap();
   function close(key){const panel=panels.get(key);if(panel){panel.remove();panels.delete(key)}}
   function fit(panel,x,y){panel.style.left=Math.max(8,Math.min(x,innerWidth-panel.offsetWidth-8))+'px';panel.style.top=Math.max(8,Math.min(y,innerHeight-panel.offsetHeight-8))+'px'}
   window.addEventListener('resize',()=>panels.forEach(panel=>fit(panel,panel.offsetLeft,panel.offsetTop)));
@@ -32267,11 +32267,18 @@ body.v113-member #v32WorkModal .v34-work-row{
   }
   function render(root,data){
     clearTimeout(timer);
+    const scope=String(data.currentUserId||'')+'|'+String(window.CepheProProjects?.project()?.id||'');
+    let selection=selections.get(root);if(!selection||selection.scope!==scope){selection={scope,keys:new Set()};selections.set(root,selection);}
+    const selected=selection.keys,key=p=>p.key+'|'+p.date;
     const receivedAt=Date.now(),base=Number.isFinite(Date.parse(data.serverTime))?Date.parse(data.serverTime):receivedAt;
     function paint(){
       const now=base+Date.now()-receivedAt,packets=group(data.activities||[],now);
       panels.forEach((panel,key)=>{const packet=packets.find(p=>p.key===key);if(packet)contents(panel,packet);else close(key)});
-      root.innerHTML=packets.length?packets.map((p,i)=>`<button type="button" class="v177-user-row" data-packet="${i}" title="Ayrıntılar için çift tıklayın veya Enter'a basın"><b>${esc(p.name)}</b><time>${esc(fmt(p.date))}</time></button>`).join(''):'<div class="v113-activity-empty">Son 48 saatte yüklenmiş hareket yok.</div>';
+      const available=new Set(packets.map(key));for(const id of selected)if(!available.has(id))selected.delete(id);
+      root.innerHTML=packets.length?`<div class="v219-selection-tools"><label><input type="checkbox" class="v102-check v219-check" data-activity-all aria-label="Tüm hareketleri seç"><span>Tümünü Seç</span></label><button type="button" class="btn" data-activity-clear>Seçimi Kaldır</button><span data-activity-count role="status"></span><button type="button" class="btn" data-activity-open>Seçilenleri Aç</button></div>`+packets.map((p,i)=>`<div class="v219-activity-row"><input type="checkbox" class="v102-check v219-check" data-activity-check="${i}" aria-label="${esc(p.name)} hareketlerini seç"><button type="button" class="v177-user-row" data-packet="${i}" title="Ayrıntılar için çift tıklayın veya Enter'a basın"><b>${esc(p.name)}</b><time>${esc(fmt(p.date))}</time></button></div>`).join(''):'<div class="v113-activity-empty">Son 48 saatte yüklenmiş hareket yok.</div>';
+      const sync=()=>{const all=root.querySelector('[data-activity-all]');if(!all)return;all.checked=packets.length>0&&selected.size===packets.length;all.indeterminate=selected.size>0&&!all.checked;root.querySelector('[data-activity-count]').textContent=selected.size+' / '+packets.length+' seçili';for(const el of root.querySelectorAll('[data-activity-check]')){el.checked=selected.has(key(packets[Number(el.dataset.activityCheck)]));el.closest('.v219-activity-row').classList.toggle('v219-selected',el.checked);}root.querySelector('[data-activity-open]').disabled=!selected.size;root.querySelector('[data-activity-clear]').disabled=!selected.size;};
+      root.querySelectorAll('[data-activity-check]').forEach(el=>el.onchange=()=>{const id=key(packets[Number(el.dataset.activityCheck)]);el.checked?selected.add(id):selected.delete(id);sync();});
+      const all=root.querySelector('[data-activity-all]');if(all){all.onchange=()=>{selected.clear();if(all.checked)packets.forEach(p=>selected.add(key(p)));sync();};root.querySelector('[data-activity-clear]').onclick=()=>{selected.clear();sync();};root.querySelector('[data-activity-open]').onclick=()=>packets.filter(p=>selected.has(key(p))).forEach(open);sync();}
       root.querySelectorAll('[data-packet]').forEach(el=>{const action=()=>open(packets[Number(el.dataset.packet)]);el.addEventListener('dblclick',action);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();action()}})});
       const next=Math.min(...(data.activities||[]).map(a=>Date.parse(a.expires_at)).filter(n=>n>now));
       if(Number.isFinite(next))timer=setTimeout(paint,Math.min(next-now+20,2147483647));
@@ -32369,9 +32376,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=218.0"></script>
-<script src="/assets/firma-template-v208.js?v=218.0"></script>
-<script src="/assets/claims-v182.js?v=218.0"></script>
+<script src="/assets/claims-report-v191.js?v=219.0"></script>
+<script src="/assets/firma-template-v208.js?v=219.0"></script>
+<script src="/assets/claims-v182.js?v=219.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
@@ -32379,12 +32386,12 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <link rel="stylesheet" href="/assets/claims-v190.css">
 <link rel="stylesheet" href="/assets/claims-v192.css">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=219.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=218.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=219.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=218.0"></script>
+<script src="/assets/puantaj-model.js?v=219.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -32404,7 +32411,7 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=218.0"></script>
+<script src="/assets/puantaj.js?v=219.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

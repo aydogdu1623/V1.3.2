@@ -38,3 +38,10 @@
 #puantajDialog .pt-version-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 14px;background:#eff6f5;border-bottom:1px solid #dce5e8;flex-shrink:0}
 #puantajDialog #pt-version-note{flex:1;min-width:200px;font-size:11px;color:#426962}
 #puantajDialog .pt-version-bar button{font-size:11px;min-height:26px}
+
+#puantajDialog input.v219-check{appearance:none!important;-webkit-appearance:none!important;box-sizing:border-box!important;width:20px!important;height:20px!important;min-width:20px!important;min-height:20px!important;max-height:20px!important;flex:0 0 20px!important;margin:0!important;padding:0!important;border-radius:50%!important;border:1.4px solid #72aaa7!important;background:#fff!important;display:inline-grid!important;place-items:center!important;position:relative;cursor:pointer}
+#puantajDialog input.v219-check:checked{background:#2f8585!important;border-color:#2f8585!important}
+#puantajDialog input.v219-check:indeterminate::after{content:'−'!important;color:#2f8585!important;font-weight:900;font-size:16px}
+#puantajDialog input.v219-check:disabled{opacity:.4;cursor:not-allowed}
+#puantajDialog input.v219-check:focus-visible{outline:2px solid #246e90;outline-offset:3px}
+#puantajDialog label.pt-select-all{display:inline-flex;flex-direction:row;align-items:center;gap:6px;cursor:pointer}

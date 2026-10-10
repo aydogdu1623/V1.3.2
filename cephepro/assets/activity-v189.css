@@ -33,3 +33,16 @@
  #settingsModal #cl-delete-panel .cl-delete-toolbar{flex-wrap:wrap!important}
  #settingsModal #cl-delete-panel .cl-upload-picker,#settingsModal #cl-delete-panel #cl-upload-choice{flex:1 0 100%!important;max-width:100%!important}
 }
+
+/* Shared round selection controls for members and admins. */
+#v113ActivityList .v219-activity-row{display:flex;gap:8px;align-items:center;padding:0 5px;border-radius:8px}
+#v113ActivityList .v219-activity-row .v177-user-row{min-width:0;flex:1}
+#v113ActivityList .v219-selected{background:#dcefeb;box-shadow:inset 3px 0 #2f8585}
+#v113ActivityList .v219-selection-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 5px;font-size:11px}
+#v113ActivityList .v219-selection-tools label{display:flex;align-items:center;gap:6px;cursor:pointer}
+#settingsModal #cl-delete-panel .cl-upload-options input.v219-check,#settingsModal #v113ActivityList input.v219-check{appearance:none!important;-webkit-appearance:none!important;box-sizing:border-box!important;width:20px!important;height:20px!important;min-width:20px!important;min-height:20px!important;max-height:20px!important;flex:0 0 20px!important;padding:0!important;margin:0!important;border-radius:50%!important;border:1.4px solid #72aaa7!important;background:#fff!important;display:inline-grid!important;place-items:center!important;position:relative;cursor:pointer}
+#settingsModal #cl-delete-panel .cl-upload-options input.v219-check:checked,#settingsModal #v113ActivityList input.v219-check:checked{background:#2f8585!important;border-color:#2f8585!important}
+#settingsModal input.v219-check:indeterminate::after{content:'−'!important;color:#2f8585!important;font-size:16px!important;font-weight:900}
+#settingsModal input.v219-check:disabled{opacity:.4;cursor:not-allowed}
+#settingsModal input.v219-check:focus-visible{outline:2px solid #246e90;outline-offset:3px}
+#settingsModal #cl-delete-panel .v219-upload-all{border-bottom:1px solid #d5e3e0;font-weight:700}
