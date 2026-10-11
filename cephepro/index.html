@@ -6,19 +6,19 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=219.0">
-<script src="/assets/project-access.js?v=219.0"></script>
-<script src="/assets/session-privacy.js?v=219.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=220.0">
+<script src="/assets/project-access.js?v=220.0"></script>
+<script src="/assets/session-privacy.js?v=220.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<meta name="cephepro-build" content="V219.0"/>
+<meta name="cephepro-build" content="V220.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V214";window.CEPHEPRO_BUILD="V219.0";</script>
+<script>window.CEPHEPRO_VERSION="V214";window.CEPHEPRO_BUILD="V220.0";</script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" data-v167-external="true"></script>
@@ -26464,6 +26464,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
 }
 </style>
 
+<style>#v32WorkModal .v220-assign-all{white-space:normal;max-width:260px;line-height:1.25;background:#e6f4ee;border-color:#9dc8ba;color:#195f4b}</style>
 <script id="v102MultiSelectPanScript">
 (function(){
   /* ---------- PAN / draggable modal ---------- */
@@ -26522,6 +26523,35 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     const ctx=`${v53WorkDraft?.b||''}__${v53WorkDraft?.f||''}`;
     if(ctx!==workContext){workContext=ctx;workSelected.clear()}
   }
+  function assignSelectedToFacades(){
+    if(currentUser?.role!=='admin')return toast('Yetkiniz yetersiz. Sadece adminler geçiş yapabilir.');
+    const draft=v53WorkDraft;
+    if(!draft||!DATA[draft.b]?.[draft.f])return;
+    const selected=draft.items.filter(x=>workSelected.has(x.__v102id));
+    if(!selected.length)return;
+    const error=v209WorkDraftError({items:selected});
+    if(error)return toast(error);
+    if(selected.some(x=>!String(x.name||'').trim()||/^yeni\s+iş\s+kalemi(?:\s+ekle)?$/i.test(String(x.name).trim())))return toast('Seçili iş kalemlerinin adlarını tamamlayın.');
+    const normalize=name=>String(name||'').trim().toLocaleLowerCase('tr-TR');
+    let added=0,facades=0;
+    for(const [b,fs] of Object.entries(DATA))for(const [f,facade] of Object.entries(fs||{})){
+      if(b===draft.b&&f===draft.f||!facade||typeof facade!=='object')continue;
+      const existing=Array.isArray(facade.items)?facade.items:[];
+      const names=new Set(existing.map(row=>normalize(row[0]))),rows=[];
+      for(const item of selected){
+        const name=String(item.name).trim(),key=normalize(name);
+        if(names.has(key))continue;
+        // Copy definitions only: no quantities, progress, dates, weights or prices.
+        rows.push([name,0,0,0,'','',0,0,item.unit||'m²',true,String(item.pozNo||'').trim()]);
+        names.add(key);
+      }
+      if(rows.length){facade.items=[...existing,...rows];added+=rows.length;facades++;}
+    }
+    if(!added)return toast('Seçili iş kalemleri diğer tüm cephelerde zaten var.');
+    saveStructureState();
+    try{rebuildTree();renderFacade()}catch(_){}
+    toast(`${facades} cepheye ${added} iş kalemi eklendi ve kaydedildi. Birim fiyat ve metraj taşınmadı.`);
+  }
   function workSelectionUI(){
     const body=document.getElementById('v32WorkBody');if(!body||!v53WorkDraft)return;
     ensureWorkIds();syncWorkContext();
@@ -26544,6 +26574,12 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
       row.classList.toggle('v102-selected',ch.checked);
     });
     const actions=body.querySelector('.v53-work-toolbar-actions');
+    if(actions&&!actions.querySelector('.v220-assign-all')){
+      const button=document.createElement('button');button.type='button';button.className='btn v220-assign-all';
+      button.textContent='Seçili İş Kalemlerini Tüm Cephelere Ata';
+      button.title='Bu projedeki diğer tüm cephelere yalnızca Poz No, iş kalemi ve birim eklenir. Mevcut satırlar korunur.';
+      button.addEventListener('click',assignSelectedToFacades);actions.prepend(button);
+    }
     if(actions&&!actions.querySelector('.v102-bulk-delete')){
       const b=document.createElement('button');b.type='button';b.className='v102-bulk-delete';b.innerHTML='Seçilenleri Sil <span class="v102-count-badge">0</span>';
       actions.prepend(b);
@@ -26567,6 +26603,8 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
       if(all){all.checked=draft.items.length>0&&workSelected.size===draft.items.length;all.indeterminate=workSelected.size>0&&workSelected.size<draft.items.length}
       const del=body.querySelector('.v102-bulk-delete');
       if(del){del.disabled=!workSelected.size;(()=>{const count=del.querySelector('.v102-count-badge');if(count)count.textContent=String(workSelected.size)})()}
+      const assign=body.querySelector('.v220-assign-all');
+      if(assign){assign.disabled=!workSelected.size||currentUser?.role!=='admin';assign.hidden=currentUser?.role!=='admin';}
     };
     body.querySelectorAll('.v102-work-check').forEach(ch=>{
       if(ch.dataset.bound)return;ch.dataset.bound='1';ch.addEventListener('change',()=>{ch.checked?workSelected.add(ch.dataset.id):workSelected.delete(ch.dataset.id);update()});
@@ -29494,7 +29532,7 @@ select,textarea,
 <style id="v113RoleActivityStyle">
 /* V113 — rol, hareket takibi, çok kullanıcılı bulut koruması */
 .v113-member-lock{opacity:.58!important;cursor:not-allowed!important;pointer-events:none!important}
-body.v113-member :is(#topAddBlockBtn,#topAddFacadeBtn,#topAddWorkItemBtn,#addBlockBtn,#addWorkItemBtn,#v30AddBlock,#v30AddFacade,#v30AddItem,#v32AddBlockBtn,#v32CopyBlockBtn,#v32DeleteBlockBtn,#v32AddFacadeBtn,#v32AddWorkItem,#v34AddWorkItem,#v43AddBlockBtn,#v43AddBlockSave,#v25SaveBlockName,#v25CopyBlock,#v25BlockUp,#v25BlockDown,#v25DeleteBlock,.v34WiDelete,.v102-bulk-delete){display:none!important}
+body.v113-member :is(#topAddBlockBtn,#topAddFacadeBtn,#topAddWorkItemBtn,#addBlockBtn,#addWorkItemBtn,#v30AddBlock,#v30AddFacade,#v30AddItem,#v32AddBlockBtn,#v32CopyBlockBtn,#v32DeleteBlockBtn,#v32AddFacadeBtn,#v32AddWorkItem,#v34AddWorkItem,#v43AddBlockBtn,#v43AddBlockSave,#v25SaveBlockName,#v25CopyBlock,#v25BlockUp,#v25BlockDown,#v25DeleteBlock,.v34WiDelete,.v102-bulk-delete,.v220-assign-all){display:none!important}
 body.v113-member #v32WorkModal :is(.v209WiPoz,.v34WiName,.v34WiUnit,.v34WiWeight,.v34WiTotal){pointer-events:none!important;opacity:.72!important;background:#f1f6f6!important;color:#294c51!important}
 body.v113-member #structureModal :is(input,select,textarea){pointer-events:none!important;opacity:.72!important;background:#f1f6f6!important}
 .v113-role-note{display:none;margin:7px 0 0;padding:7px 9px;border-radius:8px;background:#eef8f6;border:1px solid #a8cbc7;color:#245e62;font-size:9.5px;font-weight:750}
@@ -29516,7 +29554,7 @@ body.v113-member .v113-role-note{display:block}
   function ownPhoto(p){return typeof v38CanDeletePhoto==='function'&&v38CanDeletePhoto(p)}
   function memberMessage(){if(typeof toast==='function')toast('Bu alan Admin tarafından yönetilir. Üye hesabı bu bilgiyi değiştiremez.')}
   const forbiddenSelectors=[
-    '#topAddBlockBtn','#topAddFacadeBtn','#topAddWorkItemBtn','#addBlockBtn','#addWorkItemBtn','#v30AddBlock','#v30AddFacade','#v30AddItem','#v32AddBlockBtn','#v32CopyBlockBtn','#v32DeleteBlockBtn','#v32AddFacadeBtn','#v32AddWorkItem','#v34AddWorkItem','#v43AddBlockBtn','#v43AddBlockSave','#v25SaveBlockName','#v25CopyBlock','#v25BlockUp','#v25BlockDown','#v25DeleteBlock','.v34WiDelete','.v102-bulk-delete',
+    '#topAddBlockBtn','#topAddFacadeBtn','#topAddWorkItemBtn','#addBlockBtn','#addWorkItemBtn','#v30AddBlock','#v30AddFacade','#v30AddItem','#v32AddBlockBtn','#v32CopyBlockBtn','#v32DeleteBlockBtn','#v32AddFacadeBtn','#v32AddWorkItem','#v34AddWorkItem','#v43AddBlockBtn','#v43AddBlockSave','#v25SaveBlockName','#v25CopyBlock','#v25BlockUp','#v25BlockDown','#v25DeleteBlock','.v34WiDelete','.v102-bulk-delete','.v220-assign-all',
     '.v32CopyFacade','.v32DeleteFacade','.v32RenameFacade','.v58CopyFacade','.v58DeleteFacade','.v32UpFacade','#v37RenameSave','#v52ChooseProjectLogo','#v52RemoveProjectLogo','#v34SaveProjectInfo'
   ].join(',');
   function roleApply(){
@@ -32376,9 +32414,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=219.0"></script>
-<script src="/assets/firma-template-v208.js?v=219.0"></script>
-<script src="/assets/claims-v182.js?v=219.0"></script>
+<script src="/assets/claims-report-v191.js?v=220.0"></script>
+<script src="/assets/firma-template-v208.js?v=220.0"></script>
+<script src="/assets/claims-v182.js?v=220.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
@@ -32386,12 +32424,12 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <link rel="stylesheet" href="/assets/claims-v190.css">
 <link rel="stylesheet" href="/assets/claims-v192.css">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=219.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=220.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=219.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=220.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=219.0"></script>
+<script src="/assets/puantaj-model.js?v=220.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -32411,7 +32449,7 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=219.0"></script>
+<script src="/assets/puantaj.js?v=220.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

@@ -247,7 +247,7 @@ const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,
 const day=v=>{const d=new Date(v||Date.now());return Number.isFinite(d.getTime())?new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit'}).format(d):'';};
 const number=v=>Number.isFinite(Number(v))?Number(v):0,money=v=>number(v).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2});
 let data={},revision=0,kind='firma',owner='',loaded=false,dirty=false,saving=false,panelMode=null;
-let recordOwner='',catalog=[],cloudPending=false,changeVersion=0,loadGeneration=0,deleting=false;
+let recordOwner='',catalog=[],cloudPending=false,changeVersion=0,loadGeneration=0,deleting=false,refreshing=false,recordPublishedAt=null;
 const readOnly=()=>!!recordOwner&&recordOwner!==owner;
 const draftKey=()=> 'cp_claims_draft_v191_'+owner;
 const admin=()=>typeof currentUser!=='undefined'&&currentUser?.role==='admin';
@@ -468,7 +468,7 @@ function updateCumulative(){
  $('cl-body')?.querySelectorAll('[data-cumulative-field]').forEach(cell=>{const key=cell.closest('[data-claim-row]').dataset.claimRow;cell.textContent=cumulativeValue((state.byKey.get(key)||{quantity:0,amount:0})[cell.dataset.cumulativeField]);});
 }
 async function deletePeriod(id,fromCloud=false){
- if(!admin()||readOnly()||saving||deleting)return false;
+ if(!admin()||readOnly()||saving||deleting||refreshing)return false;
  const target=model().periods190.find(p=>p.id===id);if(!target||id===period().id)return false;
  const message=fromCloud?`${target.number}. hakediş ve ekleri buluttan silinsin mi? Bu kayıt diğer kullanıcıların raporlarından da kaldırılır.`:`${target.number}. hakediş cihazdaki taslaktan silinsin mi? Bulut kaydı şimdi değişmez; Buluta Kaydet ile bu değişiklik buluta da uygulanır.`;
  if(!confirm(message))return false;
@@ -586,11 +586,11 @@ function flushClaimInputs(){
 }
 function claimNotice(message){const status=$('cl-status');if(status)status.textContent=message;}
 function saveLocal(silent=false){
- if(!admin()||readOnly()||deleting)return false;
+ if(!admin()||readOnly()||deleting||refreshing)return false;
  try{if(!flushClaimInputs())return false;capturePeriod();captureFirmaReport199();cloudPending=true;persistDraft();dirty=false;if(!silent)claimNotice('Bu cihazda kaydedildi. Excel güncel verilerle indirilebilir. Buluta yükleme bekliyor.');return true;}catch(e){claimNotice('Yerel kayıt yapılamadı: '+e.message);return false;}
 }
 async function save(){
- if(saving||deleting||!admin()||readOnly())return;
+ if(saving||deleting||refreshing||!admin()||readOnly())return;
  if(!flushClaimInputs())return;
  const sessionOwner=owner;let refresh=false;
  saving=true;applyReadOnly();claimNotice('Buluta kaydediliyor…');
@@ -610,29 +610,47 @@ function renderRecordPicker(){
  const select=$('cl-record-owner');if(!select)return;
  const list=[{ownerId:owner,ownerName:'Kendi hakedişlerim'},...catalog.filter(r=>String(r.ownerId)!==owner)];
  select.innerHTML=list.map(r=>`<option value="${esc(r.ownerId)}" ${String(r.ownerId)===recordOwner?'selected':''}>${esc(r.ownerName)}</option>`).join('');
- select.disabled=saving||deleting;$('cl-record-status').textContent=readOnly()?'Paylaşılan kayıt · görüntüleme ve indirme':'Buluta kaydettiğiniz hakedişleri diğer adminler görüntüleyip indirebilir.';
+ select.disabled=saving||deleting||refreshing;$('cl-record-status').textContent=readOnly()?'Paylaşılan kayıt · görüntüleme ve indirme':'Buluta kaydettiğiniz hakedişleri diğer adminler görüntüleyip indirebilir.';
 }
-async function loadRecord(id,{discard=false}={}){
- const request=++loadGeneration,sessionOwner=owner,r=await api('claims?owner='+encodeURIComponent(id));
- if(request!==loadGeneration||String(currentUser?.id)!==sessionOwner)return false;
- data=r.data||{};revision=r.revision;recordOwner=String(r.ownerId||id);dirty=false;cloudPending=false;
+async function loadRecord(id,{discard=false,latestKind=null}={}){
+ const request=++loadGeneration,sessionOwner=owner,r=await api(latestKind?'claims?latest=1&kind='+encodeURIComponent(latestKind):'claims?owner='+encodeURIComponent(id));
+ if(request!==loadGeneration||String(currentUser?.id)!==sessionOwner||!admin()||latestKind&&kind!==latestKind)return false;
+ data=r.data||{};revision=r.revision;recordOwner=String(r.ownerId||id);dirty=false;cloudPending=false;recordPublishedAt=r.publishedAt||null;changeVersion++;
+ if(r.ownerName&&!catalog.some(x=>String(x.ownerId)===recordOwner))catalog.push({ownerId:recordOwner,ownerName:r.ownerName});
  if(!readOnly()){
   if(discard)localStorage.removeItem(draftKey());
   else{try{const draft=JSON.parse(localStorage.getItem(draftKey())||'null');if(draft?.needsUpload&&draft.data){data=draft.data;revision=draft.revision;cloudPending=true;}}catch(e){toast('Cihazdaki taslak okunamadı. Bulut kaydı açıldı.');}}
  }
- if(readOnly()){const saved=p=>p.snapshot191||p.snapshot190;const types=[kind,...['firma','taseron'].filter(k=>k!==kind)];const available=types.find(k=>data[k]?.periods190?.some(saved));if(available){kind=available;const m=model();if(!saved(period()))m.activePeriod190=m.periods190.find(saved).id;}if($('cl-editor-title'))$('cl-editor-title').textContent=kindLabel();}
+ if(readOnly()||latestKind){const saved=p=>p.snapshot191||p.snapshot190;const types=[kind,...['firma','taseron'].filter(k=>k!==kind)];const available=types.find(k=>data[k]?.periods190?.some(saved));if(available){kind=available;const m=model();if(!saved(period()))m.activePeriod190=m.periods190.find(saved).id;}if($('cl-editor-title'))$('cl-editor-title').textContent=kindLabel();}
  loaded=true;renderRecordPicker();return true;
 }
 async function changeRecord(id){
- if(saving||deleting)return renderRecordPicker();
+ if(saving||deleting||refreshing)return renderRecordPicker();
  if(!readOnly()&&(dirty||cloudPending)&&!confirm('Cihazda kaydettiğiniz taslak korunur. Kaydetmediğiniz değişiklikleri bırakarak başka hakedişi açmak istiyor musunuz?'))return renderRecordPicker();
  try{if(await loadRecord(id)){render();$('cl-status').textContent=readOnly()?'Buluttaki kayıt açıldı.':'Kendi hakedişleriniz açıldı.';}}catch(e){toast(e.message);renderRecordPicker();}
 }
 function applyReadOnly(){
  if(!$('cl-body'))return;
- for(const id of ['cl-save','cl-local-save']){const b=$(id);b.hidden=readOnly();b.disabled=readOnly()||saving||deleting;}
- if(readOnly()||deleting)$('cl-body').querySelectorAll('input,select,button').forEach(el=>{if(deleting||el.id!=='cl-period-choice'&&el.id!=='cl-compare'&&!el.hasAttribute('data-close-panel')&&!el.hasAttribute('data-open-claim'))el.disabled=true;});
+ for(const id of ['cl-save','cl-local-save']){const b=$(id);b.hidden=readOnly();b.disabled=readOnly()||saving||deleting||refreshing;}
+ if(readOnly()||deleting||refreshing)$('cl-body').querySelectorAll('input,select,button').forEach(el=>{if(deleting||refreshing||el.id!=='cl-period-choice'&&el.id!=='cl-compare'&&!el.hasAttribute('data-close-panel')&&!el.hasAttribute('data-open-claim'))el.disabled=true;});
+ $('cl-refresh').disabled=saving||deleting||refreshing;
+ $('cl-refresh').textContent=refreshing?'Yenileniyor…':'Yenile';
  renderRecordPicker();
+}
+
+async function refreshLatest(){
+ if(!admin())return accessDenied();
+ if(saving||deleting||refreshing)return;
+ if(!flushClaimInputs())return;
+ if(!readOnly()&&(dirty||cloudPending)&&!confirm('Son bulut kaydı açılsın mı? Kaydetmediğiniz değişiklikler bırakılır.'))return;
+ const sessionOwner=owner;refreshing=true;applyReadOnly();claimNotice('Buluttaki son hakediş alınıyor…');
+ try{
+  if(await loadRecord(recordOwner,{discard:true,latestKind:kind})){
+   render();await refreshCatalog();
+   if(owner===sessionOwner&&String(currentUser?.id)===sessionOwner){const date=recordPublishedAt?new Date(recordPublishedAt).toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'}):'';claimNotice('Son '+kindLabel().toLocaleLowerCase('tr-TR')+' yüklendi. Sürüm '+revision+(date?' · '+date:''));}
+  }
+ }catch(e){if(owner===sessionOwner){claimNotice(e.message);toast(e.message);}}
+ finally{refreshing=false;if(owner===sessionOwner&&String(currentUser?.id)===sessionOwner&&admin()){render();applyReadOnly();}}
 }
 
 function closePanel(restoreFocus=true){
@@ -662,7 +680,7 @@ async function workbook(){
 
 let exporting=false;
 async function excel(){
- if(exporting||deleting)return;
+ if(exporting||deleting||refreshing)return;
  if(!flushClaimInputs())return;
  exporting=true;
  const button=$('cl-excel'),label=button?.textContent||'Excel ve Ekleri İndir';
@@ -886,14 +904,14 @@ async function deletePanel(){
   sync();
  }catch(e){if(request===deleteRequest)toast(e.message);}
 }
-function setup(){const tabs=document.querySelector('#settingsModal .settings-tabs');if(tabs&&!$('cl-tab')){const b=document.createElement('button');b.id='cl-tab';b.className='settingsTab';b.textContent='Hakediş';tabs.append(b);b.onclick=open;const p=document.createElement('section');p.id='cl-pane';p.className='settings-pane';p.innerHTML='<div class="cl-kinds cl-entry-cards" role="group" aria-label="Hakediş türü"><button id="cl-firma"><strong>Firma Hakedişi</strong><span>Firma hakedişlerini düzenle ve karşılaştır</span></button><button id="cl-taseron"><strong>Taşeron Hakedişi</strong><span>Taşeron hakedişlerini düzenle ve karşılaştır</span></button></div><dialog id="cl-editor-dialog" class="cl-editor-dialog" aria-labelledby="cl-editor-title"><div class="cl-editor-head"><h2 id="cl-editor-title">Hakediş</h2><button type="button" id="cl-editor-close">Kapat</button></div><div class="cl-actions"><button id="cl-local-save">Kaydet</button><button id="cl-save">Buluta Kaydet</button><button id="cl-info" aria-haspopup="dialog">Firma Bilgileri</button><button id="cl-refresh">Yenile</button><button id="cl-excel">Excel ve Ekleri İndir</button><button id="cl-extras" aria-haspopup="dialog">Tutanak ve İlave İşler</button><button id="cl-deductions" aria-haspopup="dialog">Kesintiler</button><span id="cl-status" role="status"></span></div><div class="cl-record-bar"><label>Kayıt Sahibi<select id="cl-record-owner"></select></label><span id="cl-record-status" role="status"></span></div><div id="cl-body"></div><dialog id="cl-price-dialog" class="cl-dialog cl-price-dialog"></dialog><dialog id="cl-compare-dialog" class="cl-dialog cl-compare-dialog" aria-labelledby="cl-compare-title"></dialog></dialog>';$('settingsReport').after(p);for(const k of ['firma','taseron'])$('cl-'+k).onclick=()=>{if(!admin())return accessDenied();if(deleting)return;if($('cl-editor-dialog').open&&!readOnly())capturePeriod();kind=k;if(readOnly()){const m=model(),first=m.periods190.find(p=>p.snapshot191||p.snapshot190);if(!first)return toast('Bu türde paylaşılan hakediş yok.');if(!period().snapshot191&&!period().snapshot190)m.activePeriod190=first.id;}render();$('cl-editor-title').textContent=kindLabel();$('cl-editor-dialog').showModal();};$('cl-editor-close').onclick=closeEditor;$('cl-editor-dialog').oncancel=e=>e.preventDefault();$('cl-save').onclick=save;$('cl-local-save').onclick=()=>saveLocal();$('cl-record-owner').onchange=e=>changeRecord(e.target.value);$('cl-info').onclick=()=>showPanel('info');$('cl-refresh').onclick=()=>{if(deleting)return;if(!(dirty||cloudPending)||confirm('Cihazdaki taslak yerine bulut kaydı yüklensin mi?')){loadRecord(recordOwner,{discard:true}).then(ok=>{if(ok){render();refreshCatalog();$('cl-status').textContent='Bulut kaydı yenilendi.';}}).catch(e=>toast(e.message));}};$('cl-excel').onclick=excel;$('cl-extras').onclick=()=>showPanel('extras');$('cl-deductions').onclick=()=>showPanel('deductions');}
+function setup(){const tabs=document.querySelector('#settingsModal .settings-tabs');if(tabs&&!$('cl-tab')){const b=document.createElement('button');b.id='cl-tab';b.className='settingsTab';b.textContent='Hakediş';tabs.append(b);b.onclick=open;const p=document.createElement('section');p.id='cl-pane';p.className='settings-pane';p.innerHTML='<div class="cl-kinds cl-entry-cards" role="group" aria-label="Hakediş türü"><button id="cl-firma"><strong>Firma Hakedişi</strong><span>Firma hakedişlerini düzenle ve karşılaştır</span></button><button id="cl-taseron"><strong>Taşeron Hakedişi</strong><span>Taşeron hakedişlerini düzenle ve karşılaştır</span></button></div><dialog id="cl-editor-dialog" class="cl-editor-dialog" aria-labelledby="cl-editor-title"><div class="cl-editor-head"><h2 id="cl-editor-title">Hakediş</h2><button type="button" id="cl-editor-close">Kapat</button></div><div class="cl-actions"><button id="cl-local-save">Kaydet</button><button id="cl-save">Buluta Kaydet</button><button id="cl-info" aria-haspopup="dialog">Firma Bilgileri</button><button id="cl-refresh">Yenile</button><button id="cl-excel">Excel ve Ekleri İndir</button><button id="cl-extras" aria-haspopup="dialog">Tutanak ve İlave İşler</button><button id="cl-deductions" aria-haspopup="dialog">Kesintiler</button><span id="cl-status" role="status"></span></div><div class="cl-record-bar"><label>Kayıt Sahibi<select id="cl-record-owner"></select></label><span id="cl-record-status" role="status"></span></div><div id="cl-body"></div><dialog id="cl-price-dialog" class="cl-dialog cl-price-dialog"></dialog><dialog id="cl-compare-dialog" class="cl-dialog cl-compare-dialog" aria-labelledby="cl-compare-title"></dialog></dialog>';$('settingsReport').after(p);for(const k of ['firma','taseron'])$('cl-'+k).onclick=async()=>{if(!admin())return accessDenied();if(deleting||refreshing)return;if($('cl-editor-dialog').open&&!readOnly())capturePeriod();kind=k;if(readOnly()){const m=model(),first=m.periods190.find(p=>p.snapshot191||p.snapshot190);if(!first){await refreshLatest();if(!data[k]?.periods190?.some(p=>p.snapshot191||p.snapshot190))return;}else if(!period().snapshot191&&!period().snapshot190)m.activePeriod190=first.id;}render();$('cl-editor-title').textContent=kindLabel();$('cl-editor-dialog').showModal();};$('cl-editor-close').onclick=closeEditor;$('cl-editor-dialog').oncancel=e=>e.preventDefault();$('cl-save').onclick=save;$('cl-local-save').onclick=()=>saveLocal();$('cl-record-owner').onchange=e=>changeRecord(e.target.value);$('cl-info').onclick=()=>showPanel('info');$('cl-refresh').onclick=refreshLatest;$('cl-refresh').title='Bu projede seçili hakediş türünün en son buluta yüklenmiş kaydını getir';$('cl-excel').onclick=excel;$('cl-extras').onclick=()=>showPanel('extras');$('cl-deductions').onclick=()=>showPanel('deductions');}
 if($('cl-tab')){watchEditorVisibility();$('cl-tab').hidden=false;if(!admin()){data={};owner='';recordOwner='';loadGeneration++;loaded=false;priceDraft=null;closeEditor();}}
 const upload=$('v140ActivityUpload');if(upload&&!$('cl-delete')){const b=document.createElement('button');b.id='cl-delete';b.className='btn';b.textContent='Buluttan sil';upload.after(b);b.onclick=()=>{if($('cl-delete-panel')){$('cl-delete-panel').open=true;return;}deletePanel();};}
 if($('cl-delete'))$('cl-delete').textContent='Buluttan sil';
 const dp=$('cl-delete-panel');if(dp&&(typeof currentUser==='undefined'||!currentUser||dp.dataset.owner!==String(currentUser.id)||dp.dataset.manager!==String(admin())))dp.remove();}
 const style=document.createElement('style');style.textContent=`#cl-pane .cl-kinds{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px}#cl-pane .cl-kinds button{padding:16px;font-size:15px;font-weight:700;background:#eef7f5;border:1px solid #b8d1cc;border-radius:8px}#cl-pane .cl-kinds button.active{background:#165c59;color:white}#cl-pane .cl-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}#cl-pane label{display:grid;gap:5px}#cl-pane input,#cl-pane select{min-width:0;padding:7px;box-sizing:border-box}#cl-pane input:not([type=checkbox]),#cl-pane select{width:100%}#cl-pane .cl-scroll{overflow:auto}#cl-pane table{width:100%;border-collapse:collapse}#cl-pane td,#cl-pane th{padding:8px;border-bottom:1px solid #c9dcd7;text-align:left}#cl-pane small{display:block;color:#637d77;font-size:10px}#cl-pane .cl-actions,#cl-pane .cl-bulk{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:12px 0}#cl-pane button,.cl-delete-panel button{padding:9px;cursor:pointer;border:1px solid #bed2cd;border-radius:5px}#cl-pane .cl-picker{position:relative}#cl-pane summary{padding:8px;border:1px solid #bed2cd;border-radius:5px;cursor:pointer}#cl-pane .cl-options{position:absolute;z-index:40;background:white;border:1px solid #bed2cd;padding:10px;box-shadow:0 5px 16px #0002;min-width:230px;max-height:280px;overflow:auto}#cl-pane .cl-options label{display:flex;gap:8px;align-items:center;padding:5px}#cl-pane .cl-options label[hidden]{display:none}#cl-pane .cl-total{font-size:16px;font-weight:bold;color:#165c59}#cl-pane .cl-note{font-size:11px;color:#56706a}.cl-delete-panel{padding:15px;background:#fff6ed;border:1px solid #dfc2a8;border-radius:8px;margin:10px 0}.cl-delete-panel button{margin:5px}#cl-delete{display:block}#cl-pane input[hidden]{display:none}`;document.head.append(style);setInterval(setup,1200);setup();
 window.__claims190={closeEditor,model,period,newPeriod,capturePeriod,comparison,comparePanel,open,save};
-window.__claims191={saveLocal,changeRecord,readOnly,currentReport,loadRecord,refreshCatalog};
+window.__claims191={saveLocal,changeRecord,readOnly,currentReport,loadRecord,refreshCatalog,refreshLatest};
 window.__claims194={deletePeriod,cumulativeState};
 window.__claims182={rows,allRows,workbook};
 window.__activity187={deletePanel,closeDeletePanel,setup};

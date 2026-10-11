@@ -15,6 +15,20 @@ export function createClaimsHandler({getSql,noStore,bearer,ensureSchema,sessionU
     if(!await requireProject(sql,req,me,res))return;
   if(me.role!=='admin')return res.status(403).json({error:'Yetkiniz yetersiz. Sadece adminler geçiş yapabilir.'});
   const ownId=String(me.id);
+  if(req.method==='GET'&&String(req.query?.latest||'')==='1'){
+   const kind=String(req.query?.kind||'');
+   if(!['firma','taseron'].includes(kind))return res.status(400).json({error:'Hakediş türü geçersiz.'});
+   const rows=await sql`SELECT c.owner_id,c.data,c.revision,c.published_at,u.name,u.username
+    FROM cephepro_claims c LEFT JOIN cephepro_users u ON u.id=c.owner_id
+    WHERE c.project_key=${me.projectId} AND c.is_shared=true AND EXISTS (
+     SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(c.data->${kind}->'periods190')='array'
+      THEN c.data->${kind}->'periods190' ELSE '[]'::jsonb END) p
+     WHERE jsonb_typeof(p->'snapshot191')='object' OR jsonb_typeof(p->'snapshot190')='object')
+    ORDER BY c.published_at DESC NULLS LAST,c.owner_id LIMIT 1`;
+   if(!rows.length)return res.status(404).json({error:'Bu türde buluta yüklenmiş hakediş bulunamadı.',code:'NO_SHARED_CLAIM'});
+   const row=rows[0],ownerId=String(row.owner_id);
+   return res.status(200).json({data:row.data,revision:Number(row.revision),ownerId,ownerName:row.name||row.username||'Arşiv sahibi',readOnly:ownerId!==ownId,isShared:true,publishedAt:row.published_at});
+  }
   if(req.method==='GET'&&String(req.query?.list||'')==='1'){
    const rows=await sql`SELECT c.owner_id,c.revision,c.published_at,u.name,u.username
     FROM cephepro_claims c LEFT JOIN cephepro_users u ON u.id=c.owner_id

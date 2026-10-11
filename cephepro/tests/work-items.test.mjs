@@ -40,6 +40,7 @@ async function harness(t,items=[]){
   w.localStorage.setItem('cp_cloud_token','synthetic-test-token');
   w.fetch=async()=>({ok:true,json:async()=>({data:prices,revision:1})});
   run(renameSource);run(draftSource);run(financeSource);
+  run('(function(){function enablePan(){}'+section('  /* ---------- İş kalemi çoklu seçim ---------- */','  /* ---------- Fotoğraf çoklu seçim ---------- */')+'})();');
   run('v32RenderWorkItems()');await w.__v169Financial.load();await tick();
   const $=selector=>w.document.querySelector(selector);
   const input=(selector,value)=>{const el=$(selector);assert.ok(el,selector);el.value=String(value);el.dispatchEvent(new w.Event('input',{bubbles:true}));};
@@ -89,4 +90,20 @@ test('distinct position numbers allow the same description, duplicate complete l
   const before=JSON.stringify(h.w.DATA),pricesBefore=JSON.stringify(h.w.__v169Financial.data);h.input('.v209WiPoz[data-i="1"]','W1');h.click('#v53SaveWorkItems');
   assert.equal(JSON.stringify(h.w.DATA),before);assert.match(h.w.notices.at(-1),/Aynı isimde/);
   assert.equal(JSON.stringify(h.w.__v169Financial.data),pricesBefore);
+});
+
+
+test('selected definitions reach all other facades once without copying money, quantities or progress',async t=>{
+ const source=[['W1 - ANKRAJ',100,35,35,'2026-01-01','2026-12-01',90,70,'adet',false,'W1'],['W2 - CAM',500,20,4,'','',0,30,'m²',false,'W2'],['W3 - Other',100,0,0,'','',0,0,'m²',true,'W3']];
+ const h=await harness(t,source),w=h.w,existing=['W1 - ANKRAJ',900,700,78,'2025-01-01','2027-01-01',12,10,'adet',false,'W1'];
+ w.DATA.A.South={items:[existing]};w.DATA.B={East:{items:[]},West:{items:[]}};
+ w.dailyEntries.A_South__legacy=[{value:12}];const before=JSON.stringify({prices:w.__v169Financial.data,daily:w.dailyEntries});
+ assert.equal(h.$('.v220-assign-all').disabled,true);
+ const checks=w.document.querySelectorAll('.v102-work-check');checks[0].click();checks[1].click();h.click('.v220-assign-all');
+ assert.deepEqual(JSON.parse(JSON.stringify(w.DATA.A.North.items)),source);assert.deepEqual(JSON.parse(JSON.stringify(w.DATA.A.South.items[0])),existing);
+ assert.equal(w.DATA.A.South.items.length,2);
+ for(const f of ['East','West']){assert.equal(w.DATA.B[f].items.length,2);assert.deepEqual(JSON.parse(JSON.stringify(w.DATA.B[f].items[0])),['W1 - ANKRAJ',0,0,0,'','',0,0,'adet',true,'W1']);assert.equal(w.__v169Financial.unitWeight('B',f,'W1 - ANKRAJ'),0);}
+ assert.equal(JSON.stringify({prices:w.__v169Financial.data,daily:w.dailyEntries}),before);assert.ok(w.saved.B);
+ const after=JSON.stringify(w.DATA);h.click('.v220-assign-all');assert.equal(JSON.stringify(w.DATA),after);
+ w.currentUser.role='member';await h.reopen();assert.equal(h.$('.v220-assign-all').hidden,true);assert.equal(h.$('.v220-assign-all').disabled,true);
 });
