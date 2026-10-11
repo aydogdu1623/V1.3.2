@@ -24,15 +24,17 @@ test('both claim choices remain visible but members cannot open an editor or loa
  assert.equal(requests,0);
 });
 
-test('daily activity supports round row selection, select-all, clear and opening selected packets',async t=>{
+test('daily activity retains individual selection and details without select-all or open-selected controls',async t=>{
  const dom=new JSDOM('<html><body><div id="v113ActivityList"></div></body></html>',{url:'https://example.invalid',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');w.eval(html.match(/<script id="v177ActivityPackets">([\s\S]*?)<\/script>/)[1]);
  const root=w.document.getElementById('v113ActivityList'),now=new Date().toISOString(),expiry=new Date(Date.now()+60000).toISOString();
  const data={currentUserId:'member',serverTime:now,activities:['a','b'].map(id=>({id,user_id:id,user_name:'User '+id,created_at:now,expires_at:expiry,details:{item:'Test',amount:1}}))};w.__v177Activity.render(root,data);
- const check=root.querySelector('[data-activity-check]');assert.ok(check.classList.contains('v102-check'));check.click();assert.equal(root.querySelector('[data-activity-all]').indeterminate,true);
- root.querySelector('[data-activity-all]').click();assert.equal(root.querySelectorAll('[data-activity-check]:checked').length,2);root.querySelector('[data-activity-open]').click();assert.equal(w.document.querySelectorAll('.v178-activity-panel').length,2);
+ assert.equal(root.querySelector('[data-activity-all]'),null);assert.equal(root.querySelector('[data-activity-open]'),null);
+ const checks=[...root.querySelectorAll('[data-activity-check]')];assert.ok(checks[0].classList.contains('v102-check'));checks.forEach(el=>el.click());
+ assert.equal(root.querySelectorAll('[data-activity-check]:checked').length,2);assert.equal(root.querySelector('[data-activity-count]').textContent,'2 / 2 seçili');
+ root.querySelector('[data-packet]').dispatchEvent(new w.MouseEvent('dblclick',{bubbles:true}));assert.equal(w.document.querySelectorAll('.v178-activity-panel').length,1);
  root.querySelector('[data-activity-clear]').click();assert.equal(root.querySelectorAll('[data-activity-check]:checked').length,0);
- root.querySelector('[data-activity-all]').click();w.__v177Activity.render(root,{...data,activities:data.activities.slice(1)});assert.equal(root.querySelectorAll('[data-activity-check]:checked').length,1);
+ checks.forEach(el=>el.click());w.__v177Activity.render(root,{...data,activities:data.activities.slice(1)});assert.equal(root.querySelectorAll('[data-activity-check]:checked').length,1);
  w.__v177Activity.render(root,{...data,currentUserId:'different'});assert.equal(root.querySelectorAll('[data-activity-check]:checked').length,0);
 });
 

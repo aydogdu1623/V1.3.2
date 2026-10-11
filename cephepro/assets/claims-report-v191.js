@@ -65,7 +65,7 @@ async function build({ExcelJS,templateUrl,periods,selectedPeriodId,rowOrder=[]})
  slots.forEach((per,j)=>{const p=column(8+j*3),q=column(9+j*3),a=column(10+j*3);value(h,`${q}4`,'Miktar');value(h,`${a}4`,per.number);h.mergeCells(`${p}5:${a}5`);style(h,`${p}5`,th,'G5');formula(h,`${p}5`,`${a}4&". Hakediş Dönemi"`,`${per.number}. Hakediş Dönemi`);formula(h,`${a}6`,`IF(COUNTIFS(tblHakedis[Tutar ${per.number}],"Eksik giriş")>0,"Eksik giriş",SUM(tblHakedis[Tutar ${per.number}]))`,workTotal(per.snapshot));h.getCell(`${a}6`).numFmt=money;});
  const amountTotals=slots.map(p=>workTotal(p.snapshot)),cumulativeAmount=amountTotals.some(v=>typeof v!=='number')?'Eksik giriş':round(amountTotals.reduce((sum,v)=>sum+v,0));
  formula(h,`${column(endCol)}6`,'IF(COUNTIFS(tblHakedis[Kümülatif Tutar],"Eksik giriş")>0,"Eksik giriş",SUM(tblHakedis[Kümülatif Tutar]))',cumulativeAmount);h.getCell(`${column(endCol)}6`).numFmt=money;
- h.views=[{state:'frozen',ySplit:7,topLeftCell:'A8',activeCell:'A8',showGridLines:false}];
+ h.views=[{state:'frozen',xSplit:4,ySplit:7,topLeftCell:'E8',activeCell:'E8',showGridLines:false}];
  const ledger=(sheet,src,tableName,field)=>{
   const records=[];for(const per of periods)for(const entry of per.snapshot[field]||[])records.push({entry,per});
   const len=Math.max(100,records.length),rows=[];

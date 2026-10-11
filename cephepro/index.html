@@ -6,25 +6,20 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=222.0">
-<script src="/assets/project-access.js?v=222.0"></script>
-<script src="/assets/session-privacy.js?v=222.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=223.0">
+<script src="/assets/project-access.js?v=223.0"></script>
+<script src="/assets/session-privacy.js?v=223.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/performance.js?v=222.0"></script>
-<meta name="cephepro-build" content="V222.0"/>
+<script src="/assets/performance.js?v=223.0"></script>
+<meta name="cephepro-build" content="V223.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V222";window.CEPHEPRO_BUILD="V222.0";</script>
-<script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js" data-v167-external="true"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" data-v167-external="true"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" data-v167-external="true"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" data-v167-external="true"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" data-v167-external="true"></script>
+<script>window.CEPHEPRO_VERSION="V223";window.CEPHEPRO_BUILD="V223.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -4886,11 +4881,11 @@ header .actions{gap:5px!important}
     <button type="button" id="forgetRememberedBtn" class="forget-remembered-btn">Bu kullanıcıyı unut</button>
    </div>
 
-   <div class="field"><label>Kullanıcı adı veya E-posta</label><input id="loginUser" autocomplete="username email" list="loginSuggestions" placeholder="admin veya eposta@ornek.com"><datalist id="loginSuggestions"></datalist></div>
-   <div class="field"><label>Şifre</label><div class="password-wrap"><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••"><button type="button" class="password-eye" data-password-target="loginPass" aria-label="Şifreyi göster" title="Şifreyi göster">👁</button></div></div>
+   <div class="field"><label>Kullanıcı adı veya E-posta</label><input id="loginUser" autocomplete="off" list="loginSuggestions" placeholder="admin veya eposta@ornek.com"><datalist id="loginSuggestions"></datalist></div>
+   <div class="field"><label>Şifre</label><div class="password-wrap"><input id="loginPass" type="password" autocomplete="new-password" placeholder="••••••"><button type="button" class="password-eye" data-password-target="loginPass" aria-label="Şifreyi göster" title="Şifreyi göster">👁</button></div></div>
    <button class="btn primary" id="loginBtn">Giriş Yap</button>
    <div id="loginStatus" class="sub" style="min-height:18px"></div>
-   <div class="login-attendance"><input id="rememberLoginUser" type="checkbox" checked><label for="rememberLoginUser">Kullanıcıyı hatırla</label></div>
+   <div class="login-attendance"><input id="rememberLoginUser" type="checkbox"><label for="rememberLoginUser">Kullanıcıyı hatırla</label></div>
   </div>
   <div class="auth-body" id="registerPane" style="display:none">
    <div class="field"><label>Ad soyad</label><input id="regName" placeholder="Ad Soyad"></div>
@@ -5573,16 +5568,18 @@ function layoutReset(){
  toast("Panel düzeni sıfırlandı");
 }
 
-function loadExternalScript(src, globalCheck){
- return new Promise((resolve,reject)=>{
-   if(globalCheck())return resolve();
-   const existing=[...document.scripts].find(s=>s.src===src);
-   if(existing){existing.addEventListener("load",resolve,{once:true});existing.addEventListener("error",reject,{once:true});return}
-   const s=document.createElement("script");
-   s.src=src;s.async=true;
-   s.onload=resolve;s.onerror=()=>reject(new Error("Kütüphane yüklenemedi"));
-   document.head.appendChild(s);
- });
+const cpScriptLoads=new Map();
+function loadExternalScript(src,globalCheck){
+ if(globalCheck())return Promise.resolve();
+ if(cpScriptLoads.has(src))return cpScriptLoads.get(src);
+ const task=new Promise((resolve,reject)=>{
+  const script=document.createElement('script');script.src=src;script.async=true;
+  const finish=error=>{clearTimeout(timer);script.onload=script.onerror=null;if(error){script.remove();cpScriptLoads.delete(src);reject(error);}else resolve();};
+  const timer=setTimeout(()=>finish(new Error('Kütüphane yüklenemedi. Yeniden deneyin.')),20000);
+  script.onload=()=>finish(globalCheck()?null:new Error('Rapor bileşeni açılamadı.'));
+  script.onerror=()=>finish(new Error('Kütüphane yüklenemedi. İnternet bağlantısını kontrol edin.'));
+  document.head.appendChild(script);
+ });cpScriptLoads.set(src,task);return task;
 }
 async function ensureExcelLibrary(){
  await loadExternalScript("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",()=>typeof XLSX!=="undefined");
@@ -6971,7 +6968,7 @@ refreshRememberedProfile();
 function v17AuthRepair(){
  try{
    const lu=document.getElementById("loginUser");
-   if(lu && !lu.value && lastLoginId)lu.value=lastLoginId;
+   // Account credentials are entered manually; only project codes can be remembered.
    refreshRememberedProfile();
  }catch(e){console.warn("Auth repair",e)}
 }
@@ -16008,15 +16005,7 @@ function v52ChartDataUrl(title,rows){
   return c.toDataURL("image/png");
 }
 async function v52EnsureExcelJS(){
-  if(window.ExcelJS)return;
-  await new Promise((resolve,reject)=>{
-    const existing=document.querySelector('script[data-v52-exceljs]');
-    if(existing){existing.addEventListener("load",resolve,{once:true});existing.addEventListener("error",reject,{once:true});return}
-    const s=document.createElement("script");
-    s.src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
-    s.dataset.v52Exceljs="1";
-    s.onload=resolve;s.onerror=reject;document.head.appendChild(s);
-  });
+ await loadExternalScript('/assets/exceljs.min.js',()=>!!window.ExcelJS);
 }
 function v52DownloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;
@@ -29188,6 +29177,7 @@ select,textarea,
     if(tok){localStorage.setItem(TOKEN_KEY,tok);if(remember)localStorage.setItem(REM_TOKEN_KEY,tok)}
     if(remember){rememberedAccount={...currentUser};store.set('cp_remembered_account',rememberedAccount)}
     try{refreshRememberedProfile()}catch(_){ }try{applyAuth()}catch(e){console.error(e)}
+    for(const id of ['loginUser','loginPass']){const input=document.getElementById(id);if(input)input.value='';}
     const a=document.getElementById('authScreen');if(a)a.style.display='none';status('');regStatus('');
     if(!reloadCloud)window.CepheProPrivacy?.ready(currentUser);
     if(tok&&reloadCloud&&location.protocol!=='file:'){
@@ -29241,7 +29231,7 @@ select,textarea,
     b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();try{if(typeof v35OpenAccount==='function')v35OpenAccount();else if(typeof v34OpenAccount==='function')v34OpenAccount()}catch(err){console.error(err)}},true);
   }
   function ensurePendingBox(){const p=document.getElementById('lastAttendanceInfo');if(!p)return null;let r=document.getElementById('v113PendingJoinRequests');if(!r){r=document.createElement('div');r.id='v113PendingJoinRequests';p.insertAdjacentElement('afterend',r)}return r}
-  async function pendingList(){const root=ensurePendingBox();if(!root||currentUser?.role!=='admin'||!token()){if(root)root.innerHTML='';return}try{const d=await api({action:'list_pending'}),rows=d.requests||[],canNotify='Notification'in window&&Notification.permission==='default';root.classList.toggle('v115-has-pending',rows.length>0);root.innerHTML=rows.length?`<div class="v113-pending-title"><span>Yeni Site Giriş İstekleri</span><span>${canNotify?'<button type="button" class="small-btn" data-v167-notify>Bildirimleri Aç</button>':''}<b>${rows.length}</b></span></div>`+rows.map(r=>`<div class="v113-pending-row"><div><b>${esc(r.name)} · ${esc(r.username)}</b><small>${esc(r.email)}</small><em>Siteye giriş izni bekliyor</em></div><div><button class="small-btn v115-allow" data-v113-approve="${esc(r.id)}">İzin Ver</button><button class="small-btn v115-deny" data-v113-reject="${esc(r.id)}">İzin Verme</button></div></div>`).join(''):'';root.querySelector('[data-v167-notify]')?.addEventListener('click',async()=>{const permission=await Notification.requestPermission();toast(permission==='granted'?'Yeni kayıt bildirimleri açıldı.':'Tarayıcı bildirimi açılmadı.');pendingList()});const seenKey='cp_v118_seen_pending',seen=new Set(JSON.parse(localStorage.getItem(seenKey)||'[]')),requestKey=r=>`${String(r.id)}:${String(r.createdAt||'')}`,fresh=rows.filter(r=>!seen.has(requestKey(r)));if(fresh.length){fresh.forEach(r=>seen.add(requestKey(r)));localStorage.setItem(seenKey,JSON.stringify([...seen].slice(-100)));toast(`${fresh.length} yeni kullanıcı siteye giriş izni bekliyor.`);if('Notification'in window&&Notification.permission==='granted')new Notification('CephePro · Yeni kayıt isteği',{body:fresh.map(r=>r.name||r.username||r.email).join(', ')})}}catch(_){root.innerHTML=''}}
+  async function pendingList(){const root=ensurePendingBox();if(!root||currentUser?.role!=='admin'||!token()){if(root)root.innerHTML='';return}try{const d=await api({action:'list_pending'}),rows=d.requests||[],canNotify='Notification'in window&&Notification.permission==='default';root.classList.toggle('v115-has-pending',rows.length>0);const markup=rows.length?`<div class="v113-pending-title"><span>Yeni Site Giriş İstekleri</span><span>${canNotify?'<button type="button" class="small-btn" data-v167-notify>Bildirimleri Aç</button>':''}<b>${rows.length}</b></span></div>`+rows.map(r=>`<div class="v113-pending-row"><div><b>${esc(r.name)} · ${esc(r.username)}</b><small>${esc(r.email)}</small><em>Siteye giriş izni bekliyor</em></div><div><button class="small-btn v115-allow" data-v113-approve="${esc(r.id)}">İzin Ver</button><button class="small-btn v115-deny" data-v113-reject="${esc(r.id)}">İzin Verme</button></div></div>`).join(''):'';if(root.innerHTML!==markup)root.innerHTML=markup;const notifyButton=root.querySelector('[data-v167-notify]');if(notifyButton&&!notifyButton.dataset.bound){notifyButton.dataset.bound='1';notifyButton.addEventListener('click',async()=>{const permission=await Notification.requestPermission();toast(permission==='granted'?'Yeni kayıt bildirimleri açıldı.':'Tarayıcı bildirimi açılmadı.');pendingList()});}const seenKey='cp_v118_seen_pending',seen=new Set(JSON.parse(localStorage.getItem(seenKey)||'[]')),requestKey=r=>`${String(r.id)}:${String(r.createdAt||'')}`,fresh=rows.filter(r=>!seen.has(requestKey(r)));if(fresh.length){fresh.forEach(r=>seen.add(requestKey(r)));localStorage.setItem(seenKey,JSON.stringify([...seen].slice(-100)));toast(`${fresh.length} yeni kullanıcı siteye giriş izni bekliyor.`);if('Notification'in window&&Notification.permission==='granted')new Notification('CephePro · Yeni kayıt isteği',{body:fresh.map(r=>r.name||r.username||r.email).join(', ')})}}catch(_){root.innerHTML=''}}
   async function decision(id,approve){try{await api({action:approve?'approve':'reject',userId:id});toast(approve?'Kullanıcı girişi onaylandı':'Giriş talebi reddedildi');pendingList();refreshCloudUsers()}catch(e){toast(e.message||'İşlem tamamlanamadı')}}
   function accessInfo(u){if(u.blocked)return'Engelli';if(u.accessUnlimited!==false)return'Süresiz';const t=new Date(u.accessExpiresAt||0).getTime();if(!t)return'Süresiz';return`${Math.max(0,Math.ceil((t-Date.now())/86400000))} gün`}
   function accessDays(u){if(u.accessUnlimited!==false)return 45;const t=new Date(u.accessExpiresAt||0).getTime();return Math.max(1,Math.ceil((t-Date.now())/86400000)||45)}
@@ -29418,6 +29408,7 @@ select,textarea,
     menu.style.left=`${left}px`;menu.style.top=`${top}px`;menu.style.visibility='visible';
   }
   function renderManagedUserTables(){
+    if(window.__v171Authority)return window.__v171Authority.render();
     users=(Array.isArray(users)?users:[]).map(u=>norm(u?.email)===MASTER_EMAIL?{...u,role:'admin',blocked:false,approved:true,accessUnlimited:true,accessExpiresAt:null}:u);store.set('cp_users',users);
     const sorted=[...users].sort((x,y)=>Number(!!x.blocked)-Number(!!y.blocked)||String(x.name||'').localeCompare(String(y.name||''),'tr'));
     [['settingsMemberRows','settingsAdminRows'],['memberRows','adminRows']].forEach(([memberId,adminId])=>{
@@ -29428,6 +29419,7 @@ select,textarea,
   }
   let userRefreshInFlight=false;
   async function refreshCloudUsers(options={}){
+    if(window.__v171Authority)return options.sync===false?window.__v171Authority.render():window.__v171Authority.refresh(!!options.reportError);
     const force=options.force===true,sync=options.sync!==false,close=options.close===true;
     if(!currentUser)return;if((document.getElementById('v120UserActionMenu')||document.getElementById('v125UserActionMenu')||document.querySelector('.v122-user-actions[open],.v123-user-actions[open]'))&&!force)return;if(userRefreshInFlight)return;
     if(close)closeUserMenu();userRefreshInFlight=true;
@@ -29437,6 +29429,7 @@ select,textarea,
     renderManagedUserTables();
   }
   function installFinalUserRenderers(){
+    if(window.__v171Authority)return;
     try{window.renderSettingsUsers=renderManagedUserTables;renderSettingsUsers=renderManagedUserTables}catch(_){ }
     try{window.renderUsers=renderManagedUserTables;renderUsers=renderManagedUserTables}catch(_){ }
   }
@@ -29496,7 +29489,7 @@ select,textarea,
       finally{button.disabled=false}
     },true);
   }
-  function forceAccessExit(message){stopPending();localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(REM_TOKEN_KEY);store.remove('cp_session');currentUser=null;try{document.querySelectorAll('.modalback').forEach(x=>x.style.display='none')}catch(_){ }const a=document.getElementById('authScreen');if(a)a.style.display='grid';status(message);regStatus(message);try{toast(message)}catch(_){ }}
+  function forceAccessExit(message){window.CepheProPrivacy?.lock();stopPending();localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(REM_TOKEN_KEY);store.remove('cp_session');currentUser=null;try{document.querySelectorAll('.modalback').forEach(x=>x.style.display='none')}catch(_){ }const a=document.getElementById('authScreen');if(a)a.style.display='grid';status(message);regStatus(message);try{toast(message)}catch(_){ }}
   let checkingAccess=false;
   async function checkAccess(){
     if(!currentUser||checkingAccess)return;
@@ -29535,7 +29528,8 @@ select,textarea,
   document.addEventListener('toggle',e=>{const opened=e.target.closest?.('.v122-user-actions,.v123-user-actions');if(!opened?.open)return;document.querySelectorAll('.v122-user-actions[open],.v123-user-actions[open]').forEach(details=>{if(details!==opened)details.removeAttribute('open')})},true);
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeUserMenu()},true);
   installFinalUserRenderers();bindAuth();bindSoftLogout();bindHeaderAccount();bindCloudPassword();ensurePendingBox();renderManagedUserTables();refreshCloudUsers();setTimeout(checkAccess,0);if(location.protocol!=='file:')setTimeout(checkCloudConnection,80);
-  const mo=new MutationObserver(()=>{installFinalUserRenderers();bindAuth();bindSoftLogout();bindHeaderAccount();bindCloudPassword();ensurePendingBox();bindUserToggles(document);bindV123UserActions(document);bindV125UserToggles(document)});mo.observe(document.body,{childList:true,subtree:true});
+  const authControls='#loginBtn,#registerBtn,#rememberedProfileBtn,#authScreen,#v35AccountLogout,#logoutBtn,#v35ChangePassword,#lastAttendanceInfo,[data-v120-menu],[data-v123-action],[data-v125-menu]';
+  const mo=new MutationObserver(records=>{if(!records.some(r=>[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches(authControls)||n.querySelector(authControls)))))return;bindAuth();bindSoftLogout();bindHeaderAccount();bindCloudPassword();ensurePendingBox();if(!window.__v171Authority){bindUserToggles(document);bindV123UserActions(document);bindV125UserToggles(document)}});mo.observe(document.body,{childList:true,subtree:true});
   adminPoll=setInterval(()=>{if(!document.hidden&&currentUser?.role==='admin')pendingList()},6000);
   // Rol/engel/süre değişikliği açık oturuma hızla uygulanır.
   accessPoll=setInterval(()=>{if(!document.hidden)checkAccess()},1500);
@@ -29650,7 +29644,11 @@ body.v113-member .v113-role-note{display:block}
 
   function afterUserReady(){roleApply();ensureActivityPane();if(tok())pullPhotos(true);clearInterval(activityTimer);activityTimer=setInterval(()=>{if(!document.hidden){roleApply();if(document.getElementById('v113ActivityPane')?.classList.contains('active'))loadActivity();pullPhotos(false)}},20000)}
   document.addEventListener('cephepro:user-ready',afterUserReady);ensureActivityPane();roleApply();if(currentUser)afterUserReady();
-  const mo=new MutationObserver(()=>{roleApply();ensureActivityPane()});mo.observe(document.body,{childList:true,subtree:true});
+  const rolePanels='#v32WorkModal,#v34ScheduleModal,#v34ProjectModal,#structureModal,#v40AIDetailModal';
+  const mo=new MutationObserver(records=>{
+    if(records.some(r=>r.target?.closest?.(rolePanels)||[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches(rolePanels)||n.querySelector(rolePanels)))))roleApply();
+    if(!document.getElementById('v113ActivityPane'))ensureActivityPane();
+  });mo.observe(document.body,{childList:true,subtree:true});
 })();
 </script>
 
@@ -30033,8 +30031,8 @@ body.v113-member .v113-role-note{display:block}
   }
   async function ensureDocx146(){
     if(window.docx?.Document)return window.docx;
-    const load=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=()=>window.docx?.Document?resolve(window.docx):reject(new Error('Word bileşeni açılamadı'));s.onerror=reject;document.head.appendChild(s)});
-    return load('https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js')
+    await loadExternalScript('https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js',()=>!!window.docx?.Document);
+    return window.docx;
   }
   function pngBytes146(dataUrl){const raw=atob(String(dataUrl).split(',')[1]||''),out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out}
   function photoData160(dataUrl){
@@ -30167,6 +30165,7 @@ body.v113-member .v113-role-note{display:block}
       const {jsPDF}=window.jspdf,pdf=new jsPDF('l','mm','a4'),pages=[...host.querySelectorAll('.v126-report-page')];
       let first=true;
       for(const page of pages){
+        await window.CepheProPerformance?.afterPaint();
         const canvas=await html2canvas(page,{backgroundColor:'#ffffff',scale:1.5,useCORS:true,logging:false});
         const usableW=281,usableH=194,slicePx=Math.max(1,Math.floor(canvas.width*usableH/usableW));
         for(let y=0;y<canvas.height;y+=slicePx){
@@ -30192,19 +30191,19 @@ body.v113-member .v113-role-note{display:block}
     if(reportBusy157.excel)return;reportBusy157.excel=true;
     const action=window.__v152ExportExcel||excel126;
     if(typeof action!=='function'){reportBusy157.excel=false;notice('Excel rapor işlevi hazır değil.');return}
-    try{notice('Excel raporu hazırlanıyor…');await action()}
+    try{notice('Excel raporu hazırlanıyor…');await window.CepheProPerformance?.afterPaint();await action()}
     catch(error){console.error(error);notice(`Excel raporu oluşturulamadı: ${String(error?.message||error||'bilinmeyen hata')}`)}
     finally{reportBusy157.excel=false}
   }
   async function v154RunWord(){
     if(reportBusy157.word||!reportReady126('Word'))return;reportBusy157.word=true;
-    try{await exportWord126()}
+    try{notice('Word raporu hazırlanıyor…');await window.CepheProPerformance?.afterPaint();await exportWord126()}
     catch(error){console.error(error);notice(`Word raporu oluşturulamadı: ${String(error?.message||error||'bilinmeyen hata')}`)}
     finally{reportBusy157.word=false}
   }
   async function v154RunPdf(){
     if(reportBusy157.pdf)return;reportBusy157.pdf=true;
-    try{await exportPdf126()}finally{reportBusy157.pdf=false}
+    try{notice('PDF raporu hazırlanıyor…');await window.CepheProPerformance?.afterPaint();await exportPdf126()}finally{reportBusy157.pdf=false}
   }
   window.__v154ReportActions={excel:v154RunExcel,word:v154RunWord,pdf:v154RunPdf};
 
@@ -30236,124 +30235,8 @@ body.v113-member .v113-role-note{display:block}
     void action();
   },true);
 
-  /* -------------------- V126 KULLANICI / YETKİ MENÜSÜ -------------------- */
-  const allBodies=['settingsMemberRows','settingsAdminRows','memberRows','adminRows'];
-  const getSession=()=>{try{return currentUser||store.get('cp_session',null)}catch(_){return null}};
-  const isFounder=()=>norm(getSession()?.email)===MASTER_EMAIL;
-  const isAdmin=()=>getSession()?.role==='admin';
-  function userList(){try{return Array.isArray(users)?users:[]}catch(_){return[]}}
-  function setUserList(list){
-    const safe=(Array.isArray(list)?list:[]).map(u=>norm(u?.email)===MASTER_EMAIL?{...u,role:'admin',approved:true,blocked:false,accessUnlimited:true,accessExpiresAt:null}:u);
-    try{users=safe;store.set('cp_users',safe)}catch(_){}return safe;
-  }
-  function accessText(u){if(u.blocked)return'Engelli';if(u.accessUnlimited!==false)return'Süresiz';const t=new Date(u.accessExpiresAt||0).getTime();if(!t)return'Süresiz';const days=Math.max(0,Math.ceil((t-Date.now())/86400000));return days?`${days} gün`:'Süresi doldu'}
-  function daysValue(u){if(u.accessUnlimited!==false)return 45;const t=new Date(u.accessExpiresAt||0).getTime();return Math.max(1,Math.ceil((t-Date.now())/86400000)||45)}
-  function row126(u){
-    const founder=norm(u.email)===MASTER_EMAIL,blocked=!!u.blocked;
-    const action=founder?'<span class="v126-founder-tag" title="Kurucu Admin değiştirilemez">Kurucu Admin</span>':`<button type="button" class="v126-user-toggle" data-v126-menu="${esc(u.id)}" aria-expanded="false" aria-label="${esc(u.name||u.username||'Kullanıcı')} işlemlerini aç" title="Kullanıcı işlemleri"><span aria-hidden="true">◂</span></button>`;
-    return `<tr data-v126-row="1" class="${blocked?'v126-blocked-row':''}"><td title="${esc(u.name||'-')}">${esc(u.name||'-')}</td><td title="${esc(u.username||'-')}">${esc(u.username||'-')}</td><td title="${esc(u.email||'-')}">${esc(u.email||'-')}</td><td><b>${u.role==='admin'?'Admin':'Üye'}</b></td><td>${esc(accessText(u))}</td><td>${action}</td></tr>`;
-  }
-  function setHeader126(tbody){const head=tbody?.closest('table')?.querySelector('thead tr');if(head)head.innerHTML='<th>Ad Soyad</th><th>Kullanıcı</th><th>E-posta</th><th>Rol</th><th>Erişim</th><th>İşlem</th>'}
-  function renderUsers126(){
-    closeMenu126();const sorted=[...setUserList(userList())].sort((a,b)=>Number(!!a.blocked)-Number(!!b.blocked)||String(a.name||'').localeCompare(String(b.name||''),'tr'));
-    [['settingsMemberRows','settingsAdminRows'],['memberRows','adminRows']].forEach(([memberId,adminId])=>{
-      const member=document.getElementById(memberId),admin=document.getElementById(adminId);setHeader126(member);setHeader126(admin);
-      if(member)member.innerHTML=sorted.filter(u=>u.role!=='admin').map(row126).join('')||'<tr data-v126-row="1"><td colspan="6">Henüz üye yok.</td></tr>';
-      if(admin)admin.innerHTML=sorted.filter(u=>u.role==='admin').map(row126).join('')||'<tr data-v126-row="1"><td colspan="6">Admin yok.</td></tr>';
-    });
-  }
-  function authUrl126(){
-    try{const value=typeof window.v120ApiUrl==='function'?window.v120ApiUrl('/api/auth'):'';if(value)return value}catch(_){}
-    if(/^https?:$/.test(location.protocol))return new URL('/api/auth',location.origin).href;return'';
-  }
-  async function api126(body){
-    const url=authUrl126();if(!url)throw new Error('Bulut işlemleri için yayınlanan CephePro site bağlantısını açın.');
-    const token=localStorage.getItem('cp_cloud_token')||localStorage.getItem('cp_remembered_cloud_token')||'',headers={'Content-Type':'application/json'};if(token)headers.Authorization=`Bearer ${token}`;
-    let response;try{response=await fetch(url,{method:'POST',headers,credentials:'same-origin',cache:'no-store',body:JSON.stringify(body)})}catch(_){throw new Error('Sunucuya ulaşılamadı. İnternet bağlantısını kontrol edip yeniden deneyin.')}
-    const raw=await response.text();let data={};try{data=raw?JSON.parse(raw):{}}catch(_){throw new Error('Sunucudan geçersiz yanıt alındı.')}
-    if(!response.ok)throw new Error(data.error||'İşlem tamamlanamadı.');return data;
-  }
-  async function refreshUsers126(){
-    if(!isAdmin())return renderUsers126();
-    if(!authUrl126()||location.protocol==='file:')return renderUsers126();
-    try{const data=await api126({action:'list'});if(Array.isArray(data.users))setUserList(data.users)}catch(error){notice(error.message||'Kullanıcı listesi yenilenemedi.')}renderUsers126();
-  }
-  function closeMenu126(){
-    document.getElementById('v126UserActionMenu')?.remove();document.getElementById('v125UserActionMenu')?.remove();document.getElementById('v120UserActionMenu')?.remove();
-    document.querySelectorAll('[data-v126-menu]').forEach(b=>b.setAttribute('aria-expanded','false'));
-  }
-  function positionMenu126(toggle,menu){
-    if(!toggle||!menu||!document.body.contains(menu))return;const r=toggle.getBoundingClientRect(),m=menu.getBoundingClientRect(),gap=4;
-    menu.style.left=`${Math.round(Math.max(8,r.left-m.width-gap))}px`;menu.style.top=`${Math.round(Math.max(8,Math.min(innerHeight-m.height-8,r.top-2)))}px`;menu.style.visibility='visible';
-  }
-  function canAccess126(target){return isFounder()||(isAdmin()&&target?.role!=='admin')}
-  function openMenu126(id,toggle){
-    const current=document.getElementById('v126UserActionMenu');if(current?.dataset.userId===String(id)){closeMenu126();return}
-    closeMenu126();const u=userList().find(x=>String(x.id)===String(id));if(!u||norm(u.email)===MASTER_EMAIL)return;
-    const founder=isFounder(),manager=canAccess126(u),blocked=!!u.blocked,menu=document.createElement('div');menu.id='v126UserActionMenu';menu.dataset.userId=String(u.id);menu.setAttribute('role','menu');menu.style.visibility='hidden';
-    const role=founder?`<button type="button" data-v126-action="role" data-v126-value="${u.role==='admin'?'member':'admin'}">◆ ${u.role==='admin'?'Üye Yap':'Admin Yap'}</button>`:'';
-    const access=manager?`<button type="button" data-v126-action="block" data-v126-value="${blocked?'false':'true'}">${blocked?'✓ İzin Ver':'⊘ Engelle'}</button><button type="button" data-v126-action="duration" aria-expanded="false">◷ Süre</button><div class="v126-duration-box"><label for="v126-days-${esc(u.id)}">Siteye giriş süresi (gün)</label><input id="v126-days-${esc(u.id)}" type="number" min="1" max="3650" value="${daysValue(u)}" data-v126-days ${u.accessUnlimited!==false?'disabled':''}><label class="v126-unlimited"><input type="checkbox" data-v126-unlimited ${u.accessUnlimited!==false?'checked':''}> Süresiz</label><button type="button" data-v126-action="duration-save">Süreyi Kaydet</button></div>`:'<div class="v126-menu-note">Bu hesabı yönetme yetkiniz yok.</div>';
-    const del=founder?'<button type="button" class="danger" data-v126-action="delete">⌫ Hesabı Sil</button>':'';
-    menu.innerHTML=`<div class="v126-menu-title"><b>${esc(u.name||u.username||'Kullanıcı')}</b><small>${u.role==='admin'?'Admin':'Üye'} · ${esc(u.email||'')}</small></div>${role}${access}${del}`;
-    document.body.appendChild(menu);toggle.setAttribute('aria-expanded','true');positionMenu126(toggle,menu);
-    const unlimited=menu.querySelector('[data-v126-unlimited]'),days=menu.querySelector('[data-v126-days]');unlimited?.addEventListener('change',()=>{if(days)days.disabled=unlimited.checked});
-  }
-  function busy126(menu,value){
-    menu?.classList.toggle('v126-busy',value);
-    menu?.querySelectorAll('button,input').forEach(x=>{
-      if(value){x.dataset.v126WasDisabled=x.disabled?'1':'0';x.disabled=true}
-      else if(x.dataset.v126WasDisabled==='0'){x.disabled=false;delete x.dataset.v126WasDisabled}
-    });
-  }
-  function localMutation126(u,kind,value,extra={}){
-    if(kind==='role')u.role=value==='admin'?'admin':'member';
-    if(kind==='block'){u.blocked=!!value;if(!value){u.approved=true;u.unblockNoticePending=true}}
-    if(kind==='duration'){u.accessUnlimited=!!extra.unlimited;u.accessExpiresAt=extra.unlimited?null:new Date(Date.now()+extra.days*86400000).toISOString();u.approved=true}
-    if(kind==='delete')setUserList(userList().filter(x=>String(x.id)!==String(u.id)));else setUserList(userList());
-  }
-  async function act126(action){
-    const menu=action.closest('#v126UserActionMenu'),id=menu?.dataset.userId,u=userList().find(x=>String(x.id)===String(id)),kind=action.dataset.v126Action;if(!menu||!u||!kind||norm(u.email)===MASTER_EMAIL)return;
-    if(kind==='duration'){const open=menu.classList.toggle('duration-open');action.setAttribute('aria-expanded',open?'true':'false');const toggle=[...document.querySelectorAll('[data-v126-menu]')].find(x=>String(x.dataset.v126Menu)===String(id));positionMenu126(toggle,menu);return}
-    if(kind==='role'&&!isFounder()){notice('Rol değişikliği yalnızca Kurucu Admin tarafından yapılabilir.');return}
-    if((kind==='block'||kind==='duration-save')&&!canAccess126(u)){notice('Bu hesabın erişimini değiştirme yetkiniz yok.');return}
-    if(kind==='delete'&&!isFounder()){notice('Hesap silme yalnızca Kurucu Admin tarafından yapılabilir.');return}
-    if(kind==='delete'&&!confirm(`${u.name||u.username||'Kullanıcı'} hesabı kalıcı olarak silinsin mi?`))return;
-    const local=!authUrl126()||location.protocol==='file:';busy126(menu,true);
-    try{
-      if(kind==='role'){
-        const role=action.dataset.v126Value==='admin'?'admin':'member';if(local)localMutation126(u,'role',role);else await api126({action:'role',userId:id,role});notice(`${u.name||u.username}: ${role==='admin'?'Admin':'Üye'} olarak kaydedildi.`);
-      }else if(kind==='block'){
-        const blocked=action.dataset.v126Value==='true';if(local)localMutation126(u,'block',blocked);else await api126({action:'block',userId:id,blocked});notice(blocked?`${u.name||u.username} engellendi ve açık oturumu kapatıldı.`:`${u.name||u.username} için giriş izni verildi.`);
-      }else if(kind==='duration-save'){
-        const unlimited=!!menu.querySelector('[data-v126-unlimited]')?.checked,days=Math.max(1,Math.min(3650,Math.floor(Number(menu.querySelector('[data-v126-days]')?.value)||1)));if(local)localMutation126(u,'duration',null,{unlimited,days});else await api126({action:'duration',userId:id,unlimited,days});notice(unlimited?'Giriş süresi süresiz kaydedildi.':`Giriş süresi ${days} gün olarak kaydedildi.`);
-      }else if(kind==='delete'){
-        if(local)localMutation126(u,'delete');else await api126({action:'delete_user',userId:id});notice(`${u.name||u.username} hesabı silindi.`);
-      }
-      closeMenu126();if(local)renderUsers126();else await refreshUsers126();
-    }catch(error){console.error(error);notice(error.message||'İşlem tamamlanamadı.');busy126(menu,false)}
-  }
-  function route126(event){
-    const target=event.target;if(!target?.closest)return;
-    const toggle=target.closest('[data-v126-menu]'),action=target.closest('#v126UserActionMenu [data-v126-action]');
-    if(!toggle&&!action){if(event.type==='pointerdown'&&!target.closest('#v126UserActionMenu'))closeMenu126();return}
-    if(event.type==='pointerdown'&&event.button!==undefined&&event.button!==0)return;
-    if(event.type==='keydown'&&event.key!=='Enter'&&event.key!==' ')return;
-    const now=Date.now(),stamp=toggle||action;
-    if(event.type==='click'&&now-Number(stamp.dataset.v126FiredAt||0)<850){event.preventDefault();event.stopImmediatePropagation();return}
-    event.preventDefault();event.stopImmediatePropagation();stamp.dataset.v126FiredAt=String(now);
-    if(toggle)openMenu126(toggle.dataset.v126Menu,toggle);else void act126(action);
-  }
-  window.addEventListener('pointerdown',route126,true);window.addEventListener('click',route126,true);window.addEventListener('keydown',route126,true);
-  window.addEventListener('resize',closeMenu126);window.addEventListener('scroll',event=>{if(!event.target?.closest?.('#v126UserActionMenu'))closeMenu126()},true);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu126()},true);
-  let renderQueued=false;
-  function repair126(){if(renderQueued)return;renderQueued=true;queueMicrotask(()=>{renderQueued=false;const bad=allBodies.map(id=>document.getElementById(id)).filter(Boolean).some(body=>!body.querySelector('[data-v126-row]'));if(bad)renderUsers126()})}
-  const observer=new MutationObserver(repair126);observer.observe(document.body,{childList:true,subtree:true});
-  try{renderSettingsUsers=renderUsers126;renderUsers=renderUsers126}catch(_){}window.renderSettingsUsers=renderUsers126;window.renderUsers=renderUsers126;
-  document.addEventListener('cephepro:user-ready',()=>void refreshUsers126());
-  document.addEventListener('click',e=>{if(e.target.closest('[data-pane="settingsUsers"]'))setTimeout(()=>void refreshUsers126(),0)},true);
-  renderUsers126();setTimeout(()=>void refreshUsers126(),120);
-  window.__v126UserManager={render:renderUsers126,refresh:refreshUsers126,open:openMenu126,close:closeMenu126,act:act126,users:userList,api:api126};
+  // User management is centralized in v171AuthorityButtonScript.
+
 })();
 </script>
 
@@ -30386,187 +30269,7 @@ body.v113-member .v113-role-note{display:block}
 #v127UserActionMenu.v127-busy{cursor:wait!important}#v127UserActionMenu.v127-busy :is(button,input){opacity:.56!important;cursor:wait!important}
 @media(max-width:760px){#v127UserActionMenu{width:158px!important}}
 </style>
-<script id="v127UserAuthorityScript">
-(function(){
-  'use strict';
-  const MASTER_EMAIL=(window.__cpFounderEmail||'__protected_founder__');
-  const BODY_IDS=['settingsMemberRows','settingsAdminRows','memberRows','adminRows'];
-  const norm=value=>String(value||'').trim().toLocaleLowerCase('tr-TR');
-  const html=value=>String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-  const notify=message=>{try{window.toast(message)}catch(_){console.info(message)}};
-  let activeToggle=null,rendering=false,repairQueued=false,refreshing=false,cache=[];
-
-  function pathControl(event,selector){
-    const path=typeof event?.composedPath==='function'?event.composedPath():[];
-    for(const node of path){if(node?.matches?.(selector))return node}
-    return event?.target?.closest?.(selector)||null;
-  }
-  function consume(event){event?.preventDefault?.();event?.stopPropagation?.();event?.stopImmediatePropagation?.()}
-  function primary(event){return event?.button===undefined||event.button===0}
-  function keyboard(event){return event?.type!=='keydown'||event.key==='Enter'||event.key===' '}
-  function dedupe(control,event){
-    const now=Date.now(),last=Number(control?.dataset?.v127ActivatedAt||0);
-    if(event?.type==='click'&&now-last<900)return true;
-    if(control?.dataset)control.dataset.v127ActivatedAt=String(now);
-    return false;
-  }
-  function route127(event){
-    const toggle=pathControl(event,'[data-v127-menu]');
-    const action=pathControl(event,'#v127UserActionMenu [data-v127-action]');
-    if(!toggle&&!action){
-      if(event.type==='pointerdown'&&!pathControl(event,'#v127UserActionMenu'))close127();
-      return;
-    }
-    if(!primary(event)||!keyboard(event))return;
-    consume(event);
-    const control=toggle||action;if(dedupe(control,event))return;
-    if(toggle)open127(toggle.dataset.v127Menu,toggle);else void act127(action);
-  }
-  function change127(event){
-    const checkbox=pathControl(event,'#v127UserActionMenu [data-v127-unlimited]');if(!checkbox)return;
-    const days=checkbox.closest('#v127UserActionMenu')?.querySelector('[data-v127-days]');if(days)days.disabled=checkbox.checked;
-  }
-
-  // Window capture eski V120/V125/V126 document dinleyicilerinden önce çalışır.
-  window.addEventListener('pointerdown',route127,true);
-  window.addEventListener('click',route127,true);
-  window.addEventListener('keydown',route127,true);
-  window.addEventListener('change',change127,true);
-  window.v127OpenUserMenu=function(event,id,toggle){
-    if(event&&!primary(event))return false;consume(event);
-    const control=toggle||event?.currentTarget||event?.target?.closest?.('[data-v127-menu]');
-    if(control&&dedupe(control,event))return false;open127(id,control);return false;
-  };
-  window.v127RunUserAction=function(event,button){consume(event);const control=button||event?.currentTarget;if(control&&!dedupe(control,event))void act127(control);return false};
-
-  function session127(){try{return currentUser||store.get('cp_session',null)}catch(_){return null}}
-  function founder127(){return norm(session127()?.email)===MASTER_EMAIL}
-  function admin127(){return session127()?.role==='admin'}
-  function readUsers127(){
-    try{if(Array.isArray(users)){cache=users;return users}}catch(_){}
-    try{const stored=store.get('cp_users',[]);if(Array.isArray(stored)){cache=stored;return stored}}catch(_){}
-    return cache;
-  }
-  function writeUsers127(list){
-    const safe=(Array.isArray(list)?list:[]).map(user=>norm(user?.email)===MASTER_EMAIL?{...user,role:'admin',approved:true,blocked:false,accessUnlimited:true,accessExpiresAt:null}:user);
-    cache=safe;try{users=safe}catch(_){}try{store.set('cp_users',safe)}catch(_){}return safe;
-  }
-  function access127(user){
-    if(user.blocked)return'Engelli';if(user.approved===false)return'İzin bekliyor';if(user.accessUnlimited!==false)return'Süresiz';
-    const time=new Date(user.accessExpiresAt||0).getTime();if(!time)return'Süresiz';const days=Math.max(0,Math.ceil((time-Date.now())/86400000));return days?`${days} gün`:'Süresi doldu';
-  }
-  function remaining127(user){if(user.accessUnlimited!==false)return 45;const time=new Date(user.accessExpiresAt||0).getTime();return Math.max(1,Math.ceil((time-Date.now())/86400000)||45)}
-  function row127(user){
-    const founder=norm(user.email)===MASTER_EMAIL,blocked=!!user.blocked;
-    const control=founder
-      ?'<span class="v127-founder-tag" title="Kurucu Admin değiştirilemez">Kurucu Admin</span>'
-      :`<button type="button" class="v127-user-toggle" data-v127-menu="${html(user.id)}" aria-expanded="false" aria-label="${html(user.name||user.username||'Kullanıcı')} işlemlerini aç" title="Kullanıcı işlemleri" onpointerdown="return window.v127OpenUserMenu(event,this.dataset.v127Menu,this)" onclick="return window.v127OpenUserMenu(event,this.dataset.v127Menu,this)"><span aria-hidden="true">◂</span></button>`;
-    return `<tr data-v126-row="1" data-v127-row="1" class="${blocked?'v127-blocked-row':''}"><td title="${html(user.name||'-')}">${html(user.name||'-')}</td><td title="${html(user.username||'-')}">${html(user.username||'-')}</td><td title="${html(user.email||'-')}">${html(user.email||'-')}</td><td><b>${user.role==='admin'?'Admin':'Üye'}</b></td><td>${html(access127(user))}</td><td>${control}</td></tr>`;
-  }
-  function header127(body){const row=body?.closest('table')?.querySelector('thead tr');if(row)row.innerHTML='<th>Ad Soyad</th><th>Kullanıcı</th><th>E-posta</th><th>Rol</th><th>Erişim</th><th>İşlem</th>'}
-  function render127(){
-    if(rendering)return;rendering=true;
-    try{
-      close127();
-      const sorted=[...writeUsers127(readUsers127())].sort((a,b)=>Number(!!a.blocked)-Number(!!b.blocked)||String(a.name||'').localeCompare(String(b.name||''),'tr'));
-      [['settingsMemberRows','settingsAdminRows'],['memberRows','adminRows']].forEach(([memberId,adminId])=>{
-        const member=document.getElementById(memberId),admin=document.getElementById(adminId);header127(member);header127(admin);
-        if(member)member.innerHTML=sorted.filter(user=>user.role!=='admin').map(row127).join('')||'<tr data-v126-row="1" data-v127-row="1"><td colspan="6">Henüz üye yok.</td></tr>';
-        if(admin)admin.innerHTML=sorted.filter(user=>user.role==='admin').map(row127).join('')||'<tr data-v126-row="1" data-v127-row="1"><td colspan="6">Admin yok.</td></tr>';
-      });
-    }finally{rendering=false}
-  }
-  function authUrl127(){return /^https?:$/.test(location.protocol)?new URL('/api/auth',location.origin).href:''}
-  async function api127(payload){
-    const url=authUrl127();if(!url)throw new Error('Bulut işlemi için yayınlanan CephePro site bağlantısını açın.');
-    const token=localStorage.getItem('cp_cloud_token')||localStorage.getItem('cp_remembered_cloud_token')||'';
-    const headers={'Content-Type':'application/json'};if(token)headers.Authorization=`Bearer ${token}`;
-    let response;try{response=await fetch(url,{method:'POST',headers,credentials:'same-origin',cache:'no-store',body:JSON.stringify(payload)})}catch(_){throw new Error('Sunucuya ulaşılamadı. Yayınlanan site bağlantısını ve internet bağlantısını kontrol edin.')}
-    const raw=await response.text();let data;try{data=raw?JSON.parse(raw):{}}catch(_){throw new Error('Sunucudan geçersiz yanıt alındı.')}
-    if(!response.ok)throw new Error(data.error||'İşlem tamamlanamadı.');return data;
-  }
-  async function refresh127(showError=false){
-    if(refreshing||!admin127()||!authUrl127())return render127();refreshing=true;
-    try{const data=await api127({action:'list'});if(Array.isArray(data.users))writeUsers127(data.users)}catch(error){if(showError)notify(error.message||'Kullanıcı listesi yenilenemedi.')}finally{refreshing=false;render127()}
-  }
-  function close127(){
-    document.getElementById('v127UserActionMenu')?.remove();
-    ['v126UserActionMenu','v125UserActionMenu','v120UserActionMenu'].forEach(id=>document.getElementById(id)?.remove());
-    document.querySelectorAll('[data-v127-menu]').forEach(button=>button.setAttribute('aria-expanded','false'));activeToggle=null;
-  }
-  function position127(toggle,menu){
-    if(!toggle||!menu||!document.body.contains(menu))return;
-    const rect=toggle.getBoundingClientRect(),box=menu.getBoundingClientRect(),gap=4;
-    const left=Math.max(8,Math.min((window.innerWidth||1024)-box.width-8,rect.left-box.width-gap));
-    const top=Math.max(8,Math.min((window.innerHeight||768)-box.height-8,rect.top));
-    menu.style.left=`${Math.round(left)}px`;menu.style.top=`${Math.round(top)}px`;menu.style.visibility='visible';
-  }
-  function canManage127(user){return founder127()||(admin127()&&user?.role!=='admin')}
-  function open127(id,toggle){
-    const open=document.getElementById('v127UserActionMenu');if(open?.dataset.userId===String(id)){close127();return}
-    close127();const user=readUsers127().find(item=>String(item.id)===String(id));if(!user||norm(user.email)===MASTER_EMAIL)return;
-    const founder=founder127(),manager=canManage127(user),blocked=!!user.blocked,menu=document.createElement('div');
-    menu.id='v127UserActionMenu';menu.dataset.userId=String(user.id);menu.setAttribute('role','menu');menu.style.visibility='hidden';
-    const role=founder?`<button type="button" data-v127-action="role" data-v127-value="${user.role==='admin'?'member':'admin'}" onpointerdown="return window.v127RunUserAction(event,this)" onclick="return window.v127RunUserAction(event,this)">◆ ${user.role==='admin'?'Üye Yap':'Admin Yap'}</button>`:'';
-    const access=manager?`<button type="button" data-v127-action="block" data-v127-value="${blocked?'false':'true'}" onpointerdown="return window.v127RunUserAction(event,this)" onclick="return window.v127RunUserAction(event,this)">${blocked?'✓ İzin Ver':'⊘ Engelle'}</button><button type="button" data-v127-action="duration" aria-expanded="false" onpointerdown="return window.v127RunUserAction(event,this)" onclick="return window.v127RunUserAction(event,this)">◷ Süre</button><div class="v127-duration-box"><label for="v127-days-${html(user.id)}">Siteye giriş süresi (gün)</label><input id="v127-days-${html(user.id)}" type="number" min="1" max="3650" value="${remaining127(user)}" data-v127-days ${user.accessUnlimited!==false?'disabled':''}><label class="v127-unlimited"><input type="checkbox" data-v127-unlimited ${user.accessUnlimited!==false?'checked':''}> Süresiz</label><button type="button" data-v127-action="duration-save" onpointerdown="return window.v127RunUserAction(event,this)" onclick="return window.v127RunUserAction(event,this)">Süreyi Kaydet</button></div>`:'<div class="v127-menu-note">Bu hesabı yönetme yetkiniz yok.</div>';
-    const remove=founder?'<button type="button" class="danger" data-v127-action="delete" onpointerdown="return window.v127RunUserAction(event,this)" onclick="return window.v127RunUserAction(event,this)">⌫ Hesabı Sil</button>':'';
-    menu.innerHTML=`<div class="v127-menu-title"><b>${html(user.name||user.username||'Kullanıcı')}</b><small>${user.role==='admin'?'Admin':'Üye'} · ${html(user.email||'')}</small></div>${role}${access}${remove}`;
-    document.body.appendChild(menu);activeToggle=toggle;if(toggle)toggle.setAttribute('aria-expanded','true');position127(toggle,menu);
-  }
-  function busy127(menu,value){
-    menu?.classList.toggle('v127-busy',value);menu?.querySelectorAll('button,input').forEach(control=>{
-      if(value){control.dataset.v127DisabledBefore=control.disabled?'1':'0';control.disabled=true}
-      else{control.disabled=control.dataset.v127DisabledBefore==='1';delete control.dataset.v127DisabledBefore}
-    });
-  }
-  function mutate127(user,kind,value,options={}){
-    if(kind==='role')user.role=value==='admin'?'admin':'member';
-    if(kind==='block'){user.blocked=!!value;if(!value){user.approved=true;user.unblockNoticePending=true}}
-    if(kind==='duration'){user.accessUnlimited=!!options.unlimited;user.accessExpiresAt=options.unlimited?null:new Date(Date.now()+options.days*86400000).toISOString();user.approved=true}
-    if(kind==='delete')writeUsers127(readUsers127().filter(item=>String(item.id)!==String(user.id)));else writeUsers127(readUsers127());
-  }
-  async function act127(button){
-    const menu=button?.closest?.('#v127UserActionMenu'),id=menu?.dataset.userId,user=readUsers127().find(item=>String(item.id)===String(id)),kind=button?.dataset?.v127Action;
-    if(!menu||!user||!kind||norm(user.email)===MASTER_EMAIL)return;
-    if(kind==='duration'){const open=menu.classList.toggle('duration-open');button.setAttribute('aria-expanded',open?'true':'false');position127(activeToggle,menu);return}
-    if(kind==='role'&&!founder127()){notify('Rol değişikliği yalnızca Kurucu Admin tarafından yapılabilir.');return}
-    if((kind==='block'||kind==='duration-save')&&!canManage127(user)){notify('Bu hesabın erişimini değiştirme yetkiniz yok.');return}
-    if(kind==='delete'&&!founder127()){notify('Hesap silme yalnızca Kurucu Admin tarafından yapılabilir.');return}
-    if(kind==='delete'&&!window.confirm(`${user.name||user.username||'Kullanıcı'} hesabı kalıcı olarak silinsin mi?`))return;
-    const local=!authUrl127();busy127(menu,true);
-    try{
-      if(kind==='role'){
-        const role=button.dataset.v127Value==='admin'?'admin':'member';if(local)mutate127(user,'role',role);else await api127({action:'role',userId:id,role});notify(`${user.name||user.username}: ${role==='admin'?'Admin':'Üye'} olarak kaydedildi.`);
-      }else if(kind==='block'){
-        const blocked=button.dataset.v127Value==='true';if(local)mutate127(user,'block',blocked);else await api127({action:'block',userId:id,blocked});notify(blocked?`${user.name||user.username} engellendi ve açık oturumu kapatıldı.`:`${user.name||user.username} için giriş izni verildi.`);
-      }else if(kind==='duration-save'){
-        const unlimited=!!menu.querySelector('[data-v127-unlimited]')?.checked,days=Math.max(1,Math.min(3650,Math.floor(Number(menu.querySelector('[data-v127-days]')?.value)||1)));
-        if(local)mutate127(user,'duration',null,{unlimited,days});else await api127({action:'duration',userId:id,unlimited,days});notify(unlimited?'Giriş süresi süresiz kaydedildi.':`Giriş süresi ${days} gün olarak kaydedildi.`);
-      }else if(kind==='delete'){
-        if(local)mutate127(user,'delete');else await api127({action:'delete_user',userId:id});notify(`${user.name||user.username} hesabı silindi.`);
-      }
-      close127();if(local)render127();else await refresh127(true);
-    }catch(error){console.error('[CephePro V127][users]',error);notify(error.message||'İşlem tamamlanamadı.');busy127(menu,false)}
-  }
-  function queueRepair127(){
-    if(repairQueued||rendering)return;repairQueued=true;setTimeout(()=>{
-      repairQueued=false;const bodies=BODY_IDS.map(id=>document.getElementById(id)).filter(Boolean);
-      if(bodies.some(body=>!body.querySelector('[data-v127-row]')))render127();
-    },0);
-  }
-  const observer=new MutationObserver(records=>{if(records.some(record=>BODY_IDS.includes(record.target?.id)||record.target?.closest?.('#settingsMemberRows,#settingsAdminRows,#memberRows,#adminRows')))queueRepair127()});
-  observer.observe(document.body,{childList:true,subtree:true});
-  window.addEventListener('resize',()=>{const menu=document.getElementById('v127UserActionMenu');if(menu)position127(activeToggle,menu)});
-  window.addEventListener('scroll',()=>{const menu=document.getElementById('v127UserActionMenu');if(menu)position127(activeToggle,menu)},true);
-  document.addEventListener('keydown',event=>{if(event.key==='Escape')close127()},true);
-  document.addEventListener('click',event=>{if(event.target?.closest?.('[data-pane="settingsUsers"]')){setTimeout(()=>void refresh127(false),60);setTimeout(queueRepair127,300)}},true);
-  document.addEventListener('cephepro:user-ready',()=>setTimeout(()=>void refresh127(false),80));
-  try{renderSettingsUsers=render127;renderUsers=render127}catch(_){}window.renderSettingsUsers=render127;window.renderUsers=render127;
-  render127();setTimeout(()=>void refresh127(false),160);
-  setInterval(()=>{const bodies=BODY_IDS.map(id=>document.getElementById(id)).filter(Boolean);if(bodies.length&&bodies.some(body=>!body.querySelector('[data-v127-row]')))render127()},900);
-  window.__v127UserManager={render:render127,refresh:refresh127,open:open127,close:close127,act:act127,users:readUsers127,api:api127,version:'V127'};
-})();
-</script>
+<!-- User management is handled by v171AuthorityButtonScript. -->
 
 <!-- ============================================================
      V128 — DOĞRUDAN BAĞLI, TEK TIKLAMALI KULLANICI YETKİ MENÜSÜ
@@ -30596,169 +30299,7 @@ body.v113-member .v113-role-note{display:block}
 #v128UserActionMenu.v128-busy{cursor:wait!important}#v128UserActionMenu.v128-busy :is(button,input){opacity:.56!important;cursor:wait!important}
 @media(max-width:760px){#v128UserActionMenu{width:150px!important}}
 </style>
-<script id="v128UserAuthorityScript">
-(function(){
-  'use strict';
-  const MASTER_EMAIL=(window.__cpFounderEmail||'__protected_founder__');
-  const BODY_IDS=['settingsMemberRows','settingsAdminRows','memberRows','adminRows'];
-  const norm=value=>String(value||'').trim().toLocaleLowerCase('tr-TR');
-  const esc=value=>String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-  const notify=message=>{try{window.toast(message)}catch(_){console.info(message)}};
-  let cache=[],activeToggle=null,rendering=false,refreshing=false,repairTimer=0;
-
-  function session(){try{return currentUser||store.get('cp_session',null)}catch(_){return null}}
-  function isFounder(){return norm(session()?.email)===MASTER_EMAIL}
-  function isAdmin(){return session()?.role==='admin'}
-  function readUsers(){
-    try{if(Array.isArray(users)){cache=users;return users}}catch(_){}
-    try{const stored=store.get('cp_users',[]);if(Array.isArray(stored)){cache=stored;return stored}}catch(_){}
-    return cache;
-  }
-  function writeUsers(list){
-    const safe=(Array.isArray(list)?list:[]).map(user=>norm(user?.email)===MASTER_EMAIL?{...user,role:'admin',approved:true,blocked:false,accessUnlimited:true,accessExpiresAt:null}:user);
-    cache=safe;
-    try{
-      if(Array.isArray(users)){users.splice(0,users.length,...safe);cache=users}
-      else users=safe;
-    }catch(_){}
-    try{store.set('cp_users',cache)}catch(_){}
-    return cache;
-  }
-  function access(user){
-    if(user.blocked)return'Engelli';if(user.approved===false)return'İzin bekliyor';if(user.accessUnlimited!==false)return'Süresiz';
-    const time=new Date(user.accessExpiresAt||0).getTime();if(!time)return'Süresiz';
-    const days=Math.max(0,Math.ceil((time-Date.now())/86400000));return days?`${days} gün`:'Süresi doldu';
-  }
-  function remaining(user){if(user.accessUnlimited!==false)return 45;const time=new Date(user.accessExpiresAt||0).getTime();return Math.max(1,Math.ceil((time-Date.now())/86400000)||45)}
-  function row(user){
-    const founder=norm(user.email)===MASTER_EMAIL,blocked=!!user.blocked;
-    const control=founder
-      ?'<span class="v128-founder-tag" title="Kurucu Admin değiştirilemez">Kurucu Admin</span>'
-      :`<button type="button" class="v128-user-toggle" data-v128-menu="${esc(user.id)}" aria-expanded="false" aria-label="${esc(user.name||user.username||'Kullanıcı')} işlemlerini aç" title="Kullanıcı işlemleri"><span aria-hidden="true">◂</span></button>`;
-    return `<tr data-v126-row="1" data-v127-row="1" data-v128-row="1" class="${blocked?'v128-blocked-row':''}"><td title="${esc(user.name||'-')}">${esc(user.name||'-')}</td><td title="${esc(user.username||'-')}">${esc(user.username||'-')}</td><td title="${esc(user.email||'-')}">${esc(user.email||'-')}</td><td><b>${user.role==='admin'?'Admin':'Üye'}</b></td><td>${esc(access(user))}</td><td>${control}</td></tr>`;
-  }
-  function header(body){const tr=body?.closest('table')?.querySelector('thead tr');if(tr)tr.innerHTML='<th>Ad Soyad</th><th>Kullanıcı</th><th>E-posta</th><th>Rol</th><th>Erişim</th><th>İşlem</th>'}
-  function bindToggles(root=document){
-    root.querySelectorAll('[data-v128-menu]').forEach(button=>{
-      if(button.dataset.v128Bound==='1')return;button.dataset.v128Bound='1';
-      button.addEventListener('click',event=>{
-        event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
-        openMenu(button.dataset.v128Menu,button);
-      });
-    });
-  }
-  function closeMenu(){
-    document.getElementById('v128UserActionMenu')?.remove();
-    ['v127UserActionMenu','v126UserActionMenu','v125UserActionMenu','v120UserActionMenu'].forEach(id=>document.getElementById(id)?.remove());
-    document.querySelectorAll('[data-v128-menu]').forEach(button=>button.setAttribute('aria-expanded','false'));activeToggle=null;
-  }
-  function render(){
-    if(rendering)return;rendering=true;
-    try{
-      closeMenu();
-      const sorted=[...writeUsers(readUsers())].sort((a,b)=>Number(!!a.blocked)-Number(!!b.blocked)||String(a.name||'').localeCompare(String(b.name||''),'tr'));
-      [['settingsMemberRows','settingsAdminRows'],['memberRows','adminRows']].forEach(([memberId,adminId])=>{
-        const member=document.getElementById(memberId),admin=document.getElementById(adminId);header(member);header(admin);
-        if(member)member.innerHTML=sorted.filter(user=>user.role!=='admin').map(row).join('')||'<tr data-v126-row="1" data-v127-row="1" data-v128-row="1"><td colspan="6">Henüz üye yok.</td></tr>';
-        if(admin)admin.innerHTML=sorted.filter(user=>user.role==='admin').map(row).join('')||'<tr data-v126-row="1" data-v127-row="1" data-v128-row="1"><td colspan="6">Admin yok.</td></tr>';
-      });
-      bindToggles();
-    }finally{rendering=false}
-  }
-  function apiUrl(){
-    const protocol=String(location?.protocol||'');
-    const host=String(location?.hostname||'').toLowerCase();
-    if(!/^https?:$/.test(protocol)||/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host))return'';
-    return new URL('/api/auth',location.origin).href;
-  }
-  async function api(payload){
-    const url=apiUrl();if(!url)throw new Error('Bulut işlemi için yayınlanan CephePro site bağlantısını açın.');
-    const token=localStorage.getItem('cp_cloud_token')||localStorage.getItem('cp_remembered_cloud_token')||'';
-    const headers={'Content-Type':'application/json'};if(token)headers.Authorization=`Bearer ${token}`;
-    let response;
-    try{response=await fetch(url,{method:'POST',headers,credentials:'same-origin',cache:'no-store',body:JSON.stringify(payload)})}
-    catch(_){throw new Error('Sunucuya ulaşılamadı. Site bağlantısı veya internet erişimi denetlenemedi.')}
-    const raw=await response.text();let data={};
-    try{data=raw?JSON.parse(raw):{}}catch(_){throw new Error('Sunucudan geçersiz yanıt alındı.')}
-    if(!response.ok)throw new Error(data.error||'İşlem tamamlanamadı.');return data;
-  }
-  async function refresh(showError=false){
-    if(refreshing||!isAdmin()||!apiUrl())return render();refreshing=true;
-    try{const result=await api({action:'list'});if(Array.isArray(result.users))writeUsers(result.users)}
-    catch(error){if(showError)notify(error.message||'Kullanıcı listesi yenilenemedi.')}
-    finally{refreshing=false;render()}
-  }
-  function canManage(user){return isFounder()||(isAdmin()&&user?.role!=='admin')}
-  function position(toggle,menu){
-    const rect=toggle?.getBoundingClientRect?.();if(!rect||!menu)return;
-    const box=menu.getBoundingClientRect(),left=Math.max(8,rect.left-box.width-5),top=Math.max(8,Math.min((window.innerHeight||768)-42,rect.top));
-    menu.style.left=`${Math.round(left)}px`;menu.style.top=`${Math.round(top)}px`;menu.style.maxHeight=`${Math.max(96,(window.innerHeight||768)-top-8)}px`;menu.style.visibility='visible';
-  }
-  function bindMenu(menu){
-    menu.querySelectorAll('[data-v128-action]').forEach(button=>button.addEventListener('click',event=>{
-      event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();void act(button);
-    }));
-    menu.querySelector('[data-v128-unlimited]')?.addEventListener('change',event=>{
-      const days=menu.querySelector('[data-v128-days]');if(days)days.disabled=event.currentTarget.checked;
-    });
-  }
-  function openMenu(id,toggle){
-    const current=document.getElementById('v128UserActionMenu');if(current?.dataset.userId===String(id)){closeMenu();return}
-    closeMenu();const user=readUsers().find(item=>String(item.id)===String(id));if(!user||norm(user.email)===MASTER_EMAIL)return;
-    const founder=isFounder(),manager=canManage(user),denied=!!user.blocked||user.approved===false;
-    const menu=document.createElement('div');menu.id='v128UserActionMenu';menu.dataset.userId=String(user.id);menu.setAttribute('role','menu');menu.style.visibility='hidden';
-    const role=founder?`<button type="button" data-v128-action="role" data-v128-value="${user.role==='admin'?'member':'admin'}">◆ ${user.role==='admin'?'Üye Yap':'Admin Yap'}</button>`:'';
-    const accessButtons=manager?`<button type="button" data-v128-action="block" data-v128-value="${denied?'false':'true'}">${denied?'✓ İzin Ver':'⊘ Engelle'}</button><button type="button" data-v128-action="duration" aria-expanded="false">◷ Süre</button><div class="v128-duration-box"><label for="v128-days-${esc(user.id)}">Siteye giriş süresi (gün)</label><input id="v128-days-${esc(user.id)}" type="number" min="1" max="3650" value="${remaining(user)}" data-v128-days ${user.accessUnlimited!==false?'disabled':''}><label class="v128-unlimited"><input type="checkbox" data-v128-unlimited ${user.accessUnlimited!==false?'checked':''}> Süresiz</label><button type="button" data-v128-action="duration-save">Süreyi Kaydet</button></div>`:'<div class="v128-menu-note">Bu hesabı yönetme yetkiniz yok.</div>';
-    const remove=founder?'<button type="button" class="danger" data-v128-action="delete">⌫ Hesabı Sil</button>':'';
-    menu.innerHTML=`<div class="v128-menu-title"><b>${esc(user.name||user.username||'Kullanıcı')}</b><small>${user.role==='admin'?'Admin':'Üye'} · ${esc(user.email||'')}</small></div>${role}${accessButtons}${remove}`;
-    document.body.appendChild(menu);activeToggle=toggle;toggle?.setAttribute('aria-expanded','true');bindMenu(menu);position(toggle,menu);
-  }
-  function busy(menu,value){menu?.classList.toggle('v128-busy',value);menu?.querySelectorAll('button,input').forEach(control=>control.disabled=!!value)}
-  function mutate(user,kind,value,options={}){
-    if(kind==='role')user.role=value==='admin'?'admin':'member';
-    if(kind==='block'){user.blocked=!!value;if(!value){user.approved=true;user.unblockNoticePending=true}}
-    if(kind==='duration'){user.accessUnlimited=!!options.unlimited;user.accessExpiresAt=options.unlimited?null:new Date(Date.now()+options.days*86400000).toISOString();user.approved=true;user.blocked=false}
-    if(kind==='delete')writeUsers(readUsers().filter(item=>String(item.id)!==String(user.id)));else writeUsers(readUsers());
-  }
-  async function act(button){
-    const menu=button?.closest?.('#v128UserActionMenu'),id=menu?.dataset.userId,user=readUsers().find(item=>String(item.id)===String(id)),kind=button?.dataset?.v128Action;
-    if(!menu||!user||!kind||norm(user.email)===MASTER_EMAIL)return;
-    if(kind==='duration'){
-      const opened=menu.classList.toggle('duration-open');button.setAttribute('aria-expanded',opened?'true':'false');return;
-    }
-    if(kind==='role'&&!isFounder()){notify('Rol değişikliği yalnızca Kurucu Admin tarafından yapılabilir.');return}
-    if((kind==='block'||kind==='duration-save')&&!canManage(user)){notify('Bu hesabın erişimini değiştirme yetkiniz yok.');return}
-    if(kind==='delete'&&!isFounder()){notify('Hesap silme yalnızca Kurucu Admin tarafından yapılabilir.');return}
-    if(kind==='delete'&&!window.confirm(`${user.name||user.username||'Kullanıcı'} hesabı kalıcı olarak silinsin mi?`))return;
-    const local=!apiUrl();busy(menu,true);
-    try{
-      if(kind==='role'){
-        const role=button.dataset.v128Value==='admin'?'admin':'member';if(local)mutate(user,'role',role);else await api({action:'role',userId:id,role});notify(`${user.name||user.username}: ${role==='admin'?'Admin':'Üye'} olarak kaydedildi.`);
-      }else if(kind==='block'){
-        const blocked=button.dataset.v128Value==='true';if(local)mutate(user,'block',blocked);else await api({action:'block',userId:id,blocked});notify(blocked?`${user.name||user.username} engellendi ve açık oturumu kapatıldı.`:`${user.name||user.username} için giriş izni verildi.`);
-      }else if(kind==='duration-save'){
-        const unlimited=!!menu.querySelector('[data-v128-unlimited]')?.checked,days=Math.max(1,Math.min(3650,Math.floor(Number(menu.querySelector('[data-v128-days]')?.value)||1)));
-        if(local)mutate(user,'duration',null,{unlimited,days});else await api({action:'duration',userId:id,unlimited,days});notify(unlimited?'Giriş süresi süresiz kaydedildi.':`Giriş süresi ${days} gün olarak kaydedildi.`);
-      }else if(kind==='delete'){
-        if(local)mutate(user,'delete');else await api({action:'delete_user',userId:id});notify(`${user.name||user.username} hesabı silindi.`);
-      }
-      closeMenu();if(local)render();else await refresh(true);
-    }catch(error){console.error('[CephePro V128][users]',error);notify(error.message||'İşlem tamamlanamadı.');busy(menu,false)}
-  }
-  function queueRepair(){clearTimeout(repairTimer);repairTimer=setTimeout(()=>{
-    const bodies=BODY_IDS.map(id=>document.getElementById(id)).filter(Boolean);if(bodies.some(body=>!body.querySelector('[data-v128-row]')))render();
-  },0)}
-  new MutationObserver(records=>{if(!rendering&&records.some(record=>BODY_IDS.includes(record.target?.id)||record.target?.closest?.('#settingsMemberRows,#settingsAdminRows,#memberRows,#adminRows')))queueRepair()}).observe(document.body,{childList:true,subtree:true});
-  document.addEventListener('pointerdown',event=>{if(!event.target?.closest?.('#v128UserActionMenu,[data-v128-menu]'))closeMenu()},true);
-  document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu()},true);
-  document.addEventListener('click',event=>{if(event.target?.closest?.('[data-pane="settingsUsers"]')){setTimeout(()=>void refresh(false),100);setTimeout(queueRepair,260)}},true);
-  document.addEventListener('cephepro:user-ready',()=>setTimeout(()=>void refresh(false),100));
-  window.addEventListener('resize',closeMenu);window.addEventListener('scroll',event=>{if(!event.target?.closest?.('#v128UserActionMenu'))closeMenu()},true);
-  try{renderSettingsUsers=render;renderUsers=render}catch(_){}window.renderSettingsUsers=render;window.renderUsers=render;
-  render();setTimeout(()=>void refresh(false),180);setInterval(queueRepair,1100);
-  window.__v128UserManager={render,refresh,open:openMenu,close:closeMenu,act,users:readUsers,api,version:'V128'};
-})();
-</script>
+<!-- User management is handled by v171AuthorityButtonScript. -->
 
 <!-- ============================================================
      V129 — KİMLİKSİZ YEREL HESAPLARI DA DESTEKLEYEN KULLANICI MENÜSÜ
@@ -30788,163 +30329,7 @@ body.v113-member .v113-role-note{display:block}
 #v129UserActionMenu.v129-busy{cursor:wait!important}#v129UserActionMenu.v129-busy :is(button,input){opacity:.56!important;cursor:wait!important}
 @media(max-width:760px){#v129UserActionMenu{width:150px!important}}
 </style>
-<script id="v129UserAuthorityScript">
-(function(){
-  'use strict';
-  const MASTER_EMAIL=(window.__cpFounderEmail||'__protected_founder__');
-  const BODY_IDS=['settingsMemberRows','settingsAdminRows','memberRows','adminRows'];
-  const norm=value=>String(value||'').trim().toLocaleLowerCase('tr-TR');
-  const esc=value=>String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-  const notify=message=>{try{window.toast(message)}catch(_){console.info(message)}};
-  const consume=event=>{event?.preventDefault?.();event?.stopPropagation?.();event?.stopImmediatePropagation?.()};
-  let cache=[],activeToggle=null,rendering=false,refreshing=false,repairTimer=0;
-
-  function session(){try{return currentUser||store.get('cp_session',null)}catch(_){return null}}
-  function isFounder(){return norm(session()?.email)===MASTER_EMAIL}
-  function isAdmin(){return session()?.role==='admin'}
-  function userKey(user){
-    const id=String(user?.id??'').trim();if(id)return`id:${id}`;
-    const email=norm(user?.email);if(email)return`email:${email}`;
-    return`username:${norm(user?.username||user?.name)}`;
-  }
-  function readUsers(){
-    try{if(Array.isArray(users)){cache=users;return users}}catch(_){}
-    try{const stored=store.get('cp_users',[]);if(Array.isArray(stored)){cache=stored;return stored}}catch(_){}
-    return cache;
-  }
-  function findUser(key){return readUsers().find(user=>userKey(user)===String(key))||null}
-  function writeUsers(list){
-    const safe=(Array.isArray(list)?list:[]).map(user=>norm(user?.email)===MASTER_EMAIL?{...user,role:'admin',approved:true,blocked:false,accessUnlimited:true,accessExpiresAt:null}:user);
-    cache=safe;
-    try{if(Array.isArray(users)){users.splice(0,users.length,...safe);cache=users}else users=safe}catch(_){}
-    try{store.set('cp_users',cache)}catch(_){}
-    return cache;
-  }
-  function access(user){
-    if(user.blocked)return'Engelli';if(user.approved===false)return'İzin bekliyor';if(user.accessUnlimited!==false)return'Süresiz';
-    const time=new Date(user.accessExpiresAt||0).getTime();if(!time)return'Süresiz';
-    const days=Math.max(0,Math.ceil((time-Date.now())/86400000));return days?`${days} gün`:'Süresi doldu';
-  }
-  function remaining(user){if(user.accessUnlimited!==false)return 45;const time=new Date(user.accessExpiresAt||0).getTime();return Math.max(1,Math.ceil((time-Date.now())/86400000)||45)}
-  function row(user){
-    const founder=norm(user.email)===MASTER_EMAIL,blocked=!!user.blocked,key=userKey(user);
-    const control=founder
-      ?'<span class="v129-founder-tag" title="Kurucu Admin değiştirilemez">Kurucu Admin</span>'
-      :`<button type="button" class="v129-user-toggle" data-v129-menu="${esc(key)}" aria-expanded="false" aria-label="${esc(user.name||user.username||'Kullanıcı')} işlemlerini aç" title="Kullanıcı işlemleri"><span aria-hidden="true">◂</span></button>`;
-    return `<tr data-v126-row="1" data-v127-row="1" data-v128-row="1" data-v129-row="1" data-v129-user="${esc(key)}" class="${blocked?'v129-blocked-row':''}"><td title="${esc(user.name||'-')}">${esc(user.name||'-')}</td><td title="${esc(user.username||'-')}">${esc(user.username||'-')}</td><td title="${esc(user.email||'-')}">${esc(user.email||'-')}</td><td><b>${user.role==='admin'?'Admin':'Üye'}</b></td><td>${esc(access(user))}</td><td>${control}</td></tr>`;
-  }
-  function header(body){const tr=body?.closest('table')?.querySelector('thead tr');if(tr)tr.innerHTML='<th>Ad Soyad</th><th>Kullanıcı</th><th>E-posta</th><th>Rol</th><th>Erişim</th><th>İşlem</th>'}
-  function bindActivation(control,callback){
-    if(!control||control.dataset.v129Bound==='1')return;control.dataset.v129Bound='1';
-    const fire=event=>{
-      if(event.type==='keydown'&&event.key!=='Enter'&&event.key!==' ')return;
-      consume(event);callback(event);
-    };
-    // Her kontrol tek bir standart click sahibine sahiptir. Önceki sürümlerin
-    // selectorları v129 öğeleriyle eşleşmediği için çift tetikleme oluşmaz.
-    control.addEventListener('click',fire,true);control.addEventListener('keydown',fire,true);
-  }
-  function bindToggles(root=document){root.querySelectorAll('[data-v129-menu]').forEach(button=>bindActivation(button,()=>openMenu(button.dataset.v129Menu,button)))}
-  function closeMenu(){
-    ['v129UserActionMenu','v128UserActionMenu','v127UserActionMenu','v126UserActionMenu','v125UserActionMenu','v120UserActionMenu'].forEach(id=>document.getElementById(id)?.remove());
-    document.querySelectorAll('[data-v129-menu]').forEach(button=>button.setAttribute('aria-expanded','false'));activeToggle=null;
-  }
-  function render(){
-    if(rendering)return;rendering=true;
-    try{
-      closeMenu();
-      const sorted=[...writeUsers(readUsers())].sort((a,b)=>Number(!!a.blocked)-Number(!!b.blocked)||String(a.name||'').localeCompare(String(b.name||''),'tr'));
-      [['settingsMemberRows','settingsAdminRows'],['memberRows','adminRows']].forEach(([memberId,adminId])=>{
-        const member=document.getElementById(memberId),admin=document.getElementById(adminId);header(member);header(admin);
-        if(member)member.innerHTML=sorted.filter(user=>user.role!=='admin').map(row).join('')||'<tr data-v126-row="1" data-v127-row="1" data-v128-row="1" data-v129-row="1"><td colspan="6">Henüz üye yok.</td></tr>';
-        if(admin)admin.innerHTML=sorted.filter(user=>user.role==='admin').map(row).join('')||'<tr data-v126-row="1" data-v127-row="1" data-v128-row="1" data-v129-row="1"><td colspan="6">Admin yok.</td></tr>';
-      });
-      bindToggles();
-    }finally{rendering=false}
-  }
-  function apiUrl(){
-    const protocol=String(location?.protocol||''),host=String(location?.hostname||'').toLowerCase();
-    if(!/^https?:$/.test(protocol)||/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host))return'';
-    return new URL('/api/auth',location.origin).href;
-  }
-  async function api(payload){
-    const url=apiUrl();if(!url)throw new Error('Bulut işlemi için yayınlanan CephePro site bağlantısını açın.');
-    const token=localStorage.getItem('cp_cloud_token')||localStorage.getItem('cp_remembered_cloud_token')||'';
-    const headers={'Content-Type':'application/json'};if(token)headers.Authorization=`Bearer ${token}`;
-    let response;try{response=await fetch(url,{method:'POST',headers,credentials:'same-origin',cache:'no-store',body:JSON.stringify(payload)})}catch(_){throw new Error('Sunucuya ulaşılamadı. Site bağlantısı veya internet erişimi denetlenemedi.')}
-    const raw=await response.text();let data={};try{data=raw?JSON.parse(raw):{}}catch(_){throw new Error('Sunucudan geçersiz yanıt alındı.')}
-    if(!response.ok)throw new Error(data.error||'İşlem tamamlanamadı.');return data;
-  }
-  async function refresh(showError=false){
-    if(refreshing||!isAdmin()||!apiUrl())return render();refreshing=true;
-    try{const result=await api({action:'list'});if(Array.isArray(result.users))writeUsers(result.users)}
-    catch(error){if(showError)notify(error.message||'Kullanıcı listesi yenilenemedi.')}
-    finally{refreshing=false;render()}
-  }
-  function canManage(user){return isFounder()||(isAdmin()&&user?.role!=='admin')}
-  function position(toggle,menu){
-    const rect=toggle?.getBoundingClientRect?.();if(!rect||!menu)return;
-    const box=menu.getBoundingClientRect(),left=Math.max(8,rect.left-box.width-2),top=Math.max(8,Math.min((window.innerHeight||768)-box.height-8,rect.top));
-    menu.style.left=`${Math.round(left)}px`;menu.style.top=`${Math.round(top)}px`;menu.style.visibility='visible';
-  }
-  function openMenu(key,toggle){
-    const current=document.getElementById('v129UserActionMenu');if(current?.dataset.userKey===String(key)){closeMenu();return}
-    closeMenu();const user=findUser(key);if(!user||norm(user.email)===MASTER_EMAIL)return;
-    const founder=isFounder(),manager=canManage(user),denied=!!user.blocked||user.approved===false;
-    const menu=document.createElement('div');menu.id='v129UserActionMenu';menu.dataset.userKey=String(key);menu.setAttribute('role','menu');menu.style.visibility='hidden';
-    const role=manager?`<button type="button" data-v129-action="role" data-v129-value="${user.role==='admin'?'member':'admin'}">◆ ${user.role==='admin'?'Admini Üye Yap':'Üyeyi Admin Yap'}</button>`:'';
-    const accessButtons=manager?`<button type="button" data-v129-action="block" data-v129-value="${denied?'false':'true'}">${denied?'✓ Siteye Girişine İzin Ver':'⊘ Siteye Girişini Engelle'}</button><button type="button" data-v129-action="duration" aria-expanded="false">◷ Giriş Süresi Ver</button><div class="v129-duration-box"><label for="v129-days-${esc(key)}">Siteye giriş süresi (gün)</label><input id="v129-days-${esc(key)}" type="number" min="1" max="3650" value="${remaining(user)}" data-v129-days ${user.accessUnlimited!==false?'disabled':''}><label class="v129-unlimited"><input type="checkbox" data-v129-unlimited ${user.accessUnlimited!==false?'checked':''}> Süresiz</label><button type="button" data-v129-action="duration-save">Süreyi Kaydet</button><small>Örnek: 45 gün seçildiğinde süre dolunca giriş kapanır ve kullanıcı yeniden izin ister.</small></div>`:'<div class="v129-menu-note">Bu hesabı yönetme yetkiniz yok.</div>';
-    const remove=manager?'<button type="button" class="danger" data-v129-action="delete">⌫ Hesabı Sil</button>':'';
-    menu.innerHTML=`<div class="v129-menu-title"><b>${esc(user.name||user.username||'Kullanıcı')}</b><small>${user.role==='admin'?'Admin':'Üye'} · ${esc(user.email||'')}</small></div>${role}${accessButtons}${remove}`;
-    document.body.appendChild(menu);activeToggle=toggle;toggle?.setAttribute('aria-expanded','true');
-    menu.querySelectorAll('[data-v129-action]').forEach(button=>bindActivation(button,()=>void act(button)));
-    menu.querySelector('[data-v129-unlimited]')?.addEventListener('change',event=>{const days=menu.querySelector('[data-v129-days]');if(days)days.disabled=event.currentTarget.checked});
-    position(toggle,menu);
-  }
-  function busy(menu,value){menu?.classList.toggle('v129-busy',value);menu?.querySelectorAll('button,input').forEach(control=>control.disabled=!!value)}
-  function mutate(user,kind,value,options={}){
-    if(kind==='role')user.role=value==='admin'?'admin':'member';
-    if(kind==='block'){user.blocked=!!value;if(!value){user.approved=true;user.unblockNoticePending=true}}
-    if(kind==='duration'){user.accessUnlimited=!!options.unlimited;user.accessExpiresAt=options.unlimited?null:new Date(Date.now()+options.days*86400000).toISOString();user.approved=true;user.blocked=false}
-    if(kind==='delete'){const key=userKey(user);writeUsers(readUsers().filter(item=>userKey(item)!==key))}else writeUsers(readUsers());
-  }
-  async function act(button){
-    const menu=button?.closest?.('#v129UserActionMenu'),key=menu?.dataset.userKey,user=findUser(key),kind=button?.dataset?.v129Action;
-    if(!menu||!user||!kind||norm(user.email)===MASTER_EMAIL)return;
-    if(kind==='duration'){const opened=menu.classList.toggle('duration-open');button.setAttribute('aria-expanded',opened?'true':'false');position(activeToggle,menu);return}
-    if(kind==='role'&&!canManage(user)){notify('Bu hesabın rolünü değiştirme yetkiniz yok.');return}
-    if((kind==='block'||kind==='duration-save')&&!canManage(user)){notify('Bu hesabın erişimini değiştirme yetkiniz yok.');return}
-    if(kind==='delete'&&!canManage(user)){notify('Bu hesabı silme yetkiniz yok.');return}
-    if(kind==='delete'&&!window.confirm(`${user.name||user.username||'Kullanıcı'} hesabı kalıcı olarak silinsin mi?`))return;
-    const local=!apiUrl(),serverId=String(user.id??'').trim();
-    if(!local&&!serverId){notify('Kullanıcı kimliği bulunamadı. Listeyi yenileyip yeniden deneyin.');return}
-    busy(menu,true);
-    try{
-      if(kind==='role'){
-        const role=button.dataset.v129Value==='admin'?'admin':'member';if(local)mutate(user,'role',role);else await api({action:'role',userId:serverId,role});notify(`${user.name||user.username}: ${role==='admin'?'Admin':'Üye'} olarak kaydedildi.`);
-      }else if(kind==='block'){
-        const blocked=button.dataset.v129Value==='true';if(local)mutate(user,'block',blocked);else await api({action:'block',userId:serverId,blocked});notify(blocked?`${user.name||user.username} engellendi ve açık oturumu kapatıldı.`:`${user.name||user.username} için giriş izni verildi.`);
-      }else if(kind==='duration-save'){
-        const unlimited=!!menu.querySelector('[data-v129-unlimited]')?.checked,days=Math.max(1,Math.min(3650,Math.floor(Number(menu.querySelector('[data-v129-days]')?.value)||1)));
-        if(local)mutate(user,'duration',null,{unlimited,days});else await api({action:'duration',userId:serverId,unlimited,days});notify(unlimited?'Giriş süresi süresiz kaydedildi.':`Giriş süresi ${days} gün olarak kaydedildi.`);
-      }else if(kind==='delete'){
-        if(local)mutate(user,'delete');else await api({action:'delete_user',userId:serverId});notify(`${user.name||user.username} hesabı silindi.`);
-      }
-      closeMenu();if(local)render();else await refresh(true);
-    }catch(error){console.error('[CephePro V129][users]',error);notify(error.message||'İşlem tamamlanamadı.');busy(menu,false)}
-  }
-  function queueRepair(){clearTimeout(repairTimer);repairTimer=setTimeout(()=>{const bodies=BODY_IDS.map(id=>document.getElementById(id)).filter(Boolean);if(bodies.some(body=>!body.querySelector('[data-v129-row]')))render()},0)}
-  new MutationObserver(records=>{if(!rendering&&records.some(record=>BODY_IDS.includes(record.target?.id)||record.target?.closest?.('#settingsMemberRows,#settingsAdminRows,#memberRows,#adminRows')))queueRepair()}).observe(document.body,{childList:true,subtree:true});
-  window.addEventListener('pointerdown',event=>{if(!event.target?.closest?.('#v129UserActionMenu,[data-v129-menu]'))closeMenu()},true);
-  window.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu()},true);
-  document.addEventListener('click',event=>{if(event.target?.closest?.('[data-pane="settingsUsers"]')){setTimeout(()=>void refresh(false),100);setTimeout(queueRepair,260)}},true);
-  document.addEventListener('cephepro:user-ready',()=>setTimeout(()=>void refresh(false),100));
-  window.addEventListener('resize',()=>{const menu=document.getElementById('v129UserActionMenu');if(menu)position(activeToggle,menu)});
-  try{renderSettingsUsers=render;renderUsers=render}catch(_){}window.renderSettingsUsers=render;window.renderUsers=render;
-  render();setTimeout(()=>void refresh(false),180);setInterval(queueRepair,1100);
-  window.__v129UserManager={render,refresh,open:openMenu,close:closeMenu,act,users:readUsers,api,userKey,bind:bindActivation,version:'V129'};
-})();
-</script>
+<!-- User management is handled by v171AuthorityButtonScript. -->
 
 <!-- ============================================================
      V130 — TEK GÜNLÜK İMALAT KAYDI / KÜMÜLATİF + PERSONEL SENKRONU
@@ -32027,7 +31412,8 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
   const founder=()=>norm(session()?.email)===MASTER||norm(session()?.username)===MASTER_USER;
   const admin=()=>session()?.role==='admin';
   const userKey=u=>String(u?.id??u?.email??u?.username??'');
-  let rendering=false,refreshing=false,activeButton=null,repairTimer=0;
+  let rendering=false,refreshing=false,activeButton=null,repairTimer=0,lastRefresh=0;const painted=new WeakMap();
+  function paint(el,html){if(el&&(painted.get(el)!==html||(el.tagName==='TBODY'&&!el.querySelector('[data-v171-row]')))){el.innerHTML=html;painted.set(el,html);}}
   function readUsers(){try{return Array.isArray(users)?users:[]}catch(_){try{return store.get('cp_users',[])||[]}catch(__){return[]}}}
   function writeUsers(list){
     const safe=(Array.isArray(list)?list:[]).map(u=>norm(u?.email)===MASTER?{...u,role:'admin',blocked:false,approved:true,accessUnlimited:true,accessExpiresAt:null}:u);
@@ -32046,7 +31432,7 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
     const control=`<button type="button" class="v171-authority-btn" data-v171-menu="${esc(userKey(u))}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(u.name||u.username||'Kullanıcı')} işlemlerini aç" title="Kullanıcı işlemlerini aç"><span class="v171-caret" aria-hidden="true">◂</span></button>`;
     return `<tr data-v126-row="1" data-v127-row="1" data-v128-row="1" data-v129-row="1" data-v171-row="1" class="${u.blocked?'v171-blocked-row':u.approved===false?'v171-pending-row':''}"><td title="${esc(u.name||'-')}">${esc(u.name||'-')}</td><td title="${esc(u.username||'-')}">${esc(u.username||'-')}</td><td title="${esc(u.email||'-')}">${esc(u.email||'-')}</td><td><b class="${u.role==='admin'?'v171-role-admin':'v171-role-member'}">${u.role==='admin'?'Admin':'Üye'}</b></td><td>${esc(access(u))}</td><td>${control}</td></tr>`;
   }
-  function header(body){const tr=body?.closest('table')?.querySelector('thead tr');if(tr)tr.innerHTML='<th>Ad Soyad</th><th>Kullanıcı</th><th>E-posta</th><th>Rol</th><th>Erişim</th><th>İşlem</th>'}
+  function header(body){const tr=body?.closest('table')?.querySelector('thead tr');paint(tr,'<th>Ad Soyad</th><th>Kullanıcı</th><th>E-posta</th><th>Rol</th><th>Erişim</th><th>İşlem</th>')}
   function close(){
     document.getElementById('v171AuthorityMenu')?.remove();
     document.querySelectorAll('[data-v171-menu]').forEach(b=>b.setAttribute('aria-expanded','false'));activeButton=null;
@@ -32054,11 +31440,11 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
   function render(){
     if(rendering)return;rendering=true;
     try{
-      close();const sorted=[...writeUsers(readUsers())].sort((a,b)=>Number(!!a.blocked)-Number(!!b.blocked)||String(a.name||'').localeCompare(String(b.name||''),'tr'));
+      const sorted=[...readUsers()].sort((a,b)=>Number(!!a.blocked)-Number(!!b.blocked)||String(a.name||'').localeCompare(String(b.name||''),'tr'));
       [['settingsMemberRows','settingsAdminRows'],['memberRows','adminRows']].forEach(([memberId,adminId])=>{
         const members=document.getElementById(memberId),admins=document.getElementById(adminId);header(members);header(admins);
-        if(members)members.innerHTML=sorted.filter(u=>u.role!=='admin').map(row).join('')||'<tr data-v126-row="1" data-v127-row="1" data-v128-row="1" data-v129-row="1" data-v171-row="1"><td colspan="6">Henüz üye yok.</td></tr>';
-        if(admins)admins.innerHTML=sorted.filter(u=>u.role==='admin').map(row).join('')||'<tr data-v126-row="1" data-v127-row="1" data-v128-row="1" data-v129-row="1" data-v171-row="1"><td colspan="6">Admin yok.</td></tr>';
+        paint(members,sorted.filter(u=>u.role!=='admin').map(row).join('')||'<tr data-v171-row="1"><td colspan="6">Henüz üye yok.</td></tr>');
+        paint(admins,sorted.filter(u=>u.role==='admin').map(row).join('')||'<tr data-v171-row="1"><td colspan="6">Admin yok.</td></tr>');
       });
     }finally{rendering=false}
   }
@@ -32071,8 +31457,9 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
     const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Yetkilendirme işlemi tamamlanamadı.');return data;
   }
   async function refresh(showError=false){
-    if(refreshing||!admin()||!apiUrl())return render();refreshing=true;
-    try{const result=await api({action:'list'});if(Array.isArray(result.users))writeUsers(result.users)}
+    if(refreshing||!admin()||!apiUrl())return;
+    if(!showError&&Date.now()-lastRefresh<1000)return render();refreshing=true;
+    try{const result=await api({action:'list'});if(Array.isArray(result.users)){writeUsers(result.users);lastRefresh=Date.now();}}
     catch(error){if(showError)notify(error.message||'Kullanıcı listesi yenilenemedi.')}
     finally{refreshing=false;render()}
   }
@@ -32137,11 +31524,10 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
   window.addEventListener('keydown',e=>{if(e.key==='Escape')close()},true);
   window.addEventListener('resize',()=>{const menu=document.getElementById('v171AuthorityMenu');if(menu)position(activeButton,menu)});
   function queueRepair(){clearTimeout(repairTimer);repairTimer=setTimeout(()=>{const bodies=BODY_IDS.map(id=>document.getElementById(id)).filter(Boolean);if(bodies.some(body=>!body.querySelector('[data-v171-row]')))render()},40)}
-  new MutationObserver(()=>{if(!rendering)queueRepair()}).observe(document.body,{childList:true,subtree:true});
-  document.addEventListener('click',e=>{if(e.target.closest?.('[data-pane="settingsUsers"]'))setTimeout(()=>void refresh(false),120)},true);
+  new MutationObserver(records=>{if(!rendering&&records.some(r=>BODY_IDS.includes(r.target?.id)))queueRepair()}).observe(document.body,{childList:true,subtree:true});
   document.addEventListener('cephepro:user-ready',()=>setTimeout(()=>void refresh(false),120));
   try{renderSettingsUsers=render;renderUsers=render}catch(_){}window.renderSettingsUsers=render;window.renderUsers=render;
-  render();setTimeout(()=>void refresh(false),220);
+  render();
   window.__v171Authority={render,refresh,open,close,act,version:'V173'};
 })();
 </script>
@@ -32338,10 +31724,10 @@ body.v113-member #v32WorkModal .v34-work-row{
       const now=base+Date.now()-receivedAt,packets=group(data.activities||[],now);
       panels.forEach((panel,key)=>{const packet=packets.find(p=>p.key===key);if(packet)contents(panel,packet);else close(key)});
       const available=new Set(packets.map(key));for(const id of selected)if(!available.has(id))selected.delete(id);
-      root.innerHTML=packets.length?`<div class="v219-selection-tools"><label><input type="checkbox" class="v102-check v219-check" data-activity-all aria-label="Tüm hareketleri seç"><span>Tümünü Seç</span></label><button type="button" class="btn" data-activity-clear>Seçimi Kaldır</button><span data-activity-count role="status"></span><button type="button" class="btn" data-activity-open>Seçilenleri Aç</button></div>`+packets.map((p,i)=>`<div class="v219-activity-row"><input type="checkbox" class="v102-check v219-check" data-activity-check="${i}" aria-label="${esc(p.name)} hareketlerini seç"><button type="button" class="v177-user-row" data-packet="${i}" title="Ayrıntılar için çift tıklayın veya Enter'a basın"><b>${esc(p.name)}</b><time>${esc(fmt(p.date))}</time></button></div>`).join(''):'<div class="v113-activity-empty">Son 48 saatte yüklenmiş hareket yok.</div>';
-      const sync=()=>{const all=root.querySelector('[data-activity-all]');if(!all)return;all.checked=packets.length>0&&selected.size===packets.length;all.indeterminate=selected.size>0&&!all.checked;root.querySelector('[data-activity-count]').textContent=selected.size+' / '+packets.length+' seçili';for(const el of root.querySelectorAll('[data-activity-check]')){el.checked=selected.has(key(packets[Number(el.dataset.activityCheck)]));el.closest('.v219-activity-row').classList.toggle('v219-selected',el.checked);}root.querySelector('[data-activity-open]').disabled=!selected.size;root.querySelector('[data-activity-clear]').disabled=!selected.size;};
+      root.innerHTML=packets.length?`<div class="v219-selection-tools"><button type="button" class="btn" data-activity-clear>Seçimi Kaldır</button><span data-activity-count role="status"></span></div>`+packets.map((p,i)=>`<div class="v219-activity-row"><input type="checkbox" class="v102-check v219-check" data-activity-check="${i}" aria-label="${esc(p.name)} hareketlerini seç"><button type="button" class="v177-user-row" data-packet="${i}" title="Ayrıntılar için çift tıklayın veya Enter'a basın"><b>${esc(p.name)}</b><time>${esc(fmt(p.date))}</time></button></div>`).join(''):'<div class="v113-activity-empty">Son 48 saatte yüklenmiş hareket yok.</div>';
+      const sync=()=>{if(!root.querySelector('[data-activity-count]'))return;root.querySelector('[data-activity-count]').textContent=selected.size+' / '+packets.length+' seçili';for(const el of root.querySelectorAll('[data-activity-check]')){el.checked=selected.has(key(packets[Number(el.dataset.activityCheck)]));el.closest('.v219-activity-row').classList.toggle('v219-selected',el.checked);}root.querySelector('[data-activity-clear]').disabled=!selected.size;};
       root.querySelectorAll('[data-activity-check]').forEach(el=>el.onchange=()=>{const id=key(packets[Number(el.dataset.activityCheck)]);el.checked?selected.add(id):selected.delete(id);sync();});
-      const all=root.querySelector('[data-activity-all]');if(all){all.onchange=()=>{selected.clear();if(all.checked)packets.forEach(p=>selected.add(key(p)));sync();};root.querySelector('[data-activity-clear]').onclick=()=>{selected.clear();sync();};root.querySelector('[data-activity-open]').onclick=()=>packets.filter(p=>selected.has(key(p))).forEach(open);sync();}
+      const clear=root.querySelector('[data-activity-clear]');if(clear){clear.onclick=()=>{selected.clear();sync();};sync();}
       root.querySelectorAll('[data-packet]').forEach(el=>{const action=()=>open(packets[Number(el.dataset.packet)]);el.addEventListener('dblclick',action);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();action()}})});
       const next=Math.min(...(data.activities||[]).map(a=>Date.parse(a.expires_at)).filter(n=>n>now));
       if(Number.isFinite(next))timer=setTimeout(paint,Math.min(next-now+20,2147483647));
@@ -32439,9 +31825,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=222.0"></script>
-<script src="/assets/firma-template-v208.js?v=222.0"></script>
-<script src="/assets/claims-v182.js?v=222.0"></script>
+<script src="/assets/claims-report-v191.js?v=223.0"></script>
+<script src="/assets/firma-template-v208.js?v=223.0"></script>
+<script src="/assets/claims-v182.js?v=223.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
@@ -32449,12 +31835,12 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <link rel="stylesheet" href="/assets/claims-v190.css">
 <link rel="stylesheet" href="/assets/claims-v192.css">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=222.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=223.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=222.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=223.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=222.0"></script>
+<script src="/assets/puantaj-model.js?v=223.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -32474,9 +31860,9 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=222.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=222.0">
-<script src="/assets/deficiencies.js?v=222.0"></script>
+<script src="/assets/puantaj.js?v=223.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=223.0">
+<script src="/assets/deficiencies.js?v=223.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

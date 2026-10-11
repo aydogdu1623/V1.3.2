@@ -6,7 +6,7 @@
  const records=()=>{const data=store.get(KEY,[]);return Array.isArray(data)?data:[];};
  const allowed=()=>!!currentUser?.id&&!!window.CepheProProjects?.isReady();
  const today=()=>typeof v34Today==='function'?v34Today():new Date().toLocaleDateString('sv-SE');
- let context=null;
+ let context=null,savedList=false,historyLimit=25;
  function report(){
   const facades=typeof v52SelectedFacades==='function'?v52SelectedFacades():[],dates=typeof v52ReportDates==='function'?v52ReportDates():{};
   const selected=typeof v52ReportState==='object'?v52ReportState.items:null;
@@ -21,12 +21,16 @@
   if(anchor.previousElementSibling!==button)anchor.before(button);
  }
  function history(){
-  if(!$('cpDefHistory')||!context)return;
+  if(!context||!$('cpDefHistory'))return;
   const rows=records().filter(r=>r.block===context.block&&r.facade===context.facade).sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt)));
-  $('cpDefHistory').innerHTML=rows.length?rows.map(r=>`<article><strong>${esc(r.pozNo?r.pozNo+' · ':'')}${esc(r.item)}</strong><p>${esc(r.description)}</p><small>${esc(r.date.split('-').reverse().join('.'))} · ${esc(r.user)}</small></article>`).join(''):'<p class="cp-def-hint">Bu cephede kayıtlı eksik yok.</p>';
   $('cpDefCount').textContent=`Kayıtlı Eksikler (${rows.length})`;
+  if(!$('cpDefHistoryDetails').open)return;
+  const batches=new Map();for(const r of rows.slice(0,historyLimit)){const key=r.userId+'|'+(r.listId||r.id);if(!batches.has(key))batches.set(key,[]);batches.get(key).push(r);}
+  $('cpDefHistory').innerHTML=rows.length?[...batches.values()].map(list=>`<section class="cp-def-saved-list"><h3>Eksik listesi · ${esc(list[0].date.split('-').reverse().join('.'))} · ${esc(list[0].user)}</h3>${list.map(r=>`<article><strong>${esc(r.pozNo?r.pozNo+' · ':'')}${esc(r.item)}</strong><p>${esc(r.description)}</p></article>`).join('')}</section>`).join(''):'<p class="cp-def-hint">Bu cephede kayıtlı eksik yok.</p>';
+  $('cpDefMore').hidden=rows.length<=historyLimit;
  }
  function addRow(){
+  if(savedList)return;
   const host=$('cpDefRows');if(host.children.length>=20){toast('Tek seferde en fazla 20 açıklama ekleyebilirsiniz.');return;}
   const group=document.createElement('fieldset');group.className='cp-def-entry';
   group.innerHTML=`<legend>Eksik kaydı</legend><div class="cp-def-entry-head"><span>İş kalemleri · birden fazla seçebilirsiniz</span><button type="button" data-remove aria-label="Bu eksik satırını kaldır">×</button></div><div class="cp-def-items">${(DATA[context.block]?.[context.facade]?.items||[]).filter(raw=>String(raw?.[0]||'').trim()).map(raw=>`<label><input type="checkbox" value="${esc(raw[0])}"><span>${esc(raw[10]?raw[10]+' · ':'')}${esc(raw[0])}</span></label>`).join('')}</div><label class="cp-def-description">Açıklama<textarea rows="2" maxlength="2000" placeholder="Eksik veya tamamlanması gereken işi açıklayın." aria-label="Eksik açıklaması"></textarea></label>`;
@@ -35,18 +39,26 @@
  }
  function save(){
   if(!allowed()||!context||context.project!==window.CepheProProjects.project()?.id||context.userId!==String(currentUser.id)){toast('Proje erişiminizi yeniden doğrulayın.');return;}
-  const date=$('cpDefDate').value,entries=[];
+  if(savedList)return;
+  const date=$('cpDefDate').value,entries=[],listId=crypto.randomUUID();
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){toast('Geçerli bir tarih seçin.');return;}
   for(const group of $('cpDefRows').children){
    const items=[...group.querySelectorAll('input:checked')].map(el=>el.value),description=group.querySelector('textarea').value.trim();
    if(!items.length||!description){toast('Her eksik için iş kalemi seçin ve açıklama yazın.');return;}
    for(const item of items){
     const raw=DATA[context.block]?.[context.facade]?.items?.find(r=>r[0]===item);if(!raw){toast('İş kalemi değişmiş. Eksikler panelini yeniden açın.');return;}
-    entries.push({id:crypto.randomUUID(),date,block:context.block,facade:context.facade,item,pozNo:String(raw[10]||''),description,userId:String(currentUser.id),user:currentUser.name||currentUser.username||'',savedAt:new Date().toISOString()});
+    entries.push({id:crypto.randomUUID(),listId,date,block:context.block,facade:context.facade,item,pozNo:String(raw[10]||''),description,userId:String(currentUser.id),user:currentUser.name||currentUser.username||'',savedAt:new Date().toISOString()});
    }
   }
-  store.set(KEY,[...records(),...entries]);$('cpDefRows').replaceChildren();addRow();history();
-  $('cpDefMessage').textContent=`${entries.length} eksik kaydedildi. Bulut durumu üst çubukta izlenebilir.`;
+  store.set(KEY,[...records(),...entries]);savedList=true;
+  $('cpDefRows').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=true);$('cpDefDate').disabled=true;
+  $('cpDefAdd').hidden=true;$('cpDefSave').hidden=true;$('cpDefNew').hidden=false;historyLimit=25;history();
+  $('cpDefMessage').textContent=`${entries.length} eksik bu listeye kaydedildi. Devam etmek için Yeni Eksik Listesi düğmesine basın. Bulut durumu üst çubukta izlenebilir.`;
+  $('cpDefNew').focus();
+ }
+ function newList(){
+  savedList=false;$('cpDefDate').disabled=false;$('cpDefDate').value=today();$('cpDefMessage').textContent='';
+  $('cpDefAdd').hidden=false;$('cpDefSave').hidden=false;$('cpDefNew').hidden=true;$('cpDefRows').replaceChildren();addRow();
  }
  function open(){
   if(!allowed()){toast('Önce proje girişini tamamlayın.');return;}
@@ -54,11 +66,12 @@
   if(!$('cpDefDialog')){
    const dialog=document.createElement('dialog');dialog.id='cpDefDialog';dialog.className='cp-def-dialog';
    dialog.setAttribute('aria-labelledby','cpDefTitle');
-   dialog.innerHTML='<div class="cp-def-head"><strong id="cpDefTitle">Eksikler</strong><button type="button" id="cpDefClose" aria-label="Eksikler panelini kapat">×</button></div><div class="cp-def-body"><label class="cp-def-date">Tarih<input type="date" id="cpDefDate"></label><div id="cpDefRows"></div><div class="cp-def-actions"><button type="button" id="cpDefAdd">＋ Eksik Ekle</button><button type="button" id="cpDefSave" class="primary">Kaydet</button></div><p id="cpDefMessage" role="status" class="cp-def-hint"></p><details><summary id="cpDefCount">Kayıtlı Eksikler</summary><div id="cpDefHistory"></div></details></div>';
-   document.body.append(dialog);$('cpDefClose').onclick=()=>dialog.close();$('cpDefAdd').onclick=addRow;$('cpDefSave').onclick=save;
+   dialog.innerHTML='<div class="cp-def-head"><strong id="cpDefTitle">Eksikler</strong><button type="button" id="cpDefClose" aria-label="Eksikler panelini kapat">×</button></div><div class="cp-def-body"><label class="cp-def-date">Tarih<input type="date" id="cpDefDate"></label><div id="cpDefRows"></div><div class="cp-def-actions"><button type="button" id="cpDefAdd">＋ Eksik Ekle</button><button type="button" id="cpDefSave" class="primary">Kaydet</button><button type="button" id="cpDefNew" class="primary" hidden>＋ Yeni Eksik Listesi</button></div><p id="cpDefMessage" role="status" class="cp-def-hint"></p><details id="cpDefHistoryDetails"><summary id="cpDefCount">Kayıtlı Eksikler</summary><div id="cpDefHistory"></div><button type="button" id="cpDefMore" hidden>Daha Fazla Göster</button></details></div>';
+   document.body.append(dialog);$('cpDefClose').onclick=()=>dialog.close();$('cpDefAdd').onclick=addRow;$('cpDefSave').onclick=save;$('cpDefNew').onclick=newList;
+   $('cpDefHistoryDetails').ontoggle=history;$('cpDefMore').onclick=()=>{historyLimit+=25;history();};
   }
   context={block:currentBlock,facade:currentFacade,project:window.CepheProProjects.project()?.id,userId:String(currentUser.id)};
-  $('cpDefTitle').textContent=`${currentBlock} / ${currentFacade} — Eksikler`;$('cpDefDate').value=today();$('cpDefMessage').textContent='';$('cpDefRows').replaceChildren();addRow();history();$('cpDefDialog').showModal();
+  $('cpDefTitle').textContent=`${currentBlock} / ${currentFacade} — Eksikler`;newList();historyLimit=25;$('cpDefHistory').replaceChildren();history();$('cpDefDialog').showModal();
  }
  document.addEventListener('cephepro:locked',()=>{context=null;$('cpDefDialog')?.remove();});
  document.addEventListener('cephepro:state-updated',history);

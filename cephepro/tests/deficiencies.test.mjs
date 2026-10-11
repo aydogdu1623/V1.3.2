@@ -10,10 +10,10 @@ const dynamic={A:{Kuzey:{items:[raw('ANKRAJ','W1'),raw('CAM','W2')]},Guney:{item
 const record=(id='entry-0001',userId='member-a',props={})=>({id,userId,date:'2026-10-11',block:'A',facade:'Kuzey',item:'ANKRAJ',description:'Vida eksik',...props});
 test('deficiencies validate work items and dates, stamp identity, and never overwrite existing entries',()=>{
  const user={id:'member-a',name:'Test member'},one=mergeDeficiencies([], [record()],user,dynamic);
- assert.equal(one[0].pozNo,'W1');assert.equal(one[0].user,'Test member');
+ assert.equal(one[0].pozNo,'W1');assert.equal(one[0].user,'Test member');assert.equal(one[0].listId,'entry-0001');
  const stale=mergeDeficiencies(one,[record('entry-0001','member-a',{description:'changed'}),record('entry-0002','other')],user,dynamic);
  assert.equal(stale.length,1);assert.equal(stale[0].description,'Vida eksik');
- for(const props of [{date:'2026-02-30'},{item:'NOT IN PROJECT'},{description:''},{description:'x'.repeat(2001)}])assert.throws(()=>mergeDeficiencies([], [record('entry-0002','member-a',props)],user,dynamic),/geçersiz/);
+ for(const props of [{date:'2026-02-30'},{item:'NOT IN PROJECT'},{description:''},{description:'x'.repeat(2001)},{listId:'<invalid>'}])assert.throws(()=>mergeDeficiencies([], [record('entry-0002','member-a',props)],user,dynamic),/geçersiz/);
 });
 test('two users can append from stale snapshots; records persist in protected project state',async t=>{
  const h=await database(t),handler=createStateHandler(h.deps);
@@ -37,10 +37,13 @@ test('UI adds multiple items and explanations, reloads saved entries, filters al
  $('cpDefSave').click();assert.equal(saved.length,0);assert.match(messages.at(-1),/iş kalemi/);
  let group=$('cpDefRows').firstElementChild;group.querySelectorAll('input').forEach(el=>el.checked=true);group.querySelector('textarea').value='Montaj eksik <script>danger</script>';
  $('cpDefAdd').click();group=$('cpDefRows').lastElementChild;group.querySelector('input').checked=true;group.querySelector('textarea').value='İkinci eksik';$('cpDefSave').click();
- assert.equal(saved.length,3);assert.equal(new Set(saved.map(r=>r.id)).size,3);assert.equal($('cpDefHistory').querySelector('script'),null);
- $('cpDefClose').click();$('cpDeficienciesBtn').click();assert.equal($('cpDefHistory').querySelectorAll('article').length,3);
+ assert.equal(saved.length,3);assert.equal(new Set(saved.map(r=>r.id)).size,3);assert.equal(new Set(saved.map(r=>r.listId)).size,1);assert.equal($('cpDefSave').hidden,true);assert.equal($('cpDefNew').hidden,false);$('cpDefSave').click();assert.equal(saved.length,3);assert.equal($('cpDefHistory').querySelector('script'),null);
+ $('cpDefHistoryDetails').open=true;$('cpDefHistoryDetails').dispatchEvent(new w.Event('toggle'));assert.equal($('cpDefHistory').querySelectorAll('article').length,3);assert.equal($('cpDefHistory').querySelectorAll('.cp-def-saved-list').length,1);
+ $('cpDefNew').click();assert.equal($('cpDefRows').children.length,1);assert.equal($('cpDefRows').querySelector('textarea').value,'');assert.equal($('cpDefSave').hidden,false);
  assert.equal(w.CepheProDeficiencies.report().rows.length,3);w.v52ReportState.items.delete('A|Kuzey|CAM');assert.equal(w.CepheProDeficiencies.report().rows.length,2);
  w.v52ReportDates=()=>({start:'2026-10-12'});assert.equal(w.CepheProDeficiencies.report().rows.length,0);
- project='p2';$('cpDefSave').click();assert.equal(saved.length,3);assert.match(messages.at(-1),/Proje erişiminizi/);
+ group=$('cpDefRows').firstElementChild;group.querySelector('input').checked=true;group.querySelector('textarea').value='Yeni liste';$('cpDefSave').click();assert.equal(saved.length,4);assert.notEqual(saved[3].listId,saved[0].listId);
+ $('cpDefClose').click();$('cpDeficienciesBtn').click();assert.equal($('cpDefCount').textContent,'Kayıtlı Eksikler (4)');
+ project='p2';$('cpDefSave').click();assert.equal(saved.length,4);assert.match(messages.at(-1),/Proje erişiminizi/);
  w.document.dispatchEvent(new w.Event('cephepro:locked'));assert.equal($('cpDefDialog'),null);
 });

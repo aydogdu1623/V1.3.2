@@ -46,3 +46,12 @@
 #cpDefHistory small{color:#607d80}
 .cp-def-body details{margin-top:10px}
 @media(max-width:480px){#v34AccountModal .v34-account-grid{grid-template-columns:1fr!important}#v34AccountModal .v35-avatar-side{display:flex!important;align-items:center!important;gap:10px!important}#v34AccountModal .v34-modal-form{grid-template-columns:1fr!important}.v105-daily-titlebar .v105-section-actions{gap:4px!important}}
+
+/* Saved lists stay readable; the next list is an explicit action after Save. */
+.cp-def-dialog [hidden]{display:none!important}
+.cp-def-saved-list{padding:7px;margin:8px 0;border:1px solid #c7ddda;border-radius:7px;background:#f7fbfa}
+.cp-def-saved-list h3{font-size:11px;margin:0 0 5px;color:#315d60}
+.cp-def-entry:disabled{opacity:.85}
+/* Panel changes do not wait for decorative animation. */
+.settings-pane,.settingsTab,.modalback,.panel{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+button.btn{transition-duration:80ms!important;transition-delay:0s!important}

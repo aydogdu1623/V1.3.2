@@ -88,10 +88,10 @@ class Sheet {
   this.xml=this.xml.replace(/<cols>([\s\S]*?)<\/cols>/,(_,body)=>'<cols>'+[...body.matchAll(/<col\b[^>]*\/>/g)].map(m=>m[0]).sort((a,b)=>Number(a.match(/min="(\d+)"/)[1])-Number(b.match(/min="(\d+)"/)[1])).join('')+'</cols>');
   this.xml=this.output();
  }
- freeze(rows){
-  // A single horizontal freeze; no independent left/right scrolling panes.
-  const first='A'+(rows+1);
-  this.xml=this.xml.replace(/<sheetViews>[\s\S]*?<\/sheetViews>/,`<sheetViews><sheetView workbookViewId="0"><pane ySplit="${rows}" topLeftCell="${first}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="${first}" sqref="${first}"/></sheetView></sheetViews>`);
+ freeze(rows,columns=0){
+  // One frozen view: item identity stays left, period headings stay above the scrolling data.
+  const first=column(columns+1)+(rows+1),pane=columns?'bottomRight':'bottomLeft';
+  this.xml=this.xml.replace(/<sheetViews>[\s\S]*?<\/sheetViews>/,`<sheetViews><sheetView workbookViewId="0"><pane ${columns?`xSplit="${columns}" `:''}ySplit="${rows}" topLeftCell="${first}" activePane="${pane}" state="frozen"/><selection pane="${pane}" activeCell="${first}" sqref="${first}"/></sheetView></sheetViews>`);
  }
  trimColumns(limit){
   for(const row of this.rows.values()){
@@ -125,7 +125,7 @@ async function build(payload,{templateBytes}={}){
  summary.put('A1',`CEPHEPRO - ${data.end} DÖNEMLİ FİRMA HAKEDİŞ VE FİNANSAL GENEL ÖZET`);summary.put('D3','Firma:');
  summary.put('B3',info.site||info.projectName||'');summary.put('E3',info.company||'');summary.put('B4',info.projectName||'');summary.put('E4',info.contractDate||'');
  track.put('A1',`${data.end} DÖNEMLİ FİRMA HAKEDİŞ VE METRAJ TAKİP SİSTEMİ`);
- for(const sheet of [track,master])sheet.put('A3','İş kalemi ve dönem fiyatları Birim Fiyat Master sayfasından alınır. Başlıklar tek satır bölgesinde sabittir. Yalnızca seçili ve önceki hakedişler gösterilir.');
+ for(const sheet of [track,master])sheet.put('A3','Blok, cephe, poz no ve iş kalemi solda; dönem başlıkları üstte sabittir. Sağdaki dönemleri yatay kaydırarak görebilirsiniz. Yalnız seçili ve önceki hakedişler gösterilir.');
  prices.put('A3','Revize fiyatlar kayıtlı hakedişlerden alınır. Başlangıç no, fiyatın uygulanacağı ilk dönemdir. Kullanılmayan revizyonlarda 99, rapora dahil olmayan dönem demektir.');
  // Remove only the original input/data region, keeping header/column formatting.
  const trackPrototype=new Sheet(track.xml),masterPrototype=new Sheet(master.xml),pricePrototype=new Sheet(prices.xml);
@@ -181,7 +181,7 @@ async function build(payload,{templateBytes}={}){
  summary.put('A'+summaryTotal,`TOPLAM KÜMÜLATİF HAKEDİŞ (1 - ${data.end})`);
  sums.forEach((v,i)=>summary.formula(column(i+2)+summaryTotal,`SUM(${column(i+2)}9:${column(i+2)}${summaryTotal-1})`,v));
  summary.resize(summaryTotal,'G');
- sheets.forEach((sheet,i)=>sheet.freeze([8,6,5,5,6,5][i]));
+ sheets.forEach((sheet,i)=>sheet.freeze([8,6,5,5,6,5][i],[1,4].includes(i)?4:0));
  // All formulas now have current caches. Excel also recalculates edits on open.
  const calc='<calcPr calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1"/>';
  zip.file('xl/workbook.xml',/<calcPr\b/.test(workbook)?workbook.replace(/<calcPr\b[^>]*\/>/,calc):workbook.replace('</workbook>',calc+'</workbook>'));

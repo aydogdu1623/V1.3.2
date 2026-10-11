@@ -57,12 +57,16 @@ test('complete app boots with an empty protected project and mounts the Projects
  assert.match(dom.window.getComputedStyle(editor.querySelector('h2')).color,/rgb\((16, 47, 61|33, 79, 84)\)/);
  assert.equal(dom.window.getComputedStyle(editor.querySelector('input')).height,'34px');
  assert.equal(dom.window.getComputedStyle(dom.window.document.querySelector('.cp-gate-card')).width,'min(460px,100%)');
- const w=dom.window;w.v35OpenAccount();
+ const w=dom.window;
+ assert.equal(w.document.getElementById('loginUser').value,'');assert.equal(w.document.getElementById('loginPass').value,'');assert.equal(w.document.getElementById('rememberLoginUser').checked,false);
+ assert.equal(w.document.querySelector('script[data-v167-external]'),null,'report engines load on demand');
+ const adminBody=w.document.getElementById('settingsAdminRows'),row=adminBody.firstElementChild;w.__v171Authority.render();w.__v171Authority.render();assert.equal(adminBody.firstElementChild,row,'unchanged user data retains its DOM and event handlers');
+ assert.equal(w.renderSettingsUsers,w.__v171Authority.render);w.v35OpenAccount();
  const account=w.document.getElementById('v34AccountModal');
  assert.equal(w.getComputedStyle(account.querySelector('.modal')).width,'min(620px,94vw)');
  assert.equal(w.getComputedStyle(account.querySelector('.v35-account-tab')).height,'28px');
  assert.equal(w.getComputedStyle(account.querySelector('.v35-avatar-large')).width,'76px');
- w.v35SetAccountTab('password');assert.equal(w.getComputedStyle(account.querySelector('.modal')).width,'min(450px,94vw)');
+ w.v35SetAccountTab('password');await new Promise(r=>setTimeout(r,0));assert.equal(w.document.getElementById('v35ChangePassword').dataset.v122Cloud,'1');assert.equal(w.getComputedStyle(account.querySelector('.modal')).width,'min(450px,94vw)');
  assert.equal(w.getComputedStyle(w.document.getElementById('v35NewPassword')).height,'30px');
  w.v35SetAccountTab('profile');w.document.getElementById('v35AccountClose').click();
  w.CepheProDeficiencies.mount();const noWork=w.document.getElementById('v34NoWorkBtn'),def=w.document.getElementById('cpDeficienciesBtn');
@@ -139,4 +143,31 @@ test('trash exposes permanent delete only for managed projects, requires typed c
  const button=()=>w.document.querySelector('#cpProjectsList [data-project-action="purge"][data-id="old"]');assert.ok(button());assert.equal(w.document.querySelector('[data-project-action="purge"][data-id="other"]'),null);
  button().click();await new Promise(r=>setTimeout(r,0));assert.equal(posts.length,0);
  confirmed='OLD';button().click();await new Promise(r=>setTimeout(r,10));assert.equal(posts.length,1);assert.equal(button(),null);assert.equal(w.CepheProProjects.isReady(),true);assert.match(w.document.getElementById('cpProjectsMessage').textContent,/kalıcı olarak silindi/);
+});
+
+test('remembered project codes are opt-in, account-scoped and never restore a password or grant access',async t=>{
+ const {w}=mini(t,null),$=id=>w.document.getElementById(id),key='cp_project_access_codes:owner';
+ w.localStorage.setItem(key,JSON.stringify({companyCode:'DYSH',projectCode:'PROJE-4'}));
+ await w.CepheProProjects.ensure(user);
+ assert.equal($('cpRememberCodes').checked,true);assert.equal($('cpCompanyCode').value,'DYSH');assert.equal($('cpProjectCode').value,'PROJE-4');assert.equal($('cpProjectPassword').value,'');assert.equal(w.CepheProProjects.isReady(),false);
+ assert.equal((await w.fetch('/api/state')).status,403);
+ $('cpRememberCodes').click();assert.equal(w.localStorage.getItem(key),null);
+ $('cpProjectPassword').value='Temporary test password';w.CepheProProjects.lock(true);assert.equal($('cpProjectPassword').value,'');assert.equal($('cpCompanyCode').value,'');
+ w.localStorage.setItem(key,JSON.stringify({companyCode:'DYSH',projectCode:'PROJE-4'}));await w.CepheProProjects.ensure({...user,id:'other'});
+ assert.equal($('cpRememberCodes').checked,false);assert.equal($('cpCompanyCode').value,'');assert.equal($('cpProjectCode').value,'');
+});
+test('successful project login remembers only the two codes when selected and preserves authentication requirements',async t=>{
+ const dom=new JSDOM('<html><body></body></html>',{url:'https://example.invalid/',runScripts:'outside-only',virtualConsole:new VirtualConsole()}),w=dom.window;t.after(()=>w.close());let reject=false,submitted;
+ Object.assign(w,{Headers,Response,Request,fetch:async(input,init={})=>{
+  if(init.body){submitted=JSON.parse(init.body);return new Response(JSON.stringify(reject?{error:'Şifre yanlış'}:{token:'PROJECT',project:ctx.project,userId:'owner'}),{status:reject?403:200});}
+  return new Response(JSON.stringify({projects:[],canCreate:true}));
+ }});
+ w.localStorage.setItem('cp_cloud_token','ACCOUNT');w.eval(source);await w.CepheProProjects.ensure(user);
+ const $=id=>w.document.getElementById(id);$('cpCompanyCode').value='FIRMA';$('cpProjectCode').value='A1';$('cpProjectPassword').value='Synthetic-only';$('cpRememberCodes').checked=true;
+ await $('cpProjectLogin').onsubmit({preventDefault(){},currentTarget:$('cpProjectLogin')});
+ const stored=JSON.parse(w.localStorage.getItem('cp_project_access_codes:owner'));assert.deepEqual(stored,{companyCode:'FIRMA',projectCode:'A1'});assert.equal(submitted.password,'Synthetic-only');assert.equal($('cpProjectPassword').value,'');
+ assert.equal(w.CepheProProjects.isReady(),false,'grant requires a verified reload and hydration');
+ $('cpRememberCodes').checked=false;$('cpRememberCodes').onchange();assert.equal(w.localStorage.getItem('cp_project_access_codes:owner'),null);
+ reject=true;$('cpRememberCodes').checked=true;$('cpProjectPassword').value='wrong';await $('cpProjectLogin').onsubmit({preventDefault(){},currentTarget:$('cpProjectLogin')});
+ assert.equal(w.localStorage.getItem('cp_project_access_codes:owner'),null);assert.equal($('cpProjectLogin').querySelector('[type=submit]').disabled,false);
 });

@@ -15,6 +15,19 @@
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const accountToken=()=>read(localStorage,'cp_cloud_token')||read(localStorage,'cp_remembered_cloud_token')||'';
  let user=null,verified=false,hydrated=false,projects=[],companies=[],selectedCompany='',directoryRequest=0,canCreate=false,checking=null,editMode=null;
+ let codesOwner=null;
+ const codesKey=()=>user?.id?'cp_project_access_codes:'+String(user.id):null;
+ function restoreCodes(){
+  if(!$('cpRememberCodes')||!user?.id||codesOwner===String(user.id))return;
+  codesOwner=String(user.id);let saved=null;
+  try{saved=JSON.parse(read(localStorage,codesKey())||'null');}catch{}
+  const valid=typeof saved?.companyCode==='string'&&saved.companyCode.length<=40&&typeof saved?.projectCode==='string'&&saved.projectCode.length<=40;
+  $('cpRememberCodes').checked=!!valid;$('cpCompanyCode').value=valid?saved.companyCode:'';$('cpProjectCode').value=valid?saved.projectCode:'';$('cpProjectPassword').value='';
+ }
+ function rememberCodes(project){
+  const key=codesKey();if(!key)return;
+  try{if($('cpRememberCodes').checked)write(localStorage,key,JSON.stringify({companyCode:project.companyCode,projectCode:project.projectCode}));else nativeRemove.call(localStorage,key);}catch{}
+ }
  const lockedReply=()=>new Response(JSON.stringify({error:'Önce proje girişini tamamlayın.',code:'PROJECT_LOCKED'}),{status:403,headers:{'Content-Type':'application/json'}});
  window.fetch=async function(input,init={}){
   const url=new URL(typeof input==='string'||input instanceof URL?String(input):input.url,location.href);
@@ -38,6 +51,7 @@
  }
  function accept(account){
   if(!account?.id)return;user=account;root.dataset.cpAccount='verified';
+  restoreCodes();
   if(context&&String(context.userId)!==String(account.id)){context=null;nativeRemove.call(sessionStorage,CONTEXT);location.reload();}
  }
  function migrateLegacy(){
@@ -56,7 +70,7 @@
  async function ensure(account){
   accept(account);if(verified)return true;if(checking)return checking;
   checking=(async()=>{
-   mount();showGate();status('Proje erişimi kontrol ediliyor…');
+   mount();restoreCodes();showGate();status('Proje erişimi kontrol ediliyor…');
    try{
     const data=await api();directory(data);
     if(context&&data.activeProject?.id===context.project.id&&String(context.userId)===String(user.id)){
@@ -73,7 +87,8 @@
   window.CepheProPerformance?.cancel();
   verified=false;hydrated=false;context=null;nativeRemove.call(sessionStorage,CONTEXT);root.dataset.cpProject='locked';
   document.querySelectorAll('dialog[open]').forEach(el=>{try{el.close();}catch{}});
-  if(logout){user=null;delete root.dataset.cpAccount;if($('cpProjectGate'))$('cpProjectGate').hidden=true;}
+  if($('cpProjectPassword'))$('cpProjectPassword').value='';
+  if(logout){user=null;codesOwner=null;delete root.dataset.cpAccount;if($('cpProjectGate'))$('cpProjectGate').hidden=true;for(const id of ['cpCompanyCode','cpProjectCode','loginUser','loginPass'])if($(id))$(id).value='';if($('cpRememberCodes'))$('cpRememberCodes').checked=false;}
   else{showGate();status('Proje erişimi sona erdi. Kodları ve şifreyi yeniden girin.');render();}
  }
  function ready(){
@@ -175,10 +190,13 @@
   const gate=document.createElement('section');gate.id='cpProjectGate';gate.hidden=true;gate.setAttribute('aria-label','Proje güvenlik kontrolü');
   gate.innerHTML=`<div class="cp-gate-card"><div class="cp-gate-brand">CE P H E P R O <span>PROJE GİRİŞİ</span></div><h1>Projenize güvenle erişin</h1><p class="cp-project-hint">Hesap girişiniz tamamlandı. Proje verilerini açmak için erişim bilgilerinizi girin.</p><form id="cpProjectLogin"><div class="cp-code-grid"><label>Firma kodu<input id="cpCompanyCode" required maxlength="40" autocomplete="off" spellcheck="false"></label><label>Proje kodu<input id="cpProjectCode" required maxlength="40" autocomplete="off" spellcheck="false"></label></div><label>Proje şifresi<input id="cpProjectPassword" type="password" required maxlength="128" autocomplete="current-password"></label><button type="submit" class="primary">Projeye Gir</button></form><p id="cpProjectStatus" role="status" aria-live="polite"></p><div class="cp-project-toolbar"><h2>Projelerim</h2><button type="button" id="cpGateCreate" hidden>+ Proje Ekle</button></div><div id="cpKnownProjects"></div><div class="cp-project-toolbar"><button type="button" id="cpProjectRetry">Yeniden Dene</button><button type="button" id="cpProjectLogout">Hesaptan Çık</button></div></div>`;
   document.body.append(gate);passwordEyes(gate);
+  const remember=document.createElement('label');remember.className='cp-remember-codes';remember.innerHTML='<input type="checkbox" id="cpRememberCodes"><span>Verileri hatırla <small>Yalnız firma ve proje kodları</small></span>';
+  $('cpProjectLogin').querySelector('[type=submit]').before(remember);$('cpProjectPassword').autocomplete='new-password';
+  $('cpRememberCodes').onchange=()=>{if(!$('cpRememberCodes').checked&&codesKey())try{nativeRemove.call(localStorage,codesKey());}catch{}};restoreCodes();
   const editor=document.createElement('div');editor.id='cpProjectEditor';editor.hidden=true;editor.setAttribute('role','dialog');editor.setAttribute('aria-modal','true');editor.setAttribute('aria-label','Proje düzenleme');document.body.append(editor);
   $('cpProjectLogin').onsubmit=async event=>{
    event.preventDefault();const button=event.currentTarget.querySelector('[type=submit]');button.disabled=true;status('Proje açılıyor…');
-   try{const data=await api({action:'unlock',companyCode:$('cpCompanyCode').value,projectCode:$('cpProjectCode').value,password:$('cpProjectPassword').value});context={token:data.token,project:data.project,userId:data.userId};write(sessionStorage,CONTEXT,JSON.stringify(context));$('cpProjectPassword').value='';location.reload();}
+   try{const data=await api({action:'unlock',companyCode:$('cpCompanyCode').value,projectCode:$('cpProjectCode').value,password:$('cpProjectPassword').value});context={token:data.token,project:data.project,userId:data.userId};write(sessionStorage,CONTEXT,JSON.stringify(context));rememberCodes(data.project);$('cpProjectPassword').value='';location.reload();}
    catch(e){status(e.message,true);button.disabled=false;}
   };
   $('cpGateCreate').onclick=()=>form('create');$('cpProjectCreate')?.addEventListener('click',()=>form('create'));

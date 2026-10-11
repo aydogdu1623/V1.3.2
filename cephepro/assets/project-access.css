@@ -59,3 +59,7 @@ html[data-cp-project="locked"][data-cp-account="verified"] #authScreen{display:n
 :is(#cpProjectGate,#cpProjectEditor) button.cp-password-eye:hover{background:#e3f0ec!important}
 .cp-company-picker{gap:7px;padding:9px;border-color:#b3cdc7;border-radius:8px;background:#edf6f2!important;margin:9px 0;color:#335e62!important}.cp-company-picker label{min-width:140px}.cp-company-picker p{font-size:10px;color:#526f74!important}
 @media(max-width:480px){#cpProjectGate{padding:10px}#cpProjectGate .cp-gate-card{padding:14px;max-height:calc(100dvh - 20px)}.cp-gate-brand{letter-spacing:1px}.cp-code-grid{grid-template-columns:1fr 1fr;gap:7px}#cpProjectEditForm{padding:13px}}
+
+#cpProjectLogin .cp-remember-codes{display:flex;align-items:center;gap:8px;margin:3px 0 10px;cursor:pointer}
+#cpProjectLogin .cp-remember-codes input{width:16px;height:16px;min-height:0;margin:0;flex:none}
+#cpProjectLogin .cp-remember-codes small{display:block;font-size:10px;font-weight:400;color:#587579;margin-top:2px}

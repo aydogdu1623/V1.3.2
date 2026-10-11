@@ -1,6 +1,6 @@
 'use strict';
 const loaded=new Set();
-function include(name){if(!loaded.has(name)){importScripts('/assets/'+name+'?v=222.0');loaded.add(name);}}
+function include(name){if(!loaded.has(name)){importScripts('/assets/'+name+'?v=223.0');loaded.add(name);}}
 self.onmessage=async({data:{id,task,payload}})=>{
  try{
   let result;

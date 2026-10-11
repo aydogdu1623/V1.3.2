@@ -12,7 +12,9 @@ export function mergeDeficiencies(latest,submitted,me,dynamic){
   const {id,block,facade,item,date}=entry,description=String(entry.description||'').trim();
   const raw=Object.hasOwn(dynamic||{},block)&&Object.hasOwn(dynamic[block]||{},facade)?dynamic[block][facade]?.items?.find(r=>r[0]===item):null;
   if(typeof id!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(id)||!raw||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date||!description||description.length>2000||++added>500)invalid();
-  out.push({id,block,facade,item,date,pozNo:String(raw[10]||''),description,userId:String(me.id),user:me.name||me.username||'',savedAt:new Date().toISOString()});known.add(id);
+  const listId=entry.listId===undefined?id:entry.listId;
+  if(typeof listId!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(listId))invalid();
+  out.push({id,listId,block,facade,item,date,pozNo:String(raw[10]||''),description,userId:String(me.id),user:me.name||me.username||'',savedAt:new Date().toISOString()});known.add(id);
  }
  if(out.length>10000)invalid();
  return out;

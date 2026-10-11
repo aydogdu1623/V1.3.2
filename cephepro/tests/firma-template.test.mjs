@@ -21,7 +21,7 @@ test('six original sheets, all 15 periods, revision boundaries, attachments and 
  assert.equal(JSON.stringify(input),before);assert.deepEqual(out.sheetNames,['Özet','Hakediş Takip','Tutanak ve Ekler','Kesintiler','Tüm İmalatlar Master','Birim Fiyat Master']);assert.equal(out.extra.length,1);
  const zip=await JSZip.loadAsync(out.bytes),source=await JSZip.loadAsync(templateBytes);
  for(const p of ['xl/styles.xml','xl/theme/theme1.xml'])assert.equal(await zip.file(p).async('string'),await source.file(p).async('string'));
- for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);if(![2,6].includes(i))assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal((b.match(/<pane\b/g)||[]).length,1);assert.doesNotMatch(b,/xSplit=|state="split"/);assert.doesNotMatch(b,/_xludf\./);}
+ for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);if(![2,6].includes(i))assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal((b.match(/<pane\b/g)||[]).length,1);assert.doesNotMatch(b,/state="split"/);assert.equal(/xSplit="4"/.test(b),[2,5].includes(i));assert.doesNotMatch(b,/_xludf\./);}
  const track=await xml(zip,2),summary=await xml(zip,1),prices=await xml(zip,6);
  assert.match(cell(track,'C6'),/Poz No/);assert.match(cell(track,'D6'),/İş Kalemi/);assert.match(cell(track,'C7'),/POZ-0/);assert.match(cell(track,'D7'),/İmalat 0/);assert.match(cell(prices,'A6'),/POZ-0/);assert.match(cell(prices,'B6'),/İmalat 0/);assert.match(cell(track,'K7'),/VLOOKUP\(D7, &apos;Birim Fiyat Master&apos;!B\$6/);
  assert.equal(value(track,'K7'),100);assert.equal(value(track,'O7'),120);assert.equal(value(track,'W7'),150);assert.equal(value(track,'AM7'),180);assert.equal(value(track,'BC7'),200);
@@ -66,12 +66,12 @@ test('selected period bounds every Firma report sheet and one freeze remains wit
   assert.match(cell(summary,'B'+(9+end)),new RegExp('SUM\\(B9:B'+(8+end)+'\\)'));
   for(let i=1;i<=6;i++){
    const sheet=await xml(zip,i);assert.equal((sheet.match(/<pane\b/g)||[]).length,1);assert.equal((sheet.match(/<selection\b/g)||[]).length,1);
-   assert.doesNotMatch(sheet,/xSplit=|state="split"|topRight|bottomRight/);
+   assert.doesNotMatch(sheet,/state="split"/);assert.equal(/xSplit="4"/.test(sheet),[2,5].includes(i));
    if([2,5].includes(i)){
     const endCol=8+end*4;
     assert.match(sheet,new RegExp('<dimension ref="A1:'+column(endCol)+'\\d+"'));
     for(const m of sheet.matchAll(/<c\b[^>]*\br="([A-Z]+)\d+"/g))assert.ok([...m[1]].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0)<=endCol);
-    assert.match(sheet,/topLeftCell="A7"/);
+    assert.match(sheet,/topLeftCell="E7"/);
     assert.doesNotMatch(sheet,new RegExp('>'+(end+1)+'\\. (?:Hakediş|Dönem)'));
    }
   }

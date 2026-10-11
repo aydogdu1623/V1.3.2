@@ -6,16 +6,25 @@
  // Cosmetic repairs run once per newly created element, in short background batches.
  // Text changes must never trigger another full-document computed-style pass.
  function observeElements(selector,repair,key){
-  const seen=new WeakSet(),pending=new Set();
-  const flush=()=>{const start=performance.now();let count=0;for(const el of pending){pending.delete(el);if(el.isConnected)repair(el);if(++count>=24||performance.now()-start>=6)break;}if(pending.size)background(key,flush);};
-  const enqueue=node=>{if(node.nodeType!==1&&node.nodeType!==9)return;const add=el=>{if(!seen.has(el)){seen.add(el);pending.add(el);}};if(node.matches?.(selector))add(node);node.querySelectorAll(selector).forEach(add);if(pending.size)background(key,flush);};
-  const observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)enqueue(node);});
-  observer.observe(document.body,{childList:true,subtree:true});enqueue(document);return observer;
+  const seen=new WeakSet(),pending=new Set();let walker=null,node=null;
+  const flush=()=>{
+   const start=performance.now();let count=0;
+   while(pending.size||walker){
+    if(!walker){const first=pending.values().next().value;pending.delete(first);if(!first.isConnected)continue;walker=document.createTreeWalker(first,1);node=first;}
+    if(node?.nodeType===1&&node.isConnected&&!seen.has(node)){seen.add(node);if(node.matches(selector))repair(node);}
+    node=walker.nextNode();if(!node)walker=null;
+    if(++count>=120||performance.now()-start>=6)break;
+   }
+   if(pending.size||walker)background(key,flush);
+  };
+  const enqueue=node=>{if(node.nodeType===1||node.nodeType===9)pending.add(node);};
+  const observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)enqueue(node);if(pending.size)background(key,flush);});
+  observer.observe(document.body,{childList:true,subtree:true});enqueue(document.body);background(key,flush);return observer;
  }
  function cancel(){if(worker)worker.terminate();worker=null;for(const job of jobs.values()){clearTimeout(job.timer);job.reject(Error('İşlem iptal edildi; proje veya oturum değişti.'));}jobs.clear();}
  function run(task,payload,fallback){
   if(typeof root.Worker!=='function')return Promise.resolve().then(fallback);
-  if(!worker){try{worker=new Worker('/assets/background-worker.js?v=222.0');}catch(_){return Promise.resolve().then(fallback);}
+  if(!worker){try{worker=new Worker('/assets/background-worker.js?v=223.0');}catch(_){return Promise.resolve().then(fallback);}
    worker.onmessage=event=>{const {id,result,error}=event.data||{},job=jobs.get(id);if(!job)return;jobs.delete(id);clearTimeout(job.timer);error?job.reject(Error(error)):job.resolve(result);};
    worker.onerror=()=>{worker?.terminate();worker=null;const failed=[...jobs.values()];jobs.clear();for(const job of failed){clearTimeout(job.timer);Promise.resolve().then(job.fallback).then(job.resolve,job.reject);}};
   }
