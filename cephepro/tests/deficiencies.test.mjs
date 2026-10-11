@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {JSDOM} from 'jsdom';
+import {database} from './helpers/test-db.mjs';
+import {createStateHandler} from '../api/state.js';
+import {mergeDeficiencies} from '../lib/deficiencies.js';
+const raw=(name,poz)=>[name,100,0,0,'','',0,0,'adet',false,poz];
+const dynamic={A:{Kuzey:{items:[raw('ANKRAJ','W1'),raw('CAM','W2')]},Guney:{items:[raw('CAM','W2')]}}};
+const record=(id='entry-0001',userId='member-a',props={})=>({id,userId,date:'2026-10-11',block:'A',facade:'Kuzey',item:'ANKRAJ',description:'Vida eksik',...props});
+test('deficiencies validate work items and dates, stamp identity, and never overwrite existing entries',()=>{
+ const user={id:'member-a',name:'Test member'},one=mergeDeficiencies([], [record()],user,dynamic);
+ assert.equal(one[0].pozNo,'W1');assert.equal(one[0].user,'Test member');
+ const stale=mergeDeficiencies(one,[record('entry-0001','member-a',{description:'changed'}),record('entry-0002','other')],user,dynamic);
+ assert.equal(stale.length,1);assert.equal(stale[0].description,'Vida eksik');
+ for(const props of [{date:'2026-02-30'},{item:'NOT IN PROJECT'},{description:''},{description:'x'.repeat(2001)}])assert.throws(()=>mergeDeficiencies([], [record('entry-0002','member-a',props)],user,dynamic),/geçersiz/);
+});
+test('two users can append from stale snapshots; records persist in protected project state',async t=>{
+ const h=await database(t),handler=createStateHandler(h.deps);
+ await h.sql`UPDATE cephepro_project_state SET state=${JSON.stringify({cp_dynamic_data:dynamic})}::jsonb WHERE project_key='main'`;
+ const a=await h.call(handler,'PUT','member-a',{state:{cp_deficiencies:[record()]}});assert.equal(a.code,200);
+ const b=await h.call(handler,'PUT','member-b',{state:{cp_deficiencies:[record('entry-0002','member-b',{item:'CAM',user:'Spoofed'})]}});assert.equal(b.code,200);
+ const data=await h.call(handler,'GET','admin-a');assert.equal(data.body.state.cp_deficiencies.length,2);assert.equal(data.body.state.cp_deficiencies[1].user,'User member-b');
+ await h.call(handler,'PUT','admin-a',{state:{cp_deficiencies:[]}});
+ assert.equal((await h.call(handler,'GET','member-a')).body.state.cp_deficiencies.length,2);
+ assert.equal((await h.call(handler,'GET','')).code,401);
+ assert.equal((await h.call(handler,'GET','member-a',null,{}, {'x-project-token':'invalid'})).code,403);
+ const bad=await h.call(handler,'PUT','member-a',{state:{cp_deficiencies:[record('entry-0003','member-a',{item:'unknown'})]}});assert.equal(bad.code,400);
+});
+test('UI adds multiple items and explanations, reloads saved entries, filters all reports and clears on lock',t=>{
+ const dom=new JSDOM('<div class="v105-daily-titlebar"><button id="v34NoWorkBtn">Çalışma Olmadı</button></div>',{url:'https://deficiencies.test',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
+ let saved=[],project='p1';const messages=[];
+ Object.assign(w,{DATA:structuredClone(dynamic),currentBlock:'A',currentFacade:'Kuzey',currentUser:{id:'member-a',name:'Test',role:'member'},store:{get:(_,d)=>saved.length?saved:d,set:(_,value)=>{saved=structuredClone(value);}},toast:m=>messages.push(m),v34Today:()=> '2026-10-11',CepheProProjects:{isReady:()=>true,project:()=>({id:project})},v52SelectedFacades:()=>[['A','Kuzey']],v52ReportDates:()=>({start:'2026-10-01',end:'2026-10-31'}),v52ReportState:{items:new Set(['A|Kuzey|ANKRAJ','A|Kuzey|CAM'])},v52ItemKey:(b,f,i)=>[b,f,i].join('|')});
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
+ w.eval(fs.readFileSync(new URL('../assets/deficiencies.js',import.meta.url),'utf8'));
+ const $=id=>w.document.getElementById(id);assert.equal($('v34NoWorkBtn').previousElementSibling.id,'cpDeficienciesBtn');$('cpDeficienciesBtn').click();
+ $('cpDefSave').click();assert.equal(saved.length,0);assert.match(messages.at(-1),/iş kalemi/);
+ let group=$('cpDefRows').firstElementChild;group.querySelectorAll('input').forEach(el=>el.checked=true);group.querySelector('textarea').value='Montaj eksik <script>danger</script>';
+ $('cpDefAdd').click();group=$('cpDefRows').lastElementChild;group.querySelector('input').checked=true;group.querySelector('textarea').value='İkinci eksik';$('cpDefSave').click();
+ assert.equal(saved.length,3);assert.equal(new Set(saved.map(r=>r.id)).size,3);assert.equal($('cpDefHistory').querySelector('script'),null);
+ $('cpDefClose').click();$('cpDeficienciesBtn').click();assert.equal($('cpDefHistory').querySelectorAll('article').length,3);
+ assert.equal(w.CepheProDeficiencies.report().rows.length,3);w.v52ReportState.items.delete('A|Kuzey|CAM');assert.equal(w.CepheProDeficiencies.report().rows.length,2);
+ w.v52ReportDates=()=>({start:'2026-10-12'});assert.equal(w.CepheProDeficiencies.report().rows.length,0);
+ project='p2';$('cpDefSave').click();assert.equal(saved.length,3);assert.match(messages.at(-1),/Proje erişiminizi/);
+ w.document.dispatchEvent(new w.Event('cephepro:locked'));assert.equal($('cpDefDialog'),null);
+});

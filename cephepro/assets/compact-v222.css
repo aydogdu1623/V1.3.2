@@ -1,0 +1,48 @@
+/* Compact account forms; preserve readable controls at narrow widths. */
+#v34AccountModal.v35-account-modal .modal{width:min(620px,94vw)!important;max-height:90dvh!important;min-height:0!important}
+#v34AccountModal .panel-head{padding:7px 10px!important;min-height:0!important}
+#v34AccountModal .panel-body{padding:9px!important;overflow:auto!important;min-height:0!important}
+#v34AccountModal .v35-account-tabs{gap:5px!important;margin:0 0 9px!important;padding-bottom:6px!important}
+#v34AccountModal .v35-account-tab,#v34AccountModal .v35-file-button,#v34AccountModal .btn{font-size:11px!important;min-height:28px!important;height:28px!important;padding:4px 9px!important;line-height:1.2!important}
+#v34AccountModal .v34-account-grid{grid-template-columns:98px minmax(0,1fr)!important;gap:10px!important}
+#v34AccountModal .v34-modal-form{gap:7px!important;align-content:start!important}
+#v34AccountModal .v35-avatar-side{gap:6px!important}
+#v34AccountModal .v35-avatar-large{width:76px!important;height:76px!important;font-size:24px!important}
+#v34AccountModal .v35-file-picker{gap:4px!important}
+#v34AccountModal .v35-file-picker>label,#v34AccountModal .field>label{font-size:10px!important;line-height:1.2!important;padding:3px 5px!important;min-height:0!important}
+#v34AccountModal .field{gap:4px!important}
+#v34AccountModal .field input{height:30px!important;min-height:30px!important;padding:5px 7px!important;font-size:11px!important;box-sizing:border-box!important}
+#v34AccountModal .v35-password-card{max-width:none!important;padding:9px!important;min-height:0!important}
+#v34AccountModal:has([data-pane="password"].active) .modal{width:min(450px,94vw)!important}
+#v34AccountModal .v35-password-card .field{margin-bottom:7px!important}
+#v34AccountModal .v35-password-wrap input{padding-right:37px!important}
+#v34AccountModal .v35-eye{width:24px!important;height:24px!important;min-height:24px!important;padding:0!important;font-size:12px!important;right:4px!important}
+#v34AccountModal .v35-password-status:empty{display:none!important}
+#v34AccountModal .v35-password-hint{margin-top:5px!important;font-size:10px!important}
+#v34AccountModal .v35-save-row{margin-top:9px!important;padding-top:0!important}
+#v34AccountModal .v78-edit-hint{font-size:9px!important;margin:0!important}
+/* Matching sizes for the two adjacent daily-entry actions. */
+.v105-daily-titlebar #cpDeficienciesBtn,.v105-daily-titlebar #v34NoWorkBtn{width:92px!important;min-width:92px!important;height:26px!important;min-height:26px!important;padding:3px 8px!important;font-size:9px!important;line-height:1!important;border-radius:7px!important;box-sizing:border-box!important}
+.cp-def-dialog{width:min(580px,94vw);max-height:88dvh;padding:0;border:1px solid #82b4b5;border-radius:12px;background:#fff;color:#20494e;box-sizing:border-box;overflow:hidden}
+.cp-def-dialog::backdrop{background:#17343c66}
+.cp-def-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#e7f2f1;border-bottom:1px solid #aacbcb;font-size:13px}
+.cp-def-body{padding:10px;max-height:calc(88dvh - 50px);overflow:auto;font-size:12px;box-sizing:border-box}
+.cp-def-dialog button{height:28px!important;min-height:28px!important;font-size:11px!important;padding:4px 9px!important;border-radius:6px;border:1px solid #82b4b5;cursor:pointer}
+.cp-def-date{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cp-def-dialog input[type=date]{height:29px;font-size:12px;padding:3px 6px;border:1px solid #a1c3c4;border-radius:5px;background:white}
+.cp-def-entry{border:1px solid #b8d1d1;border-radius:8px;padding:7px;margin:0 0 9px;min-width:0;background:#f7fbfa}
+.cp-def-entry legend{font-size:11px;font-weight:700;padding:0 4px}
+.cp-def-entry-head{display:flex;align-items:center;justify-content:space-between;font-size:11px;gap:6px}
+.cp-def-items{max-height:112px;overflow:auto;margin:4px 0 7px;background:white;border:1px solid #d4e4e3;border-radius:5px}
+.cp-def-items label{display:flex;align-items:center;gap:7px;padding:5px 6px;font-size:11px;cursor:pointer}
+.cp-def-items input{width:15px!important;height:15px!important;min-height:0!important;flex:none}
+.cp-def-description{display:grid;gap:4px;font-size:11px}
+.cp-def-description textarea{width:100%;min-height:52px;max-height:150px;resize:vertical;box-sizing:border-box;padding:6px;font-size:12px;border:1px solid #a1c3c4;border-radius:5px;background:white;color:#20494e}
+.cp-def-actions{display:flex;justify-content:space-between;gap:8px}
+.cp-def-hint{font-size:10px;line-height:1.5;color:#57757a;margin:7px 0}
+#cpDefMessage:empty{display:none}
+#cpDefHistory article{padding:7px 0;border-top:1px solid #d7e5e4;font-size:11px}
+#cpDefHistory p{white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0}
+#cpDefHistory small{color:#607d80}
+.cp-def-body details{margin-top:10px}
+@media(max-width:480px){#v34AccountModal .v34-account-grid{grid-template-columns:1fr!important}#v34AccountModal .v35-avatar-side{display:flex!important;align-items:center!important;gap:10px!important}#v34AccountModal .v34-modal-form{grid-template-columns:1fr!important}.v105-daily-titlebar .v105-section-actions{gap:4px!important}}

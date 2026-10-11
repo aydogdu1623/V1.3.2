@@ -6,20 +6,20 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=221.0">
-<script src="/assets/project-access.js?v=221.0"></script>
-<script src="/assets/session-privacy.js?v=221.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=222.0">
+<script src="/assets/project-access.js?v=222.0"></script>
+<script src="/assets/session-privacy.js?v=222.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/performance.js?v=221.0"></script>
-<meta name="cephepro-build" content="V221.0"/>
+<script src="/assets/performance.js?v=222.0"></script>
+<meta name="cephepro-build" content="V222.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V221";window.CEPHEPRO_BUILD="V221.0";</script>
+<script>window.CEPHEPRO_VERSION="V222";window.CEPHEPRO_BUILD="V222.0";</script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" data-v167-external="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" data-v167-external="true"></script>
@@ -22256,6 +22256,16 @@ ${displayLabel68(f,16)}`;
     v57Border(noWorkSheet,1,1,Math.max(5,noWorkGrid143.lastRow),7,'FF243B46','thick');noWorkSheet.pageSetup.printArea=`A1:G${Math.max(5,noWorkGrid143.lastRow)}`;
     v57Border(noWorkSheet,4,1,Math.max(5,noWorkGrid143.lastRow),7,'FF243B46','thick');
 
+    const deficiencies=window.CepheProDeficiencies?.report()||{headers:['Tarih','Blok','Cephe','Poz No','İş Kalemi','Açıklama','Kaydeden'],rows:[]};
+    const deficiencySheet=wb.addWorksheet('Eksikler');v57Setup(deficiencySheet,'landscape');stampVersion126(deficiencySheet);
+    deficiencySheet.mergeCells('A1:G1');deficiencySheet.getCell('A1').value='EKSİKLER';deficiencySheet.getCell('A1').font={bold:true,size:12,color:{argb:'FFFFFFFF'}};deficiencySheet.getCell('A1').alignment={horizontal:'center',vertical:'middle'};v57Fill(deficiencySheet,1,1,1,7,'FF52758C');deficiencySheet.getRow(1).height=23;
+    deficiencySheet.mergeCells('A2:G2');deficiencySheet.getCell('A2').value=`${company145}  ${projectCode145}`;deficiencySheet.getCell('A2').font={bold:true,size:10,color:{argb:'FF20313A'}};deficiencySheet.getCell('A2').alignment={horizontal:'center'};
+    const deficiencyGrid=writeFilter68(deficiencySheet,4,deficiencies.headers,deficiencies.rows,[12,12,14,10,28,58,18]);
+    if(!deficiencies.rows.length){deficiencySheet.getCell('A5').value='Seçilen kapsamda eksik kaydı yok.';}
+    for(let row=5;row<=deficiencyGrid.lastRow;row++){deficiencySheet.getRow(row).height=Math.min(409,Math.max(30,Math.ceil(String(deficiencySheet.getCell(row,6).value||'').length/58)*14));deficiencySheet.getCell(row,6).alignment={vertical:'top',wrapText:true};}
+    deficiencySheet.views=[{state:'frozen',ySplit:4,topLeftCell:'A5',activeCell:'A5'}];deficiencySheet.pageSetup.printTitlesRow='1:4';deficiencySheet.pageSetup.printArea=`A1:G${Math.max(5,deficiencyGrid.lastRow)}`;
+    v57Border(deficiencySheet,1,1,Math.max(5,deficiencyGrid.lastRow),7,'FF243B46','thick');
+
     // ---------------- CEPHE FOTOĞRAFLARI ----------------
     // Çalışma Olmadı sayfasının hemen sağında, seçili her cephe için yalnız
     // createdAt zamanına göre en güncel iki fotoğraf gösterilir.
@@ -25207,16 +25217,17 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     'cp_daily_entries',
     'cp_attendance_logs',
     'cp_project_info',
-    'cp_no_work_notes'
+    'cp_no_work_notes',
+    'cp_deficiencies'
   ];
   const SHARED=new Set(SHARED_KEYS);
   const SHARED_DEFAULTS={
     cp_dynamic_data:{},cp_block_order:[],cp_facade_overrides:{},
     cp_daily_entries:{},cp_attendance_logs:[],cp_project_info:{},
-    cp_no_work_notes:{}
+    cp_no_work_notes:{},cp_deficiencies:[]
   };
   function normalizeShared(key,value){
-    if(key==='cp_block_order'||key==='cp_attendance_logs')return Array.isArray(value)?value:[];
+    if(key==='cp_block_order'||key==='cp_attendance_logs'||key==='cp_deficiencies')return Array.isArray(value)?value:[];
     return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   }
   const TOKEN_KEY='cp_cloud_token';
@@ -25319,6 +25330,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
       if(state.cp_no_work_notes)v34NoWorkNotes=normalizeShared('cp_no_work_notes',state.cp_no_work_notes);
       if(state.cp_project_info){v34ProjectInfo=normalizeShared('cp_project_info',state.cp_project_info);try{v34UpdateHeader()}catch(_){}}
       if(state.cp_attendance_logs)attendanceLogs=normalizeShared('cp_attendance_logs',state.cp_attendance_logs);
+      document.dispatchEvent(new CustomEvent('cephepro:state-updated'));
       hydratedRole=currentUser?.role;
       cloudRevision=Number(revision||0);
       localStorage.setItem(REV_KEY,String(cloudRevision));
@@ -27037,6 +27049,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
       actions.appendChild(btn);
       btn.classList.add('v105-no-work-btn');
     }
+    window.CepheProDeficiencies?.mount();
     // Eski V34 fonksiyonunun yeniden ikinci buton üretmemesi için placeholder DOM'da kalır.
     const photo=document.getElementById('photoInput')?.closest('.report-preview');
     if(photo){
@@ -29982,7 +29995,8 @@ body.v113-member .v113-role-note{display:block}
     const historyHeaders=['Blok Adı','Cephe Adı','Ay','Yıl','Tam Tarih','İş Kalemi','Birim','Yapılan','Çalışan','Kullanıcı','Açıklama'],noWorkHeaders=['Blok Adı','Cephe Adı','Ay','Yıl','Tam Tarih','Kullanıcı','Açıklama'];
     const facadeDetails=facades.map(([block,facade])=>({block,facade,items:facadeItemReport126(rows,block,facade)}));
     const photoDetails=facades.map(([block,facade])=>({block,facade,photos:latestFacadePhotos163(block,facade)}));
-    const pageTotal=9+facadeDetails.length+photoDetails.length,foot=page=>`<div class="v126-report-foot"><span>CephePro ${esc(VERSION)} · Ana Firma İmalat ve İlerleme Raporu</span><b>SAYFA ${page} / ${pageTotal}</b></div>`;
+    const deficiencies=window.CepheProDeficiencies?.report()||{headers:['Tarih','Blok','Cephe','Poz No','İş Kalemi','Açıklama','Kaydeden'],rows:[]};
+    const pageTotal=10+facadeDetails.length+photoDetails.length,foot=page=>`<div class="v126-report-foot"><span>CephePro ${esc(VERSION)} · Ana Firma İmalat ve İlerleme Raporu</span><b>SAYFA ${page} / ${pageTotal}</b></div>`;
     const dataTable=(headers,data,empty)=>{({headers,rows:data}=window.CepheProReportPoz.table(headers,data));return `<table class="v126-report-table"><thead><tr>${headers.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${data.map(r=>`<tr>${r.map(x=>`<td>${esc(x).replace(/\n/g,'<br>')}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${headers.length}">${esc(empty)}</td></tr>`}</tbody></table>`;};
     const scope=`${scopeBlocks} / ${scopeFacades}`;
     const facadePagesHtml=facadeDetails.map(({block,facade,items},index)=>{
@@ -29992,7 +30006,7 @@ body.v113-member .v113-role-note{display:block}
     const photoPagesHtml=photoDetails.map(({block,facade,photos},index)=>{
       const cards=photos.map(photo=>`<div class="v163-photo-card"><img src="${esc(photo?.src||'')}" alt="${esc(`${v33BlockLabel(block)} ${facade} cephe fotoğrafı`)}"><div class="v163-photo-caption">${esc(photo?.date||'')}${photo?.user?` · ${esc(photo.user)}`:''}</div></div>`);
       if(!cards.length)cards.push('<div class="v163-photo-card"><div class="v163-photo-empty">Bu cepheye ait fotoğraf bulunmuyor.</div></div>');
-      return `<div class="v126-report-page" data-v126-page="Cephe Fotoğrafları">${head126('CEPHE FOTOĞRAFLARI')}<div class="v126-report-title">${esc(v33BlockLabel(block))} / ${esc(facade)} · SON 2 FOTOĞRAF</div><div class="v163-photo-grid ${cards.length===1?'v163-photo-single':''}">${cards.join('')}</div>${foot(10+facadeDetails.length+index)}</div>`;
+      return `<div class="v126-report-page" data-v126-page="Cephe Fotoğrafları">${head126('CEPHE FOTOĞRAFLARI')}<div class="v126-report-title">${esc(v33BlockLabel(block))} / ${esc(facade)} · SON 2 FOTOĞRAF</div><div class="v163-photo-grid ${cards.length===1?'v163-photo-single':''}">${cards.join('')}</div>${foot(11+facadeDetails.length+index)}</div>`;
     }).join('');
     return `<div class="v126-report-page" data-v126-page="Firma Bilgileri">${head126('FİRMA BİLGİLERİ')}<div class="v126-report-title">FİRMA BİLGİLERİ</div><table class="v126-report-table v126-info-table"><tbody>${info.map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table><div class="v126-report-meta"><b>Değerlendirme:</b> Toplam ${totalPlanned.toLocaleString('tr-TR')} metrajın ${totalDone.toLocaleString('tr-TR')} bölümü tamamlanmıştır. Genel ilerleme %${totalProgress.toFixed(2)} seviyesindedir.</div>${foot(1)}</div>
       <div class="v126-report-page" data-v126-page="Genel Grafik">${head126('İLERLEME GRAFİKLERİ')}<div class="v126-report-title">${esc(scope)}</div>${chart126('Genel ve Blok İlerleme - Toplam Metraj',generalChart126())}${foot(2)}</div>
@@ -30004,6 +30018,7 @@ body.v113-member .v113-role-note{display:block}
       <div class="v126-report-page" data-v126-page="Takvim">${head126('PLANLANAN / REEL İŞ TAKVİMİ')}${dataTable(scheduleHeaders,schedule,'Seçili cephe yok.')}${foot(7+facadeDetails.length)}</div>
       <div class="v126-report-page" data-v126-page="Çalışma Geçmişi">${head126('ÇALIŞMA GEÇMİŞİ')}${dataTable(historyHeaders,history,'Seçilen filtrelerde çalışma kaydı yok.')}${foot(8+facadeDetails.length)}</div>
       <div class="v126-report-page" data-v126-page="Çalışma Olmadı">${head126('ÇALIŞMA OLMADI KAYITLARI')}${dataTable(noWorkHeaders,noWork,'Seçilen filtrelerde çalışma olmadı kaydı yok.')}${foot(9+facadeDetails.length)}</div>
+      <div class="v126-report-page" data-v126-page="Eksikler">${head126('EKSİKLER')}${dataTable(deficiencies.headers,deficiencies.rows,'Seçilen kapsamda eksik kaydı yok.')}${foot(10+facadeDetails.length)}</div>
       ${photoPagesHtml}`;
   }
   function reportReady126(type){if(!reportRows126().length){notice(`${type} için blok, cephe ve iş kalemi seçin.`);return false}return true}
@@ -30116,6 +30131,7 @@ body.v113-member .v113-role-note{display:block}
         table(['Blok','Cephe','İş Kalemi','Birim','Toplam','Kümülatif','İlerleme %'],tableRows,[10,10,28,8,13,16,15],{headerSize:14,bodySize:13,leftColumns:3})
       );
     });
+    const deficiencies=window.CepheProDeficiencies?.report()||{headers:['Tarih','Blok','Cephe','Poz No','İş Kalemi','Açıklama','Kaydeden'],rows:[]};
     const children=[...brandTitle(),titleBar('FİRMA BİLGİLERİ'),table(['Başlık','Bilgi'],summary,[50,50],{headerSize:18,bodySize:18,leftColumns:2,headerHeight:440,rowHeight:420}),para(`Değerlendirme: Seçili rapor kapsamındaki toplam ${total.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} metrajın ${done.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} bölümü tamamlanmıştır. Toplam metraj ağırlıklı genel ilerleme %${progress.toFixed(2)} seviyesindedir.`,{bold:true,size:13,after:0}),
       ...chartPage('Genel ve Blok İlerleme - Toplam Metraj',generalData,'#318F83',true),...chartPage('İş Kalemi İlerleme Durumu - Tüm Metraja Göre',itemData,'#4F7F9C'),...chartPage('Cephe İlerleme Durumu',facadeData,'#6A8F61'),
       ...facadeWorkPages,
@@ -30124,6 +30140,7 @@ body.v113-member .v113-role-note{display:block}
       pageBreak(),...sectionTitle('PLANLANAN / REEL İŞ TAKVİMİ',companyLine),table(['Blok','Cephe','Plan Baş.','Plan Bitiş','Plan Gün','Reel Baş.','Reel Bitiş','Reel Gün','İlerleme %','Sonuç'],schedule),
       pageBreak(),...sectionTitle('ÇALIŞMA GEÇMİŞİ',companyLine),table(['Blok Adı','Cephe Adı','Ay','Yıl','Tam Tarih','İş Kalemi','Birim','Yapılan','Çalışan','Kullanıcı','Açıklama'],history),
       pageBreak(),...sectionTitle('ÇALIŞMA OLMADI KAYITLARI',companyLine),table(['Blok Adı','Cephe Adı','Ay','Yıl','Tam Tarih','Kullanıcı','Açıklama'],noWork),
+      pageBreak(),...sectionTitle('EKSİKLER',companyLine),table(deficiencies.headers,deficiencies.rows.length?deficiencies.rows:[['','','','','','Seçilen kapsamda eksik kaydı yok.','']],[9,10,10,8,20,30,13],{bodySize:14,leftColumns:7}),
       ...photoPages];
     const footer=new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:`CephePro ${VERSION} · SAYFA `,size:13,font:'Arial'}),PageNumber.CURRENT,new TextRun({text:' / ',size:13}),PageNumber.TOTAL_PAGES]})]});
     const doc=new Document({creator:p.company||'CephePro',title:`${p.projectName||'CephePro'} Firma Bilgileri ve İlerleme Raporu ${VERSION}`,sections:[{properties:{page:{size:{orientation:PageOrientation.LANDSCAPE},margin:{top:709,right:765,bottom:709,left:765}}},footers:{default:footer},children}]});
@@ -32422,9 +32439,9 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=221.0"></script>
-<script src="/assets/firma-template-v208.js?v=221.0"></script>
-<script src="/assets/claims-v182.js?v=221.0"></script>
+<script src="/assets/claims-report-v191.js?v=222.0"></script>
+<script src="/assets/firma-template-v208.js?v=222.0"></script>
+<script src="/assets/claims-v182.js?v=222.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
@@ -32432,12 +32449,12 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <link rel="stylesheet" href="/assets/claims-v190.css">
 <link rel="stylesheet" href="/assets/claims-v192.css">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=221.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=222.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=221.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=222.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=221.0"></script>
+<script src="/assets/puantaj-model.js?v=222.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -32457,7 +32474,9 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=221.0"></script>
+<script src="/assets/puantaj.js?v=222.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=222.0">
+<script src="/assets/deficiencies.js?v=222.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

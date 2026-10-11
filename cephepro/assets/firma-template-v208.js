@@ -91,7 +91,7 @@ class Sheet {
  freeze(rows){
   // A single horizontal freeze; no independent left/right scrolling panes.
   const first='A'+(rows+1);
-  this.xml=this.xml.replace(/<sheetViews>[\s\S]*?<\/sheetViews>/,`<sheetViews><sheetView workbookViewId="0" topLeftCell="A1"><pane ySplit="${rows}" topLeftCell="${first}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="${first}" sqref="${first}"/></sheetView></sheetViews>`);
+  this.xml=this.xml.replace(/<sheetViews>[\s\S]*?<\/sheetViews>/,`<sheetViews><sheetView workbookViewId="0"><pane ySplit="${rows}" topLeftCell="${first}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="${first}" sqref="${first}"/></sheetView></sheetViews>`);
  }
  trimColumns(limit){
   for(const row of this.rows.values()){

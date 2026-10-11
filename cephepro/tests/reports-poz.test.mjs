@@ -13,6 +13,8 @@ function harness(){
  Object.assign(w,{DATA:{A:{Kuzey:{items:[raw(rows[0][2],'W1'),raw(rows[1][2],'W2'),raw('BOYA - İLAVE','')]}}},CEPHEPRO_VERSION:'V210',v33BlockLabel:b=>b==='A'?'Blok A':b,v57TableRows:()=>rows.map(r=>[...r]),v52SelectedFacades:()=>[['A','Kuzey']],v52AllBlocks:()=>['A'],v52ReportState:{blocks:new Set(['A'])},v34ProjectInfo:{company:'TEST FİRMA',projectName:'Poz No Kontrolü'},v52ReportDates:()=>({start:'2026-01-01',end:'2026-02-01'}),calculatedFacadeProgress:()=>125/300*100,v57GeneralRows:()=>[{label:'GENEL',value:125/300*100}],v57SameRows:()=>[],v57Cfg:()=>({}),v58ReportCrewStats:()=>({workerDays:2,workingDays:1}),v52WorkforceStats:()=>({workerDays:2,days:1,avgCrew:2,m2Production:125,m2PerWorkerDay:62.5,remainingM2:175,remainingDays:3,requiredCrew:1}),v34Schedule:()=>({plannedStart:'2026-01-01',plannedEnd:'2026-02-01',plannedDuration:32,actualStart:'2026-01-01',actualEnd:'2026-01-02'}),v37EngineerAnalysis:()=>({actualDays:2}),v47CompletionResult:()=>({text:'Sonuç: Test'}),v58DailyDetailRows:()=>[['2026-01-01','Blok A','Kuzey',rows[0][2],'m²',25,2,'Test','5×5']],v58DailyFacadeRows:()=>[['2026-01-01','Blok A','Kuzey',2,25]],v34NoWorkNotes:{},v34NoteKey:(b,f)=>b+'_'+f,facadePhotos:{},v91ExcelTitleCase:s=>s,v52EnsureExcelJS:async()=>{},v57Setup:ws=>{ws.pageSetup={orientation:'landscape',paperSize:9};},v57Logo:()=>{},toast:()=>{},__v177Progress:{totals:()=>({progress:125/300*100})},JSZip,TextEncoder,TextDecoder});
  w.__v134History={filters:{},visible:()=>[{block:'A',facade:'Kuzey',day:'2026-01-01',item:rows[0][2],unit:'m²',amount:25,workers:2,user:'Test'}]};
  for(const name of ['v57BS','v57Border','v57Fill'])vm.runInContext(html.match(new RegExp('function '+name+'\\([^\\n]+'))[0],dom.getInternalVMContext());
+ w.store={get:(key,fallback)=>key==='cp_deficiencies'?[{id:'test-deficiency',date:'2026-01-05',block:'A',facade:'Kuzey',pozNo:'W1',item:rows[0][2],description:'Ankraj vidası eksik <test>',user:'Test Üye'}]:fallback};
+ w.eval(read('assets/deficiencies.js'));
  w.eval(read('assets/report-poz.js'));
  w.eval(read('assets/exceljs.min.js'));
  w.JSZip={loadAsync:input=>JSZip.loadAsync(ArrayBuffer.isView(input)?Buffer.from(input.buffer,input.byteOffset,input.byteLength):Object.prototype.toString.call(input)==='[object ArrayBuffer]'?Buffer.from(new Uint8Array(input)):input)};
@@ -35,9 +37,10 @@ test('Poz No resolves saved metadata, preserves legacy hyphens and report keys',
 });
 test('PDF report HTML includes adjacent Poz No columns in detail, facade and work history tables',()=>{
  const {dom,w}=harness(),markup=w.testHtml(),doc=new JSDOM(markup).window.document;
+ assert.ok(doc.querySelector('[data-v126-page="Eksikler"]').textContent.includes('Ankraj vidası eksik <test>'));assert.equal(doc.querySelector('test'),null);
  const tables=[...doc.querySelectorAll('table')].filter(t=>[...t.querySelectorAll('th')].some(th=>th.textContent==='İş Kalemi'));
- assert.equal(tables.length,3);
- for(const t of tables){const heads=[...t.querySelectorAll('thead th')].map(x=>x.textContent),i=heads.indexOf('İş Kalemi');assert.equal(heads[i+1],'Poz No');const cells=t.querySelector('tbody tr').children;assert.equal(cells[i+1].textContent,'W1');assert.equal(cells.length,heads.length);}
+ assert.equal(tables.length,4);
+ for(const t of tables){const heads=[...t.querySelectorAll('thead th')].map(x=>x.textContent),i=heads.indexOf('İş Kalemi');const poz=heads.indexOf('Poz No');assert.equal(Math.abs(poz-i),1);const cells=t.querySelector('tbody tr').children;assert.equal(cells[poz].textContent,'W1');assert.equal(cells.length,heads.length);}
  dom.window.close();
 });
 test('Word table construction includes code cells without changing summary totals',async()=>{
@@ -52,7 +55,8 @@ test('Word table construction includes code cells without changing summary total
  const all=[];const walk=o=>{if(!o||typeof o!=='object')return;if(o.kind==='Table')all.push(o);Object.values(o).forEach(v=>typeof v==='object'&&walk(v));};walk(document);
  const cellText=c=>c.options.children[0].options.children[0].options.text;
  const tables=all.filter(t=>t.options.rows[0].options.children.some(c=>cellText(c)==='İş Kalemi'));
- assert.equal(tables.length,3);for(const t of tables){const header=t.options.rows[0].options.children.map(cellText),i=header.indexOf('İş Kalemi');assert.equal(header[i+1],'Poz No');assert.equal(cellText(t.options.rows[1].options.children[i+1]),'W1');assert.equal(t.options.rows[1].options.children.length,header.length);}
+ assert.equal(tables.length,4);for(const t of tables){const header=t.options.rows[0].options.children.map(cellText),i=header.indexOf('İş Kalemi');const poz=header.indexOf('Poz No');assert.equal(Math.abs(poz-i),1);assert.equal(cellText(t.options.rows[1].options.children[poz]),'W1');assert.equal(t.options.rows[1].options.children.length,header.length);}
+ assert.ok(JSON.stringify(document).includes('Ankraj vidası eksik <test>'));assert.ok(JSON.stringify(document).includes('EKSİKLER'));
  assert.ok(JSON.stringify(document).includes('300'));dom.window.close();
 });
 test('real Excel workbook preserves formula targets, filters and native chart after Poz No insertion',{timeout:15000},async t=>{
@@ -64,6 +68,7 @@ test('real Excel workbook preserves formula targets, filters and native chart af
  assert.equal(ws.getCell('G8').value,100);assert.equal(ws.getCell('H8').value,25);assert.equal(ws.getCell('I8').formula,'IFERROR(H8/G8*100,0)');assert.equal(ws.getCell('I8').result,25);
  assert.equal(ws.autoFilter,'A7:K9');assert.equal(ws.getColumn(11).hidden,false);assert.equal(ws.getColumn(22).hidden,true);assert.equal(ws.views[0].ySplit,7);
  assert.match(wb.getWorksheet('Takvim').getCell('I2').formula,/Rapor!\$H:\$H.*Rapor!\$G:\$G/);
+ const deficiencies=wb.getWorksheet('Eksikler');assert.equal(deficiencies.getCell('D4').value,'Poz No');assert.equal(deficiencies.getCell('D5').value,'W1');assert.equal(deficiencies.getCell('F5').value,'Ankraj vidası eksik <test>');assert.equal(deficiencies.views[0].ySplit,4);
  const history=wb.getWorksheet('Çalışma Geçmişi');assert.equal(history.getCell('F4').value,'İş Kalemi');assert.equal(history.getCell('G4').value,'Poz No');assert.equal(history.getCell('G5').value,'W1');assert.equal(history.getCell('I5').value,25);assert.equal(history.autoFilter,'A4:L5');
  const daily=wb.getWorksheet('Günlük Çalışma');assert.equal(daily.getCell('E2').value,'W1');assert.equal(daily.getCell('G2').value,25);
  const zip=await JSZip.loadAsync(bytes),chart=await zip.file('xl/charts/chart1.xml').async('string');

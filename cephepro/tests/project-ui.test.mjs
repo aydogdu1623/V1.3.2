@@ -57,6 +57,17 @@ test('complete app boots with an empty protected project and mounts the Projects
  assert.match(dom.window.getComputedStyle(editor.querySelector('h2')).color,/rgb\((16, 47, 61|33, 79, 84)\)/);
  assert.equal(dom.window.getComputedStyle(editor.querySelector('input')).height,'34px');
  assert.equal(dom.window.getComputedStyle(dom.window.document.querySelector('.cp-gate-card')).width,'min(460px,100%)');
+ const w=dom.window;w.v35OpenAccount();
+ const account=w.document.getElementById('v34AccountModal');
+ assert.equal(w.getComputedStyle(account.querySelector('.modal')).width,'min(620px,94vw)');
+ assert.equal(w.getComputedStyle(account.querySelector('.v35-account-tab')).height,'28px');
+ assert.equal(w.getComputedStyle(account.querySelector('.v35-avatar-large')).width,'76px');
+ w.v35SetAccountTab('password');assert.equal(w.getComputedStyle(account.querySelector('.modal')).width,'min(450px,94vw)');
+ assert.equal(w.getComputedStyle(w.document.getElementById('v35NewPassword')).height,'30px');
+ w.v35SetAccountTab('profile');w.document.getElementById('v35AccountClose').click();
+ w.CepheProDeficiencies.mount();const noWork=w.document.getElementById('v34NoWorkBtn'),def=w.document.getElementById('cpDeficienciesBtn');
+ assert.equal(noWork.previousElementSibling,def);assert.equal(w.getComputedStyle(noWork).height,w.getComputedStyle(def).height);assert.equal(w.getComputedStyle(noWork).width,w.getComputedStyle(def).width);
+
 
 });
 

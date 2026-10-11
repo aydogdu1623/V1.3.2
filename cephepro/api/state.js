@@ -1,3 +1,4 @@
+import {mergeDeficiencies} from '../lib/deficiencies.js';
 import {requireProject} from '../lib/project-access.js';
 import { getSql,noStore,bearer } from '../lib/db.js';
 import { ensureSchema } from '../lib/schema.js';
@@ -141,7 +142,7 @@ function memberVisibleState(state,adminRows){
 }
 
 export function publicProjectState(state={}){
- const allowed=['cp_dynamic_data','cp_block_order','cp_facade_overrides','cp_daily_entries','cp_attendance_logs','cp_project_info','cp_no_work_notes'];
+ const allowed=['cp_dynamic_data','cp_block_order','cp_facade_overrides','cp_daily_entries','cp_attendance_logs','cp_project_info','cp_no_work_notes','cp_deficiencies'];
  return clone(Object.fromEntries(allowed.filter(k=>Object.hasOwn(state,k)).map(k=>[k,state[k]])));
 }
 
@@ -166,7 +167,7 @@ export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUs
     }
     if(req.method!=='PUT')return res.status(405).json({error:'Method not allowed'});
     const input=req.body?.state;
-    const allowed=['cp_dynamic_data','cp_block_order','cp_facade_overrides','cp_daily_entries','cp_attendance_logs','cp_project_info','cp_no_work_notes'];
+    const allowed=['cp_dynamic_data','cp_block_order','cp_facade_overrides','cp_daily_entries','cp_attendance_logs','cp_project_info','cp_no_work_notes','cp_deficiencies'];
     const submitted=input&&typeof input==='object'&&!Array.isArray(input)?Object.fromEntries(allowed.filter(k=>Object.hasOwn(input,k)).map(k=>[k,input[k]])):null;
     if(!submitted||typeof submitted!=='object'||Array.isArray(submitted))return res.status(400).json({error:'Geçersiz proje durumu.'});
     const curRows=await sql`SELECT state,revision FROM cephepro_project_state WHERE project_key=${me.projectId} LIMIT 1`;
@@ -195,6 +196,10 @@ export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUs
       const oldNotes=Object.values(oldState.cp_no_work_notes||{}).flat().length,newNotes=Object.values(nextState.cp_no_work_notes||{}).flat().length;
       if(newNotes>oldNotes)logs.push({summary:`${newNotes-oldNotes} adet “Çalışma Olmadı” kaydı ekledi.`,details:{count:newNotes-oldNotes}});
     }
+    nextState.cp_deficiencies=mergeDeficiencies(oldState.cp_deficiencies,submitted.cp_deficiencies,me,nextState.cp_dynamic_data);
+    const newDeficiencies=nextState.cp_deficiencies.length-(oldState.cp_deficiencies||[]).length;
+    if(newDeficiencies>0)logs.push({summary:`${newDeficiencies} adet eksik kaydı ekledi.`,details:{count:newDeficiencies}});
+    if(!eq(submitted.cp_deficiencies,nextState.cp_deficiencies))corrected=true;
     const serialized=JSON.stringify(nextState);
     if(Buffer.byteLength(serialized,'utf8')>6_000_000)return res.status(413).json({error:'Proje verisi çok büyük. Fotoğraflar ayrı bulut alanında tutulur.'});
     const rows=await sql`UPDATE cephepro_project_state SET state=${serialized}::jsonb,revision=revision+1,updated_at=now(),updated_by=${String(me.id)} WHERE project_key=${me.projectId} AND revision=${oldRevision} RETURNING revision,updated_at`;

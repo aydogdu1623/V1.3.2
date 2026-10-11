@@ -21,7 +21,7 @@
   const previous=localStorage.getItem('cp_private_owner');
   if(previous!==String(user.id)){
    clearPrivate();
-   for(const key of ['cp_daily_entries','cp_attendance_logs','cp_no_work_notes','cp_photos','cp_cloud_revision'])localStorage.removeItem(key);
+   for(const key of ['cp_daily_entries','cp_attendance_logs','cp_no_work_notes','cp_deficiencies','cp_photos','cp_cloud_revision'])localStorage.removeItem(key);
    try{dailyEntries={};attendanceLogs=[];facadePhotos={};v34UserProfiles={};}catch{}
   }
   localStorage.setItem('cp_private_owner',String(user.id));verifiedId=String(user.id);
