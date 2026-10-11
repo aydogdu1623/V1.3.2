@@ -17,12 +17,12 @@ export async function sessionUser(sql,token){
   if(!token)return null;
   const h=tokenHash(token);
   const rows=await sql`
-    SELECT u.id,u.name,u.username,u.email,u.role,u.blocked,u.approved,u.profile_data,u.access_unlimited,u.access_expires_at
+    SELECT u.id,u.name,u.username,u.email,u.role,u.blocked,u.approved,u.profile_data,u.access_unlimited,u.access_expires_at,u.approval_request_visible
     FROM cephepro_sessions s JOIN cephepro_users u ON u.id=s.user_id
     WHERE s.token_hash=${h} AND s.expires_at>now() LIMIT 1`;
   const u=rows[0]||null;
   if(u&&norm(u.email)===MASTER_EMAIL){
-    await sql`UPDATE cephepro_users SET role='admin',approved=true,blocked=false,access_unlimited=true,access_expires_at=null,approval_request_visible=false,updated_at=now() WHERE id=${String(u.id)}`;
+    if(u.role!=='admin'||u.approved===false||u.blocked||u.access_unlimited===false||u.access_expires_at||u.approval_request_visible)await sql`UPDATE cephepro_users SET role='admin',approved=true,blocked=false,access_unlimited=true,access_expires_at=null,approval_request_visible=false,updated_at=now() WHERE id=${String(u.id)}`;
     u.role='admin';u.approved=true;u.blocked=false;u.access_unlimited=true;u.access_expires_at=null;
   }
   if(!u||u.blocked||u.approved===false||(!u.access_unlimited&&u.access_expires_at&&new Date(u.access_expires_at).getTime()<=Date.now()))return null;
@@ -38,4 +38,11 @@ export async function logActivity(sql,me,actionType,summary,details={}){
   if(!summary)return;
   await sql`INSERT INTO cephepro_activity_log(project_key,user_id,user_name,username,role,action_type,summary,details)
             VALUES(${me?.projectId||null},${String(me?.id||'')},${String(me?.name||me?.username||'Kullanıcı')},${String(me?.username||'')},${String(me?.role||'member')},${String(actionType||'update')},${String(summary)},${JSON.stringify(details)}::jsonb)`;
+}
+export async function logActivities(sql,me,actionType,entries){
+  const rows=entries.filter(entry=>entry.summary).map(entry=>({summary:String(entry.summary),details:entry.details||{}}));
+  if(!rows.length)return;
+  await sql`INSERT INTO cephepro_activity_log(project_key,user_id,user_name,username,role,action_type,summary,details)
+    SELECT ${me?.projectId||null},${String(me?.id||'')},${String(me?.name||me?.username||'Kullanıcı')},${String(me?.username||'')},${String(me?.role||'member')},${String(actionType||'update')},entry.summary,entry.details
+    FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS entry(summary text,details jsonb)`;
 }

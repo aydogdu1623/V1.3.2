@@ -70,6 +70,7 @@
  function status(message,error=false){const el=$('cpProjectStatus');if(el){el.textContent=message;el.dataset.error=String(error);}}
  function showGate(){if($('cpProjectGate'))$('cpProjectGate').hidden=false;root.dataset.cpProject='locked';}
  function lock(logout=false){
+  window.CepheProPerformance?.cancel();
   verified=false;hydrated=false;context=null;nativeRemove.call(sessionStorage,CONTEXT);root.dataset.cpProject='locked';
   document.querySelectorAll('dialog[open]').forEach(el=>{try{el.close();}catch{}});
   if(logout){user=null;delete root.dataset.cpAccount;if($('cpProjectGate'))$('cpProjectGate').hidden=true;}

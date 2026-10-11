@@ -1,6 +1,6 @@
 /* Firma Hakediş: the supplied six-sheet, fifteen-period template.
- * Only input cells and their dependent formulas/caches change. Native layout,
- * styles, column widths, print settings and all other ZIP parts are retained.
+ * Only selected and previous periods are exported. Native styles,
+ * column widths, print settings and all other ZIP parts are retained.
  */
 (function(root){
 'use strict';
@@ -88,6 +88,24 @@ class Sheet {
   this.xml=this.xml.replace(/<cols>([\s\S]*?)<\/cols>/,(_,body)=>'<cols>'+[...body.matchAll(/<col\b[^>]*\/>/g)].map(m=>m[0]).sort((a,b)=>Number(a.match(/min="(\d+)"/)[1])-Number(b.match(/min="(\d+)"/)[1])).join('')+'</cols>');
   this.xml=this.output();
  }
+ freeze(rows){
+  // A single horizontal freeze; no independent left/right scrolling panes.
+  const first='A'+(rows+1);
+  this.xml=this.xml.replace(/<sheetViews>[\s\S]*?<\/sheetViews>/,`<sheetViews><sheetView workbookViewId="0" topLeftCell="A1"><pane ySplit="${rows}" topLeftCell="${first}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="${first}" sqref="${first}"/></sheetView></sheetViews>`);
+ }
+ trimColumns(limit){
+  for(const row of this.rows.values()){
+   row.body=row.body.replace(/<c\b[^>]*\br="([A-Z]+)\d+"[^>]*?(?:\/>|>[\s\S]*?<\/c>)/g,(tag,c)=>columnNumber(c)>limit?'':tag);
+   row.attrs=row.attrs.replace(/\bspans="[^"]*"/,`spans="1:${limit}"`);
+  }
+  this.xml=this.xml.replace(/<col\b[^>]*\/>/g,tag=>{
+   const min=Number(tag.match(/\bmin="(\d+)"/)[1]),max=Number(tag.match(/\bmax="(\d+)"/)[1]);
+   return min>limit?'':tag.replace(/\bmax="\d+"/,`max="${Math.min(max,limit)}"`);
+  }).replace(/<mergeCells\b[^>]*>([\s\S]*?)<\/mergeCells>/,(_,body)=>{
+   const ranges=[...body.matchAll(/<mergeCell ref="([A-Z]+)(\d+):([A-Z]+)(\d+)"\/>/g)].filter(m=>columnNumber(m[1])<=limit).map(m=>`<mergeCell ref="${m[1]}${m[2]}:${column(Math.min(columnNumber(m[3]),limit))}${m[4]}"/>`);
+   return `<mergeCells count="${ranges.length}">${ranges.join('')}</mergeCells>`;
+  });
+ }
  resize(last,col){this.xml=this.xml.replace(/<dimension ref="[^"]+"\s*\/>/,`<dimension ref="A1:${col}${last}"/>`);}
  output(){return this.xml.replace(/<sheetData>[\s\S]*?<\/sheetData>/,'<sheetData>'+[...this.rows].sort((a,b)=>a[0]-b[0]).map(([n,r])=>'<row'+r.attrs+'>'+r.body+'</row>').join('')+'</sheetData>');}
 }
@@ -104,10 +122,11 @@ async function build(payload,{templateBytes}={}){
  const count=Math.max(24,data.rows.length),last=6+count,totalRow=last+1,priceLast=Math.max(30,5+data.rows.length);
  const firstPriceFormula=unescape(track.cell('K7')[2].match(/<f\b[^>]*>([\s\S]*?)<\/f>/)[1]).replace(/_xludf\.IFS/g,'_xlfn.IFS');
  const info=data.info;
- summary.put('A1','CEPHEPRO - 15 DÖNEMLİ FİRMA HAKEDİŞ VE FİNANSAL GENEL ÖZET');summary.put('D3','Firma:');
+ summary.put('A1',`CEPHEPRO - ${data.end} DÖNEMLİ FİRMA HAKEDİŞ VE FİNANSAL GENEL ÖZET`);summary.put('D3','Firma:');
  summary.put('B3',info.site||info.projectName||'');summary.put('E3',info.company||'');summary.put('B4',info.projectName||'');summary.put('E4',info.contractDate||'');
- track.put('A1','15 DÖNEMLİ FİRMA HAKEDİŞ VE METRAJ TAKİP SİSTEMİ');
- prices.put('A3','Revize fiyatlar kayıtlı hakedişlerden alınır. Başlangıç no, fiyatın uygulanacağı ilk dönemdir. Kullanılmayan revizyonlarda 99, bu raporun 15 dönemi dışında demektir.');
+ track.put('A1',`${data.end} DÖNEMLİ FİRMA HAKEDİŞ VE METRAJ TAKİP SİSTEMİ`);
+ for(const sheet of [track,master])sheet.put('A3','İş kalemi ve dönem fiyatları Birim Fiyat Master sayfasından alınır. Başlıklar tek satır bölgesinde sabittir. Yalnızca seçili ve önceki hakedişler gösterilir.');
+ prices.put('A3','Revize fiyatlar kayıtlı hakedişlerden alınır. Başlangıç no, fiyatın uygulanacağı ilk dönemdir. Kullanılmayan revizyonlarda 99, rapora dahil olmayan dönem demektir.');
  // Remove only the original input/data region, keeping header/column formatting.
  const trackPrototype=new Sheet(track.xml),masterPrototype=new Sheet(master.xml),pricePrototype=new Sheet(prices.xml);
  for(const [s,start]of [[track,7],[master,7],[prices,6]])for(const n of [...s.rows.keys()])if(n>=start)s.rows.delete(n);
@@ -121,10 +140,10 @@ async function build(payload,{templateBytes}={}){
    values.forEach((v,c)=>write(prices,column(c+1)+pr,v,pricePrototype,column(c+1)+'6'));
    for(const [c,v]of Object.entries({A:item.block,B:item.facade,C:item.code,D:item.label,F:item.contractQuantity,H:0})) {write(track,c+r,v,trackPrototype,c+'7');remember('Hakediş Takip',c+r,v??0);}
    for(const [c,index,val]of [['E',2,item.unit]]){formula(track,c+r,`IFERROR(VLOOKUP(D${r}, 'Birim Fiyat Master'!B$6:M$${priceLast}, ${index}, FALSE), "")`,val,trackPrototype,c+'7');remember('Hakediş Takip',c+r,val);}
-   // Retain the reference workbook's exact remaining-quantity rule (F - BM).
-   const remaining=(item.contractQuantity??0)-item.quantities[14];formula(track,'G'+r,`F${r}-BM${r}`,remaining,trackPrototype,'G7');remember('Hakediş Takip','G'+r,remaining);
+   // Preserve the template rule: contract amount minus the last period quantity.
+   const remaining=(item.contractQuantity??0)-item.quantities[data.end-1];formula(track,'G'+r,`F${r}-${column(9+(data.end-1)*4)}${r}`,remaining,trackPrototype,'G7');remember('Hakediş Takip','G'+r,remaining);
    let cumulative=0;
-   for(let n=1;n<=15;n++){
+   for(let n=1;n<=data.end;n++){
     const c=9+(n-1)*4,q=column(c),cum=column(c+1),price=column(c+2),amount=column(c+3),quantity=item.quantities[n-1],p=item.prices[n-1];cumulative+=quantity;
     write(track,q+r,quantity,trackPrototype,q+'7');remember('Hakediş Takip',q+r,quantity);
     formula(track,cum+r,`${n===1?'H':column(c-3)}${r}+${q}${r}`,cumulative,trackPrototype,cum+'7');remember('Hakediş Takip',cum+r,cumulative);
@@ -132,16 +151,17 @@ async function build(payload,{templateBytes}={}){
     formula(track,price+r,f,p,trackPrototype,price+'7');remember('Hakediş Takip',price+r,p);
     formula(track,amount+r,`${q}${r}*${price}${r}`,quantity*p,trackPrototype,amount+'7');remember('Hakediş Takip',amount+r,quantity*p);
    }
-  }else for(let c=1;c<=68;c++)write(track,column(c)+r,null,trackPrototype,column(c)+'7');
-  for(let c=1;c<=68;c++){const col=column(c),v=item?(cache.get('Hakediş Takip!'+col+r)??''):'';formula(master,col+r,`IF('Hakediş Takip'!D${r}<>"", 'Hakediş Takip'!${col}${r}, "")`,v,masterPrototype,col+'7');}
+  }else for(let c=1;c<=8+4*data.end;c++)write(track,column(c)+r,null,trackPrototype,column(c)+'7');
+  for(let c=1;c<=8+4*data.end;c++){const col=column(c),v=item?(cache.get('Hakediş Takip!'+col+r)??''):'';formula(master,col+r,`IF('Hakediş Takip'!D${r}<>"", 'Hakediş Takip'!${col}${r}, "")`,v,masterPrototype,col+'7');}
  }
  write(track,'A'+totalRow,'TOPLAM',trackPrototype,'A31');
  track.xml=track.xml.replace(/A31:E31/g,`A${totalRow}:E${totalRow}`);
- for(let c=6;c<=68;c++){
+ for(let c=6;c<=8+4*data.end;c++){
   const col=column(c);if(c>=11&&(c-11)%4===0)write(track,col+totalRow,'-',trackPrototype,col+'31');
   else{const sum=data.rows.reduce((v,_,i)=>v+(Number(cache.get('Hakediş Takip!'+col+(i+7)))||0),0);formula(track,col+totalRow,`SUM(${col}7:${col}${last})`,sum,trackPrototype,col+'31');}
  }
- track.resize(totalRow,'BQ');master.resize(last,'BQ');prices.resize(Math.max(10,5+data.rows.length),'M');
+ for(const sheet of [track,master])sheet.trimColumns(8+4*data.end);
+ track.resize(totalRow,column(8+4*data.end));master.resize(last,column(8+4*data.end));prices.resize(Math.max(10,5+data.rows.length),'M');
  const ledger=(sheet,rows,title)=>{
   const original=new Sheet(sheet.xml),n=Math.max(2,rows.length),end=5+n,total=end+1;
   for(const r of [...sheet.rows.keys()])if(r>=6)sheet.rows.delete(r);
@@ -150,12 +170,18 @@ async function build(payload,{templateBytes}={}){
   sheet.xml=sheet.xml.replace(/A8:D8/g,`A${total}:D${total}`);sheet.resize(Math.max(10,total+2),'G');return Math.max(100,end);
  };
  const extraLast=ledger(extras,data.extra,'TOPLAM EK İŞLER'),cutLast=ledger(cuts,data.cuts,'TOPLAM KESİNTİLER'),sums=Array(6).fill(0);
- for(let n=1;n<=15;n++){
+ for(let n=1;n<=data.end;n++){
   const r=n+8,col=column(12+(n-1)*4),work=data.rows.reduce((s,x)=>s+x.quantities[n-1]*x.prices[n-1],0),ex=data.extra.filter(e=>e.periodNumber===n).reduce((s,e)=>s+e.qty*e.price,0),cut=data.cuts.filter(e=>e.periodNumber===n).reduce((s,e)=>s+e.qty*e.price,0),gross=work+ex-cut;
   const values=[work,ex,cut,gross,gross*.1,gross*.9],forms=[`SUM('Hakediş Takip'!${col}7:${col}${last})`,`SUMIF('Tutanak ve Ekler'!B6:B${extraLast}, A${r}, 'Tutanak ve Ekler'!G6:G${extraLast})`,`SUMIF(Kesintiler!B6:B${cutLast}, A${r}, Kesintiler!G6:G${cutLast})`,`B${r}+C${r}-D${r}`,`E${r}*0.1`,`E${r}-F${r}`];
   values.forEach((v,i)=>{summary.formula(column(i+2)+r,forms[i],v);sums[i]+=v;});
  }
- sums.forEach((v,i)=>summary.formula(column(i+2)+'24',`SUM(${column(i+2)}9:${column(i+2)}23)`,v));
+ const summaryTotal=9+data.end,summaryTotalRow=summary.rows.get(24);
+ for(const n of [...summary.rows.keys()])if(n>=summaryTotal)summary.rows.delete(n);
+ summary.rows.set(summaryTotal,{attrs:summaryTotalRow.attrs.replace(/\br="24"/,`r="${summaryTotal}"`),body:summaryTotalRow.body.replace(/(\br="[A-Z]+)24"/g,`$1${summaryTotal}"`)});
+ summary.put('A'+summaryTotal,`TOPLAM KÜMÜLATİF HAKEDİŞ (1 - ${data.end})`);
+ sums.forEach((v,i)=>summary.formula(column(i+2)+summaryTotal,`SUM(${column(i+2)}9:${column(i+2)}${summaryTotal-1})`,v));
+ summary.resize(summaryTotal,'G');
+ sheets.forEach((sheet,i)=>sheet.freeze([8,6,5,5,6,5][i]));
  // All formulas now have current caches. Excel also recalculates edits on open.
  const calc='<calcPr calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1"/>';
  zip.file('xl/workbook.xml',/<calcPr\b/.test(workbook)?workbook.replace(/<calcPr\b[^>]*\/>/,calc):workbook.replace('</workbook>',calc+'</workbook>'));

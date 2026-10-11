@@ -25,15 +25,19 @@ export function createFinanceHandler({getSql,noStore,bearer,ensureSchema,session
     const me=await sessionUser(sql,bearer(req));
     if(!me)return res.status(401).json({error:'Bulut oturumu gerekli. Yeniden giriş yapın.'});
     if(!await requireProject(sql,req,me,res))return;
+    const since=/^\d+$/.test(String(req.query?.since))&&Number(req.query.since)<=2147483647?Number(req.query.since):-1;
     if(req.method==='GET'&&req.query?.view==='weights'){
-      const rows=await sql`SELECT data FROM cephepro_financial_state WHERE project_key=${me.projectId} LIMIT 1`;
+      const rows=await sql`SELECT CASE WHEN revision=${since} THEN NULL ELSE data END AS data,revision FROM cephepro_financial_state WHERE project_key=${me.projectId} LIMIT 1`;
+      const revision=Number(rows[0]?.revision||0);
+      if(revision===since)return res.status(200).json({unchanged:true,revision});
       const values=cleanData(rows[0]?.data)||{},sum=Object.values(values).reduce((a,b)=>a+b,0);
       const weights=Object.fromEntries(Object.entries(values).map(([k,v])=>[k,sum>0?v/sum:0]));
-      return res.status(200).json({weights});
+      return res.status(200).json({weights,revision});
     }
     if(me.role!=='admin')return res.status(403).json({error:'Birim fiyat ve parasal ilerleme yalnız Admin tarafından görüntülenebilir.'});
     if(req.method==='GET'){
-      const rows=await sql`SELECT data,revision,updated_at FROM cephepro_financial_state WHERE project_key=${me.projectId} LIMIT 1`;
+      const rows=await sql`SELECT CASE WHEN revision=${since} THEN NULL ELSE data END AS data,revision,updated_at FROM cephepro_financial_state WHERE project_key=${me.projectId} LIMIT 1`;
+      if(Number(rows[0]?.revision||0)===since)return res.status(200).json({unchanged:true,revision:since});
       return res.status(200).json({data:cleanData(rows[0]?.data)||{},revision:Number(rows[0]?.revision||0),updatedAt:rows[0]?.updated_at||null});
     }
     if(req.method==='PUT'||req.method==='POST'){

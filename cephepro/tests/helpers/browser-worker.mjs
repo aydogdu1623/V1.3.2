@@ -1,0 +1,10 @@
+import {parentPort} from 'node:worker_threads';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const root=new URL('../../',import.meta.url);
+globalThis.self=globalThis;
+globalThis.importScripts=(...paths)=>{for(const path of paths)vm.runInThisContext(fs.readFileSync(new URL(path.replace(/^\//,'').split('?')[0],root),'utf8'),{filename:path});};
+globalThis.fetch=async path=>{const bytes=fs.readFileSync(new URL(path.replace(/^\//,''),root));return {ok:true,arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};};
+self.postMessage=(message,transfer)=>parentPort.postMessage(message,transfer);
+importScripts('/assets/background-worker.js');
+parentPort.on('message',data=>self.onmessage({data}));

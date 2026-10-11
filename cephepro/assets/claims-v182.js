@@ -564,7 +564,8 @@ function render(){
 }
 async function subcontractWorkbook(){
  await v52EnsureExcelJS();const report=currentReport();
- return window.__claimsReport191.build({ExcelJS,templateUrl:'/assets/taseron-hakedis-template-v191.xlsx',...report});
+ const payload={templateUrl:'/assets/taseron-hakedis-template-v191.xlsx',...report};
+ return window.CepheProPerformance?window.CepheProPerformance.run('taseron-excel',payload,()=>window.__claimsReport191.build({ExcelJS,...payload})):window.__claimsReport191.build({ExcelJS,...payload});
 }
 
 function persistDraft(){localStorage.setItem(draftKey(),JSON.stringify({data,revision,needsUpload:cloudPending,savedAt:new Date().toISOString()}));}
@@ -692,6 +693,7 @@ async function excel(){
  };
  try{
   claimNotice(job.number+'. hakedişin Excel dosyası hazırlanıyor…');
+  await window.CepheProPerformance?.afterPaint();
   const result=await workbook(),extra=result.extra||[];assertCurrent();
   if(job.kind==='firma'&&JSON.stringify(result.sheetNames)!==JSON.stringify(window.CepheProFirmaTemplate208?.sheetNames))throw Error('Firma hakedişinin altı sayfalı şablonu oluşturulamadı.');
   const bytes=result.bytes||await result.wb.xlsx.writeBuffer();assertCurrent();
@@ -824,7 +826,8 @@ async function firmaWorkbook199(){
  const exporter=window.CepheProFirmaTemplate208;if(!exporter?.build)throw Error('Firma rapor modülü yüklenemedi.');
  currentReport();captureFirmaReport199();
  const report=currentReport(),info=Object.fromEntries(companyFields().map(f=>[f.key,f.value]));
- return exporter.build({...report,info,contractRows:readOnly()?[]:firmaContractRows199(),readOnly:readOnly()});
+ const payload={...report,info,contractRows:readOnly()?[]:firmaContractRows199(),readOnly:readOnly()};
+ return window.CepheProPerformance?window.CepheProPerformance.run('firma-excel',payload,()=>exporter.build(payload)):exporter.build(payload);
 }
 
 function newPeriod(){

@@ -16,7 +16,7 @@ async function build({ExcelJS,templateUrl,periods,selectedPeriodId,rowOrder=[]})
  const wb=new ExcelJS.Workbook();wb.creator='CephePro';wb.created=new Date();wb.calcProperties.fullCalcOnLoad=true;
  const s=wb.addWorksheet('Özet'),h=wb.addWorksheet('Hakediş'),t=wb.addWorksheet('Tutanak ve Ekler'),k=wb.addWorksheet('Kesintiler'),g=wb.addWorksheet('Kullanım Kılavuzu');
  const ts=template.getWorksheet('Özet'),th=template.getWorksheet('Hakediş'),tt=template.getWorksheet('Tutanak ve Ekler'),tk=template.getWorksheet('Kesintiler');
- const slots=periods.map(p=>({...p}));while(slots.length<3)slots.push({number:Math.max(0,...slots.map(p=>num(p.number)))+1,snapshot:null});
+ const slots=periods.map(p=>({...p}));
  const n=slots.length,bound=8+3*n,controlCol=bound+3,endCol=bound+4,summaryBound=n+2,summaryTotal=n+3;
  const last=column(bound),sumLast=column(summaryBound),totalCol=column(summaryTotal);
  const metadata=new Map(),discovered=[];for(const per of periods)for(const r of per.snapshot.rows){if(!metadata.has(r.key))discovered.push(r.key);metadata.set(r.key,r);}
@@ -65,7 +65,7 @@ async function build({ExcelJS,templateUrl,periods,selectedPeriodId,rowOrder=[]})
  slots.forEach((per,j)=>{const p=column(8+j*3),q=column(9+j*3),a=column(10+j*3);value(h,`${q}4`,'Miktar');value(h,`${a}4`,per.number);h.mergeCells(`${p}5:${a}5`);style(h,`${p}5`,th,'G5');formula(h,`${p}5`,`${a}4&". Hakediş Dönemi"`,`${per.number}. Hakediş Dönemi`);formula(h,`${a}6`,`IF(COUNTIFS(tblHakedis[Tutar ${per.number}],"Eksik giriş")>0,"Eksik giriş",SUM(tblHakedis[Tutar ${per.number}]))`,workTotal(per.snapshot));h.getCell(`${a}6`).numFmt=money;});
  const amountTotals=slots.map(p=>workTotal(p.snapshot)),cumulativeAmount=amountTotals.some(v=>typeof v!=='number')?'Eksik giriş':round(amountTotals.reduce((sum,v)=>sum+v,0));
  formula(h,`${column(endCol)}6`,'IF(COUNTIFS(tblHakedis[Kümülatif Tutar],"Eksik giriş")>0,"Eksik giriş",SUM(tblHakedis[Kümülatif Tutar]))',cumulativeAmount);h.getCell(`${column(endCol)}6`).numFmt=money;
- h.views=[{state:'frozen',xSplit:7,ySplit:7,showGridLines:false}];
+ h.views=[{state:'frozen',ySplit:7,topLeftCell:'A8',activeCell:'A8',showGridLines:false}];
  const ledger=(sheet,src,tableName,field)=>{
   const records=[];for(const per of periods)for(const entry of per.snapshot[field]||[])records.push({entry,per});
   const len=Math.max(100,records.length),rows=[];
@@ -104,7 +104,9 @@ async function build({ExcelJS,templateUrl,periods,selectedPeriodId,rowOrder=[]})
  g.eachRow((row,i)=>{row.height=i===1?30:42;row.eachCell(cell=>{cell.font={name:'Arial',size:10};cell.alignment={vertical:'middle',wrapText:true};});});header(g,1,1,2);
  s.addConditionalFormatting({ref:`B24:B26`,rules:[{type:'cellIs',operator:'greaterThan',formulae:[0],style:{font:{color:{argb:'FF9C2525'},bold:true}}}]});
  h.addConditionalFormatting({ref:`${column(controlCol)}8:${column(controlCol)}${end}`,rules:[{type:'expression',formulae:[`AND(${column(controlCol)}8<>"",${column(controlCol)}8<>"Uygun")`],style:{font:{color:{argb:'FF9C2525'},bold:true}}}]});
+ s.views=[{state:'frozen',ySplit:10,topLeftCell:'A11',activeCell:'A11',showGridLines:false}];
+ g.views=[{state:'frozen',ySplit:1,topLeftCell:'A2',activeCell:'A2',showGridLines:false}];
  return{wb,extra};
 }
-window.__claimsReport191={build};
+(typeof window==='undefined'?globalThis:window).__claimsReport191={build};
 })();

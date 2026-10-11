@@ -1,7 +1,7 @@
 import {requireProject} from '../lib/project-access.js';
 import { getSql,noStore,bearer } from '../lib/db.js';
 import { ensureSchema } from '../lib/schema.js';
-import { sessionUser,logActivity,norm } from '../lib/authutil.js';
+import { sessionUser,logActivity,logActivities,norm } from '../lib/authutil.js';
 import { applyMemberEdits } from '../lib/member-edits.js';
 
 const clone=v=>JSON.parse(JSON.stringify(v??{}));
@@ -145,7 +145,7 @@ export function publicProjectState(state={}){
  return clone(Object.fromEntries(allowed.filter(k=>Object.hasOwn(state,k)).map(k=>[k,state[k]])));
 }
 
-export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUser,logActivity}){return async function handler(req,res){
+export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUser,logActivity,logActivities}){return async function handler(req,res){
   if(!noStore(req,res))return res.status(403).json({error:'Bu istek güvenlik nedeniyle reddedildi.',code:'ORIGIN_DENIED'});
   if(req.method==='OPTIONS')return res.status(204).end();
   try{
@@ -153,8 +153,10 @@ export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUs
     const me=await sessionUser(sql,bearer(req));if(!me)return res.status(401).json({error:'Oturum geçersiz.'});
     if(!await requireProject(sql,req,me,res))return;
     if(req.method==='GET'){
-      const rows=await sql`SELECT state,revision,updated_at,updated_by FROM cephepro_project_state WHERE project_key=${me.projectId} LIMIT 1`;
+      const since=/^\d+$/.test(String(req.query?.since))&&Number(req.query.since)<=2147483647?Number(req.query.since):-1;
+      const rows=await sql`SELECT CASE WHEN revision=${since} THEN NULL ELSE state END AS state,revision,updated_at,updated_by FROM cephepro_project_state WHERE project_key=${me.projectId} LIMIT 1`;
       const r=rows[0]||{state:{},revision:0};
+      if(Number(r.revision)===since)return res.status(200).json({unchanged:true,revision:since});
       let visibleState=publicProjectState(r.state);
       if(me.role!=='admin'){
         const adminRows=await sql`SELECT id,name,username,email FROM cephepro_users WHERE role='admin'`;
@@ -207,10 +209,11 @@ export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUs
       responseState=memberVisibleState(responseState,admins);
     }
     if(responseState){responseState=clone(responseState);delete responseState.cp_member_edit_receipts;}
-    for(const l of logs.slice(0,40))await logActivity(sql,me,'project_change',l.summary,l.details);
+    if(logActivities)await logActivities(sql,me,'project_change',logs.slice(0,40));
+    else for(const l of logs.slice(0,40))await logActivity(sql,me,'project_change',l.summary,l.details);
     return res.status(200).json({ok:true,revision:Number(rows[0]?.revision||oldRevision+1),updatedAt:rows[0]?.updated_at||null,corrected,state:responseState});
   }catch(err){if(err.status===400||err.status===409)return res.status(err.status).json({error:err.message});console.error(err);return res.status(500).json({error:'Sunucu hatası.'});}
 }
 
 }
-export default createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUser,logActivity});
+export default createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUser,logActivity,logActivities});

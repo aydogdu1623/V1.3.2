@@ -21,7 +21,7 @@ test('six original sheets, all 15 periods, revision boundaries, attachments and 
  assert.equal(JSON.stringify(input),before);assert.deepEqual(out.sheetNames,['Özet','Hakediş Takip','Tutanak ve Ekler','Kesintiler','Tüm İmalatlar Master','Birim Fiyat Master']);assert.equal(out.extra.length,1);
  const zip=await JSZip.loadAsync(out.bytes),source=await JSZip.loadAsync(templateBytes);
  for(const p of ['xl/styles.xml','xl/theme/theme1.xml'])assert.equal(await zip.file(p).async('string'),await source.file(p).async('string'));
- for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);if(![2,6].includes(i))assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal(a.match(/<sheetViews>[\s\S]*?<\/sheetViews>/)?.[0],b.match(/<sheetViews>[\s\S]*?<\/sheetViews>/)?.[0]);assert.doesNotMatch(b,/_xludf\./);}
+ for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);if(![2,6].includes(i))assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal((b.match(/<pane\b/g)||[]).length,1);assert.doesNotMatch(b,/xSplit=|state="split"/);assert.doesNotMatch(b,/_xludf\./);}
  const track=await xml(zip,2),summary=await xml(zip,1),prices=await xml(zip,6);
  assert.match(cell(track,'C6'),/Poz No/);assert.match(cell(track,'D6'),/İş Kalemi/);assert.match(cell(track,'C7'),/POZ-0/);assert.match(cell(track,'D7'),/İmalat 0/);assert.match(cell(prices,'A6'),/POZ-0/);assert.match(cell(prices,'B6'),/İmalat 0/);assert.match(cell(track,'K7'),/VLOOKUP\(D7, &apos;Birim Fiyat Master&apos;!B\$6/);
  assert.equal(value(track,'K7'),100);assert.equal(value(track,'O7'),120);assert.equal(value(track,'W7'),150);assert.equal(value(track,'AM7'),180);assert.equal(value(track,'BC7'),200);
@@ -53,4 +53,29 @@ test('zero quantities, zero prices, empty exports and formula-like text stay saf
  const p=fixture(1,1);p.contractRows[0].item='=1+1 <script>';p.periods[0].snapshot.contractRows199=structuredClone(p.contractRows);p.periods[0].snapshot.firmaRows199[0].quantity=0;p.periods[0].snapshot.firmaRows199[0].price=0;
  const out=await api.build(p,{templateBytes}),zip=await JSZip.loadAsync(out.bytes),track=await xml(zip,2);assert.match(cell(track,'D7'),/inline|<is>/);assert.match(cell(track,'D7'),/&lt;script&gt;/);assert.equal(value(track,'K7'),0);assert.equal(value(track,'L7'),0);
  const empty=await api.build(fixture(0,1),{templateBytes});assert.equal(empty.totals[0],0);
+});
+
+test('selected period bounds every Firma report sheet and one freeze remains without future periods',async()=>{
+ const column=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;};
+ for(const end of [1,3,15]){
+  const input=fixture(1,15);input.selectedPeriodId='p'+end;
+  const out=await api.build(input,{templateBytes}),zip=await JSZip.loadAsync(out.bytes),summary=await xml(zip,1);
+  assert.equal(out.report.end,end);assert.equal(out.report.rows[0].quantities[end]||0,0);
+  assert.equal((summary.match(/\d+\. Hakediş Dönemi/g)||[]).length,end);
+  assert.equal(value(summary,'B'+(9+end)),out.totals[0]);
+  assert.match(cell(summary,'B'+(9+end)),new RegExp('SUM\\(B9:B'+(8+end)+'\\)'));
+  for(let i=1;i<=6;i++){
+   const sheet=await xml(zip,i);assert.equal((sheet.match(/<pane\b/g)||[]).length,1);assert.equal((sheet.match(/<selection\b/g)||[]).length,1);
+   assert.doesNotMatch(sheet,/xSplit=|state="split"|topRight|bottomRight/);
+   if([2,5].includes(i)){
+    const endCol=8+end*4;
+    assert.match(sheet,new RegExp('<dimension ref="A1:'+column(endCol)+'\\d+"'));
+    for(const m of sheet.matchAll(/<c\b[^>]*\br="([A-Z]+)\d+"/g))assert.ok([...m[1]].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0)<=endCol);
+    assert.match(sheet,/topLeftCell="A7"/);
+    assert.doesNotMatch(sheet,new RegExp('>'+(end+1)+'\\. (?:Hakediş|Dönem)'));
+   }
+  }
+  const track=await xml(zip,2);assert.equal(value(track,column(8+end*4)+'7'),2*(end===1?100:end===3?120:200));
+  assert.match(cell(track,'G7'),new RegExp('F7-'+column(9+(end-1)*4)+'7'));
+ }
 });
