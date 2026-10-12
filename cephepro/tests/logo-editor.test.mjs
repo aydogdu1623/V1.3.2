@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {JSDOM} from 'jsdom';
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const source=html.slice(html.indexOf('const v63LogoCrop={'),html.indexOf('const v63PrevEnsureProjectModal='));
+test('square company logo editor fits, zooms, pans, centers and saves the preview in the active project',t=>{
+ const dom=new JSDOM('<div id="v52ProjectLogoCard"><div class="v52-logo-actions"><button id="v52RemoveProjectLogo"></button></div></div><span id="v52ProjectLogoFile"></span>',{url:'https://logo.test',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
+ let project='one',writes=[],draws=[],pending=[];const ctx={clearRect(){},drawImage(...args){draws.push(args);}};
+ w.HTMLCanvasElement.prototype.getContext=()=>ctx;w.HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/png;base64,SAVED';
+ Object.assign(w,{currentUser:{id:'admin',role:'admin'},v52ProjectLogoDraft:null,v34ProjectInfo:{company:'Keep'},store:{set:(key,value)=>writes.push({key,value:structuredClone(value)})},toast:()=>{},v52RenderLogoPreview:()=>{},CepheProProjects:{project:()=>({id:project}),isReady:()=>true},Image:class{naturalWidth=1000;naturalHeight=500;set src(v){pending.push(()=>this.onload());}}});
+ w.eval(source+';window.testCrop=v63LogoCrop;');w.v63EnsureLogoEditor();
+ const $=id=>w.document.getElementById(id),stage=$('v63LogoStage');assert.equal($('v63LogoCanvas').width,512);assert.equal($('v63LogoCanvas').height,512);assert.equal($('v63LogoSaveCrop').textContent,'Logoyu Kaydet');assert.equal($('v63LogoZoom').min,'0.5');
+ w.v63LoadLogoImage('data:image/png;base64,ORIGINAL','logo.png');pending.shift()();assert.equal(w.testCrop.baseScale,.512);assert.equal(draws.at(-1)[1],0);assert.equal(draws.at(-1)[2],128);
+ $('v63LogoZoomIn').click();assert.equal(w.testCrop.zoom,1.15);$('v63LogoZoomOut').click();assert.equal(w.testCrop.zoom,1);$('v63LogoZoom').value='2';$('v63LogoZoom').dispatchEvent(new w.Event('input'));assert.equal(w.testCrop.zoom,2);
+ const wheel=new w.WheelEvent('wheel',{deltaY:-1,cancelable:true});stage.dispatchEvent(wheel);assert.equal(w.testCrop.zoom,2);assert.equal(wheel.defaultPrevented,false);
+ const ctrlWheel=new w.WheelEvent('wheel',{deltaY:-1,ctrlKey:true,cancelable:true});stage.dispatchEvent(ctrlWheel);assert.equal(w.testCrop.zoom,2.12);assert.equal(ctrlWheel.defaultPrevented,true);
+ stage.setPointerCapture=()=>{};stage.releasePointerCapture=()=>{};stage.getBoundingClientRect=()=>({width:256,height:256});stage.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:10,clientY:10}));stage.dispatchEvent(new w.MouseEvent('pointermove',{clientX:30,clientY:35}));assert.equal(w.testCrop.offsetX,40);assert.equal(w.testCrop.offsetY,50);stage.dispatchEvent(new w.MouseEvent('pointerup'));
+ $('v63LogoCenter').click();assert.equal(w.testCrop.zoom,1);assert.equal(w.testCrop.offsetX,0);stage.dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowLeft',cancelable:true}));assert.equal(w.testCrop.offsetX,-8);
+ $('v63LogoSaveCrop').click();assert.equal(writes.length,1);assert.equal(writes[0].key,'cp_project_info');assert.equal(writes[0].value.company,'Keep');assert.equal(writes[0].value.logo,'data:image/png;base64,SAVED');assert.equal($('v63LogoEditor').classList.contains('open'),false);
+ w.currentUser.role='member';$('v63LogoSaveCrop').click();assert.equal(writes.length,1);
+ w.v63LoadLogoImage('data:image/png;base64,LATE');project='two';w.document.dispatchEvent(new w.Event('cephepro:locked'));pending.shift()();assert.equal(w.testCrop.img,null);
+});

@@ -106,6 +106,14 @@ async function build({ExcelJS,templateUrl,periods,selectedPeriodId,rowOrder=[]})
  h.addConditionalFormatting({ref:`${column(controlCol)}8:${column(controlCol)}${end}`,rules:[{type:'expression',formulae:[`AND(${column(controlCol)}8<>"",${column(controlCol)}8<>"Uygun")`],style:{font:{color:{argb:'FF9C2525'},bold:true}}}]});
  s.views=[{state:'frozen',ySplit:10,topLeftCell:'A11',activeCell:'A11',showGridLines:false}];
  g.views=[{state:'frozen',ySplit:1,topLeftCell:'A2',activeCell:'A2',showGridLines:false}];
+ // Existing claim/ledger tables already expose filters; include the summary and guide too.
+ s.autoFilter=`A10:${totalCol}20`;g.autoFilter=`A1:B${g.rowCount}`;
+ for(const sheet of [s,h,t,k,g]){
+  const lastRow=sheet.rowCount,lastCol=sheet.columnCount,edge={style:'thick',color:{argb:'FF254B50'}};
+  const border=(r,c,side)=>{const cell=sheet.getCell(r,c);cell.style={...cell.style,border:{...cell.border,[side]:{...edge}}};};
+  for(let c=1;c<=lastCol;c++){border(1,c,'top');border(lastRow,c,'bottom');}
+  for(let r=1;r<=lastRow;r++){border(r,1,'left');border(r,lastCol,'right');}
+ }
  return{wb,extra};
 }
 (typeof window==='undefined'?globalThis:window).__claimsReport191={build};

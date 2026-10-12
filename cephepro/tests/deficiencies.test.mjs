@@ -27,10 +27,10 @@ test('two users can append from stale snapshots; records persist in protected pr
  assert.equal((await h.call(handler,'GET','member-a',null,{}, {'x-project-token':'invalid'})).code,403);
  const bad=await h.call(handler,'PUT','member-a',{state:{cp_deficiencies:[record('entry-0003','member-a',{item:'unknown'})]}});assert.equal(bad.code,400);
 });
-test('UI adds multiple items and explanations, reloads saved entries, filters all reports and clears on lock',t=>{
+test('UI adds multiple items and explanations, reloads saved entries, filters all reports and clears on lock',async t=>{
  const dom=new JSDOM('<div class="v105-daily-titlebar"><button id="v34NoWorkBtn">Çalışma Olmadı</button></div>',{url:'https://deficiencies.test',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
  let saved=[],project='p1';const messages=[];
- Object.assign(w,{DATA:structuredClone(dynamic),currentBlock:'A',currentFacade:'Kuzey',currentUser:{id:'member-a',name:'Test',role:'member'},store:{get:(_,d)=>saved.length?saved:d,set:(_,value)=>{saved=structuredClone(value);}},toast:m=>messages.push(m),v34Today:()=> '2026-10-11',CepheProProjects:{isReady:()=>true,project:()=>({id:project})},v52SelectedFacades:()=>[['A','Kuzey']],v52ReportDates:()=>({start:'2026-10-01',end:'2026-10-31'}),v52ReportState:{items:new Set(['A|Kuzey|ANKRAJ','A|Kuzey|CAM'])},v52ItemKey:(b,f,i)=>[b,f,i].join('|')});
+ Object.assign(w,{DATA:structuredClone(dynamic),currentBlock:'A',currentFacade:'Kuzey',currentUser:{id:'member-a',name:'Test',role:'member'},store:{get:(_,d)=>saved.length?saved:d,set:(_,value)=>{saved=structuredClone(value);}},toast:m=>messages.push(m),fetch:async()=>({ok:true,json:async()=>({records:saved.map(r=>({...r,canDelete:true}))})}),v34Today:()=> '2026-10-11',CepheProProjects:{isReady:()=>true,project:()=>({id:project})},v52SelectedFacades:()=>[['A','Kuzey']],v52ReportDates:()=>({start:'2026-10-01',end:'2026-10-31'}),v52ReportState:{items:new Set(['A|Kuzey|ANKRAJ','A|Kuzey|CAM'])},v52ItemKey:(b,f,i)=>[b,f,i].join('|')});
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  w.eval(fs.readFileSync(new URL('../assets/deficiencies.js',import.meta.url),'utf8'));
  const $=id=>w.document.getElementById(id);assert.equal($('v34NoWorkBtn').previousElementSibling.id,'cpDeficienciesBtn');$('cpDeficienciesBtn').click();
@@ -45,7 +45,7 @@ test('UI adds multiple items and explanations, reloads saved entries, filters al
  group=$('cpDefRows').firstElementChild;group.querySelector('.cp-def-items input').checked=true;group.querySelector('textarea').value='Yeni liste';$('cpDefSave').click();assert.equal(saved.length,4);assert.notEqual(saved[3].listId,saved[0].listId);
  $('cpDefClose').click();$('cpDeficienciesBtn').click();assert.equal($('cpDefCount').textContent,'Kayıtlı Eksikler (4)');
  project='p2';$('cpDefSave').click();assert.equal(saved.length,4);assert.match(messages.at(-1),/Proje erişiminizi/);
- w.document.dispatchEvent(new w.Event('cephepro:locked'));assert.equal($('cpDefDialog'),null);
+ w.document.dispatchEvent(new w.Event('cephepro:locked'));assert.equal($('cpDefDialog'),null);await new Promise(r=>setTimeout(r,0));
 });
 
 test('deletion enforces current owner roles, is atomic, preserves project state and cannot be undone by stale uploads',async t=>{
@@ -69,21 +69,25 @@ test('deletion enforces current owner roles, is atomic, preserves project state 
  assert.equal((await h.call(handler,'DELETE','founder',{ids:[]})).code,400);
 });
 
-test('saved record opens a compact pinnable viewer and authorized deletion removes it from every report',async t=>{
+test('circular single/batch selection, two pinned panels and bulk deletion preserve drafts and enforce permissions',async t=>{
  const dom=new JSDOM('<button id="v34NoWorkBtn"></button>',{url:'https://deficiencies.test',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
- let saved=[record('entry-0001','member-a',{user:'Test',pozNo:'W1',savedAt:'2026-10-11'})];let deleteCalls=0;
- Object.assign(w,{DATA:dynamic,currentBlock:'A',currentFacade:'Kuzey',currentUser:{id:'member-a'},store:{get:()=>saved,set:(_,v)=>saved=v},toast:()=>{},confirm:()=>true,CepheProProjects:{isReady:()=>true,project:()=>({id:'p'})},v52SelectedFacades:()=>[['A','Kuzey']],v52ReportDates:()=>({}),fetch:async(url,options)=>{if(options.method==='DELETE'){deleteCalls++;return {ok:true,json:async()=>({deficiencies:[{id:'entry-0001',userId:'member-a',deletedAt:'now'}]})};}return {ok:true,json:async()=>({records:saved.map(r=>({...r,canDelete:true}))})};},__v89CloudSync:{flush:async()=>true,applyDeficiencies:rows=>saved=rows}});
- w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
+ let saved=[record('entry-0001','member-a',{user:'Test',pozNo:'W1',listId:'list-0001',savedAt:'2026-10-11'}),record('entry-0002','member-a',{user:'Test',pozNo:'W2',item:'CAM',listId:'list-0001',savedAt:'2026-10-11'}),record('entry-0003','member-b',{user:'Other',savedAt:'2026-10-11'})],deleted=[];
+ Object.assign(w,{DATA:dynamic,currentBlock:'A',currentFacade:'Kuzey',currentUser:{id:'member-a'},store:{get:()=>saved,set:(_,v)=>saved=v},toast:()=>{},confirm:()=>true,CepheProProjects:{isReady:()=>true,project:()=>({id:'p'})},v52SelectedFacades:()=>[['A','Kuzey']],v52ReportDates:()=>({}),fetch:async(url,options)=>{if(options.method==='DELETE'){deleted=JSON.parse(options.body).ids;return {ok:true,json:async()=>({deleted:deleted.length,deficiencies:saved.map(r=>deleted.includes(r.id)?{id:r.id,userId:r.userId,deletedAt:'now'}:r)})};}return {ok:true,json:async()=>({records:saved.filter(r=>!r.deletedAt).map(r=>({...r,canDelete:r.userId==='member-a'}))})};},__v89CloudSync:{flush:async()=>true,applyDeficiencies:rows=>saved=rows}});
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  w.eval(fs.readFileSync(new URL('../assets/deficiencies.js',import.meta.url),'utf8'));
- const $=id=>w.document.getElementById(id);$('cpDeficienciesBtn').click();$('cpDefAdd').click();
- const box=$('cpDefRows').querySelector('[data-draft-select]');box.checked=true;box.dispatchEvent(new w.Event('change',{bubbles:true}));assert.equal($('cpDefDeleteDraft').disabled,false);$('cpDefDeleteDraft').click();assert.equal($('cpDefRows').children.length,1);
- $('cpDefRows').querySelector('textarea').value='Unsaved draft';
- $('cpDefHistoryDetails').open=true;$('cpDefHistoryDetails').dispatchEvent(new w.Event('toggle'));$('cpDefHistory').querySelector('[data-def-record]').click();await new Promise(r=>setTimeout(r,0));
- assert.equal($('cpDefDialog').classList.contains('cp-def-detail'),true);assert.equal($('cpDefListBody').hidden,true);assert.equal($('cpDefDeleteSaved').disabled,false);
- $('cpDefPin').click();assert.equal($('cpDefPin').getAttribute('aria-pressed'),'true');$('cpDefPin').click();assert.equal($('cpDefPin').getAttribute('aria-pressed'),'false');
- // Pointer movement changes position, and pinning prevents a new drag.
- const head=$('cpDefDialog').querySelector('.cp-def-head');head.setPointerCapture=()=>{};
- head.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:20,clientY:20,button:0}));head.dispatchEvent(new w.MouseEvent('pointermove',{clientX:100,clientY:90}));assert.equal($('cpDefDialog').style.left,'80px');head.dispatchEvent(new w.MouseEvent('pointerup'));
- $('cpDefPin').click();head.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:0,clientY:0,button:0}));head.dispatchEvent(new w.MouseEvent('pointermove',{clientX:200,clientY:200}));assert.equal($('cpDefDialog').style.left,'80px');
- $('cpDefDeleteSaved').click();await new Promise(r=>setTimeout(r,0));assert.equal(deleteCalls,1);assert.equal(w.CepheProDeficiencies.records().length,0);assert.equal(w.CepheProDeficiencies.report().rows.length,0);assert.equal($('cpDefListBody').hidden,false);assert.equal($('cpDefRows').querySelector('textarea').value,'Unsaved draft');
+ const $=id=>w.document.getElementById(id),tick=()=>new Promise(r=>setTimeout(r,0)),panel=id=>w.document.querySelector(`[data-record-id="${id}"]`);
+ $('cpDeficienciesBtn').click();await tick();assert.equal($('cpDefAdd').nextElementSibling.id,'cpDefDeleteDraft');$('cpDefAdd').click();
+ const box=$('cpDefRows').querySelector('[data-draft-select]');box.click();assert.equal($('cpDefDeleteDraft').disabled,false);$('cpDefDeleteDraft').click();assert.equal($('cpDefRows').children.length,1);
+ $('cpDefRows').querySelector('textarea').value='Unsaved draft';$('cpDefHistoryDetails').open=true;$('cpDefHistoryDetails').dispatchEvent(new w.Event('toggle'));await tick();
+ const open=id=>$('cpDefHistory').querySelector(`[data-def-record="${id}"]`).click();open('entry-0001');await tick();
+ let first=panel('entry-0001');assert.ok(first);assert.equal($('cpDefListBody').hidden,false);assert.equal(first.querySelector('[data-panel-delete]').disabled,false);
+ const head=first.querySelector('.cp-def-head');head.setPointerCapture=()=>{};head.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:20,clientY:20,button:0}));head.dispatchEvent(new w.MouseEvent('pointermove',{clientX:100,clientY:90}));assert.equal(first.style.left,'80px');head.dispatchEvent(new w.MouseEvent('pointerup'));
+ first.querySelector('[data-panel-pin]').click();head.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:0,clientY:0,button:0}));head.dispatchEvent(new w.MouseEvent('pointermove',{clientX:200,clientY:200}));assert.equal(first.style.left,'80px');
+ open('entry-0002');await tick();panel('entry-0002').querySelector('[data-panel-pin]').click();assert.equal(w.document.querySelectorAll('.cp-def-floating[data-pinned=true]').length,2);assert.notEqual(first.style.left,panel('entry-0002').style.left);
+ open('entry-0003');await tick();assert.equal(w.document.querySelectorAll('.cp-def-floating').length,3);assert.equal(panel('entry-0003').querySelector('[data-panel-delete]').disabled,true);
+ const checks=$('cpDefHistory').querySelectorAll('[data-def-select]');assert.equal(checks[2].disabled,true);checks[0].click();assert.equal($('cpDefSelectAll').indeterminate,true);assert.equal($('cpDefHistory').querySelector('[data-def-batch]').indeterminate,true);
+ $('cpDefHistory').querySelector('[data-def-batch]').click();assert.equal($('cpDefSelectAll').checked,true);$('cpDefSelectAll').click();assert.equal($('cpDefDeleteDraft').disabled,true);$('cpDefSelectAll').click();$('cpDefDeleteDraft').click();await tick();assert.deepEqual(deleted,['entry-0001','entry-0002']);
+ assert.equal(w.CepheProDeficiencies.records().length,1);assert.equal(w.CepheProDeficiencies.report().rows.length,1);assert.equal(w.document.querySelectorAll('.cp-def-floating').length,1);assert.equal($('cpDefRows').querySelector('textarea').value,'Unsaved draft');
+ $('cpDefClose').click();assert.equal(w.document.querySelectorAll('.cp-def-floating').length,0);
+ w.document.dispatchEvent(new w.Event('cephepro:locked'));assert.equal($('cpDefDialog'),null);
 });

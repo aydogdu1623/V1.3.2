@@ -56,9 +56,23 @@
 .settings-pane,.settingsTab,.modalback,.panel{transition:none!important;animation:none!important;scroll-behavior:auto!important}
 button.btn{transition-duration:80ms!important;transition-delay:0s!important}
 
-/* Compact saved deficiency viewer; draft form remains intact behind the view. */
-.cp-def-dialog [hidden]{display:none!important}.cp-def-dialog.cp-def-detail{width:min(380px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
-.cp-def-detail .cp-def-head{cursor:move;touch-action:none;user-select:none;gap:6px}.cp-def-head strong{flex:1}.cp-def-head #cpDefPin{font-size:11px;padding:3px 7px;width:auto}
-.cp-def-detail .cp-def-body{padding:10px;display:grid;gap:8px}.cp-def-detail small{font-size:11px;opacity:.75}.cp-def-record-description{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;max-height:40vh;overflow:auto}
-.cp-def-dialog .cp-def-record{display:block;width:100%;text-align:left;padding:7px 8px;margin:4px 0;white-space:normal;height:auto}.cp-def-record p{margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:normal}
-.cp-def-entry legend label{display:inline-flex;align-items:center;gap:5px}.cp-def-entry [data-draft-select]{width:14px;height:14px;margin:0}
+/* Circular bulk and single selection; independent pinned record panels. */
+#cpDefDialog{overflow:visible}#cpDefDialog>.cp-def-head{border-radius:12px 12px 0 0}
+.cp-def-dialog .cp-def-actions{justify-content:flex-start;gap:6px;flex-wrap:wrap}.cp-def-dialog button:disabled{opacity:.45;cursor:default}
+.cp-def-dialog .cp-def-check{appearance:none!important;flex:none!important;width:19px!important;height:19px!important;min-height:19px!important;margin:0!important;border:1.5px solid #7ca7a6!important;border-radius:50%!important;background:#fff!important;display:inline-grid!important;place-items:center;vertical-align:middle;cursor:pointer;padding:0!important}
+.cp-def-dialog .cp-def-check:checked{background:#247c7d!important;border-color:#247c7d!important}.cp-def-check:checked:after{content:'✓';color:white;font-size:13px;font-weight:800}.cp-def-check:indeterminate:after{content:'−';color:#247c7d;font-size:17px;font-weight:800}.cp-def-check:disabled{opacity:.4;cursor:default}.cp-def-check:focus-visible{outline:2px solid #155d63;outline-offset:3px}
+.cp-def-saved-list h3,.cp-def-record-row,.cp-def-selectionbar,.cp-def-selectionbar label{display:flex;align-items:center;gap:8px}.cp-def-saved-list h3{margin-bottom:5px}.cp-def-record-row{border-top:1px solid #d7e5e4;padding:3px 0}.cp-def-record{flex:1;min-width:0;text-align:left;height:auto!important;white-space:normal;padding:5px 6px!important;border:0!important;background:transparent}.cp-def-record p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important;font-weight:400;margin:3px 0 0!important}.cp-def-selectionbar{flex-wrap:wrap;font-size:11px;margin:8px 0}.cp-def-selectionbar button{margin-left:auto}
+#cpDefPanelHost{position:fixed;inset:0;pointer-events:none}
+.cp-def-floating{position:fixed;pointer-events:auto;margin:0;width:min(350px,calc(100vw - 24px));max-height:calc(100dvh - 24px);box-shadow:0 8px 35px #143f4640;overflow:hidden}
+.cp-def-floating .cp-def-head{cursor:move;touch-action:none;user-select:none;gap:5px}.cp-def-floating[data-pinned=true] .cp-def-head{cursor:default;background:#d3eae6}.cp-def-head strong{flex:1}.cp-def-floating .cp-def-body{display:grid;gap:7px;padding:9px}.cp-def-floating small{font-size:10px;opacity:.75}.cp-def-record-description{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;max-height:35vh;overflow:auto}.cp-def-floating .cp-def-hint:empty{display:none}
+.cp-def-entry legend label{display:inline-flex;align-items:center;gap:5px}
+
+/* Company-logo crop matches the square profile-photo positioning control. */
+#v63LogoEditor.open{display:grid!important;grid-template-columns:minmax(200px,1fr) minmax(180px,1fr);align-items:center;gap:18px;padding:14px;margin-top:10px;border:1px solid #8db4b7;border-radius:14px;background:#eaf5f4;color:#123f51}
+#v63LogoStage{aspect-ratio:1!important;width:100%;min-height:0!important;max-height:none!important;box-sizing:border-box;border:14px solid #0b1012;border-radius:14px;background:#111;outline-offset:3px}
+#v63LogoStage canvas{aspect-ratio:1}#v63LogoStage .v63-logo-guide{inset:0;border:2px solid #b8c4c2;border-radius:9px;background:linear-gradient(to right,transparent calc(33.333% - .5px),#ffffff40 33.333%,transparent calc(33.333% + .5px),transparent calc(66.666% - .5px),#ffffff40 66.666%,transparent calc(66.666% + .5px)),linear-gradient(to bottom,transparent calc(33.333% - .5px),#ffffff40 33.333%,transparent calc(33.333% + .5px),transparent calc(66.666% - .5px),#ffffff40 66.666%,transparent calc(66.666% + .5px))}
+#v63LogoStage .v63-logo-guide:before,#v63LogoStage .v63-logo-guide:after{display:none}
+#v63LogoEditor .v63-logo-controls{gap:10px}#v63LogoEditor .v63-logo-controls>b{font-size:17px!important}#v63LogoEditor .sub{font-size:12px!important;line-height:1.5!important;margin:0!important;color:#527581!important}#v63LogoEditor label{font-size:12px;font-weight:700}#v63LogoEditor .v225-logo-tip{font-size:10px;padding:8px;border-radius:8px;background:#183a44;color:#e2eeee}
+#v63LogoEditor .v63-logo-zoom-row{grid-template-columns:36px minmax(0,1fr) 36px;gap:9px}#v63LogoEditor .v63-logo-zoom-row button{width:36px!important;height:30px!important;background:#fff;color:#215b64;border:1px solid #86aeb1;border-radius:8px}#v63LogoEditor input[type=range]{accent-color:#187e9d}
+#v63LogoEditor .v63-logo-editor-actions{gap:8px}#v63LogoEditor .v63-logo-editor-actions button{font-size:12px!important;height:32px!important;padding:5px 12px!important}#v63LogoEditor .v82-logo-x-control{display:none}
+@media(max-width:540px){#v63LogoEditor.open{grid-template-columns:1fr}#v63LogoStage{max-width:280px;justify-self:center}}

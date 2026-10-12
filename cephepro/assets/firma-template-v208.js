@@ -66,7 +66,7 @@ function prepare({selectedPeriodId,periods=[],contractRows=[],info={},readOnly=f
 // XML editing is confined to the known worksheet cells; text is always escaped
 // and emitted as inlineStr, including text beginning with '='.
 class Sheet {
- constructor(xml){this.xml=xml;this.rows=new Map();for(const m of xml.matchAll(/<row\b([^>]*\br="(\d+)"[^>]*)>([\s\S]*?)<\/row>|<row\b([^>]*\br="(\d+)"[^>]*)\/>/g))this.rows.set(Number(m[2]||m[5]),{attrs:m[1]||m[4],body:m[3]||''});}
+ constructor(xml){xml=xml.replace(/<c\b([^>]*?)\/>/g,'<c$1></c>');this.xml=xml;this.rows=new Map();for(const m of xml.matchAll(/<row\b([^>]*\br="(\d+)"[^>]*)>([\s\S]*?)<\/row>|<row\b([^>]*\br="(\d+)"[^>]*)\/>/g))this.rows.set(Number(m[2]||m[5]),{attrs:m[1]||m[4],body:m[3]||''});}
  cell(ref){if(!ref)return undefined;const row=this.rows.get(Number(ref.match(/\d+$/)[0]));return row?.body.match(new RegExp('<c\\b([^>]*\\br="'+ref+'"[^>]*)(?:>([\\s\\S]*?)<\\/c>|/>)'));}
  style(ref,fallback){return (this.cell(ref)?.[1]||this.cell(fallback)?.[1]||'').match(/\bs="(\d+)"/)?.[1];}
  put(ref,value,{formula,cache='',styleRef}={}){
@@ -110,6 +110,33 @@ class Sheet {
  resize(last,col){this.xml=this.xml.replace(/<dimension ref="[^"]+"\s*\/>/,`<dimension ref="A1:${col}${last}"/>`);}
  output(){return this.xml.replace(/<sheetData>[\s\S]*?<\/sheetData>/,'<sheetData>'+[...this.rows].sort((a,b)=>a[0]-b[0]).map(([n,r])=>'<row'+r.attrs+'>'+r.body+'</row>').join('')+'</sheetData>');}
 }
+
+// Extend existing styles with thick outer edges, keeping all fonts, formats and inner borders.
+function frameSheets(sheets,styles){
+ const borders=[...styles.match(/<borders\b[^>]*>([\s\S]*?)<\/borders>/)[1].matchAll(/<border\b[^>]*?(?:\/>|>[\s\S]*?<\/border>)/g)].map(m=>m[0]);
+ const xfs=[...styles.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/)[1].matchAll(/<xf\b[^>]*?(?:\/>|>[\s\S]*?<\/xf>)/g)].map(m=>m[0]);
+ const cache=new Map(),borderCache=new Map();
+ const edgeStyle=(base,edges)=>{
+  const key=base+'|'+edges.join(',');if(cache.has(key))return cache.get(key);
+  let xf=xfs[base]||xfs[0];const bid=Number(xf.match(/borderId="(\d+)"/)?.[1]||0),bk=bid+'|'+edges.join(',');let nextBorder=borderCache.get(bk);
+  if(nextBorder===undefined){
+   let border=borders[bid]||'<border><left/><right/><top/><bottom/><diagonal/></border>';
+   border=border.replace(/<border([^>]*)\/>/,'<border$1><left/><right/><top/><bottom/><diagonal/></border>');
+   for(const edge of edges){const tag=`<${edge} style="thick"><color rgb="FF254B50"/></${edge}>`,re=new RegExp('<'+edge+'\\b[^>]*(?:/>|>[\\s\\S]*?</'+edge+'>)');border=re.test(border)?border.replace(re,tag):border.replace('</border>',tag+'</border>');}
+   nextBorder=borders.length;borders.push(border);borderCache.set(bk,nextBorder);
+  }
+  xf=xf.replace(/borderId="\d+"/,`borderId="${nextBorder}"`).replace(/ applyBorder="[^"]*"/,'');xf=xf.replace('<xf ', '<xf applyBorder="1" ');
+  const index=xfs.length;xfs.push(xf);cache.set(key,index);return index;
+ };
+ for(const sheet of sheets){
+  const dim=sheet.xml.match(/<dimension ref="A1:([A-Z]+)(\d+)"/);if(!dim)continue;const width=columnNumber(dim[1]),height=Number(dim[2]);
+  const refs=new Map(),add=(c,r,e)=>{const ref=column(c)+r;if(!refs.has(ref))refs.set(ref,[]);refs.get(ref).push(e);};
+  for(let c=1;c<=width;c++){add(c,1,'top');add(c,height,'bottom');}for(let r=1;r<=height;r++){add(1,r,'left');add(width,r,'right');}
+  for(const [ref,edges] of refs){if(!sheet.cell(ref))sheet.put(ref,null);const match=sheet.cell(ref),base=Number(match[1].match(/\bs="(\d+)"/)?.[1]||0),style=edgeStyle(base,edges),row=sheet.rows.get(Number(ref.match(/\d+$/)[0]));row.body=row.body.replace(match[0],match[0].replace(/<c\b([^>]*)>/,(_,attrs)=>'<c'+attrs.replace(/\s+s="\d+"/,'')+` s="${style}">`));}
+ }
+ return styles.replace(/<borders\b[^>]*>[\s\S]*?<\/borders>/,`<borders count="${borders.length}">${borders.join('')}</borders>`).replace(/<cellXfs\b[^>]*>[\s\S]*?<\/cellXfs>/,`<cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs>`);
+}
+function filterSheet(sheet,ref){sheet.xml=sheet.xml.replace(/<autoFilter\b[^>]*(?:\/>|>[\s\S]*?<\/autoFilter>)/g,'').replace('</sheetData>',`</sheetData><autoFilter ref="${ref}"/>`);}
 
 async function build(payload,{templateBytes}={}){
  const data=prepare(payload);if(!root.JSZip)throw Error('Excel bileşeni yüklenemedi. Sayfayı yenileyin.');
@@ -201,6 +228,11 @@ async function build(payload,{templateBytes}={}){
  sums.forEach((v,i)=>summary.formula(column(i+2)+summaryTotal,`SUM(${column(i+2)}9:${column(i+2)}${summaryTotal-1})`,v));
  summary.resize(summaryTotal,'G');
  sheets.forEach((sheet,i)=>sheet.freeze([8,6,5,5,6,5][i],[1,4].includes(i)?8:0));
+ filterSheet(summary,`A8:G${8+data.end}`);filterSheet(track,`A6:${controlCol}${last}`);filterSheet(master,`A6:${controlCol}${last}`);
+ filterSheet(prices,`A5:M${Math.max(6,5+data.rows.length)}`);
+ filterSheet(extras,`A5:G${5+Math.max(2,data.extra.length)}`);filterSheet(cuts,`A5:G${5+Math.max(2,data.cuts.length)}`);
+ zip.file('xl/styles.xml',frameSheets(sheets,await zip.file('xl/styles.xml').async('string')));
+
  // All formulas now have current caches. Excel also recalculates edits on open.
  const calc='<calcPr calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1"/>';
  zip.file('xl/workbook.xml',/<calcPr\b/.test(workbook)?workbook.replace(/<calcPr\b[^>]*\/>/,calc):workbook.replace('</workbook>',calc+'</workbook>'));

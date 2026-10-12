@@ -6,7 +6,8 @@
  const records=()=>{const data=store.get(KEY,[]);return Array.isArray(data)?data.filter(r=>!r.deletedAt):[];};
  const allowed=()=>!!currentUser?.id&&!!window.CepheProProjects?.isReady();
  const today=()=>typeof v34Today==='function'?v34Today():new Date().toLocaleDateString('sv-SE');
- let context=null,savedList=false,historyLimit=25,detailId=null,pinned=false,requestVersion=0;
+ let context=null,savedList=false,historyLimit=25,permissionRequest=null,deleting=false,zOrder=1;
+ const selectedIds=new Set(),permissions=new Map(),panels=new Map();
  function report(){
   const facades=typeof v52SelectedFacades==='function'?v52SelectedFacades():[],dates=typeof v52ReportDates==='function'?v52ReportDates():{};
   const selected=typeof v52ReportState==='object'?v52ReportState.items:null;
@@ -20,20 +21,43 @@
   let button=$('cpDeficienciesBtn');if(!button){button=document.createElement('button');button.id='cpDeficienciesBtn';button.type='button';button.className='btn v105-no-work-btn';button.textContent='Eksikler';button.onclick=open;}
   if(anchor.previousElementSibling!==button)anchor.before(button);
  }
+ const historyRows=()=>context?records().filter(r=>r.block===context.block&&r.facade===context.facade).sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt))):[];
  function history(){
   if(!context||!$('cpDefHistory'))return;
-  const rows=records().filter(r=>r.block===context.block&&r.facade===context.facade).sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt)));
+  const rows=historyRows(),ids=new Set(rows.map(r=>r.id));for(const id of selectedIds)if(!ids.has(id))selectedIds.delete(id);
   $('cpDefCount').textContent=`Kayıtlı Eksikler (${rows.length})`;
-  if(!$('cpDefHistoryDetails').open)return;
   const batches=new Map();for(const r of rows.slice(0,historyLimit)){const key=r.userId+'|'+(r.listId||r.id);if(!batches.has(key))batches.set(key,[]);batches.get(key).push(r);}
-  $('cpDefHistory').innerHTML=rows.length?[...batches.values()].map(list=>`<section class="cp-def-saved-list"><h3>Eksik listesi · ${esc(list[0].date.split('-').reverse().join('.'))} · ${esc(list[0].user)}</h3>${list.map(r=>`<button type="button" class="cp-def-record" data-def-record="${esc(r.id)}"><strong>${esc(r.pozNo?r.pozNo+' · ':'')}${esc(r.item)}</strong><p>${esc(r.description)}</p></button>`).join('')}</section>`).join(''):'<p class="cp-def-hint">Bu cephede kayıtlı eksik yok.</p>';
-  $('cpDefMore').hidden=rows.length<=historyLimit;
+  $('cpDefHistory').innerHTML=rows.length?[...batches.entries()].map(([key,list])=>`<section class="cp-def-saved-list"><h3><input class="cp-def-check" type="checkbox" data-def-batch="${esc(key)}" aria-label="Bu eksik listesini seç"><span>Eksik listesi · ${esc(list[0].date.split('-').reverse().join('.'))} · ${esc(list[0].user)}</span></h3>${list.map(r=>`<div class="cp-def-record-row"><input class="cp-def-check" type="checkbox" data-def-select="${esc(r.id)}" aria-label="${esc(r.item)} eksiğini seç"><button type="button" class="cp-def-record" data-def-record="${esc(r.id)}"><strong>${esc(r.pozNo?r.pozNo+' · ':'')}${esc(r.item)}</strong><p>${esc(r.description)}</p></button></div>`).join('')}</section>`).join(''):'<p class="cp-def-hint">Bu cephede kayıtlı eksik yok.</p>';
+  $('cpDefMore').hidden=rows.length<=historyLimit;selectionState();
+ }
+ function selectionState(){
+  const rows=historyRows(),eligible=rows.filter(r=>permissions.get(r.id)===true);
+  const setCheck=(el,ids)=>{el.disabled=deleting||!ids.length;el.checked=ids.length>0&&ids.every(id=>selectedIds.has(id));el.indeterminate=ids.some(id=>selectedIds.has(id))&&!el.checked;};
+  $('cpDefHistory')?.querySelectorAll('[data-def-select]').forEach(el=>{setCheck(el,permissions.get(el.dataset.defSelect)?[el.dataset.defSelect]:[]);el.title=permissions.get(el.dataset.defSelect)===false?'Bu kaydı silme yetkiniz yok.':'';});
+  $('cpDefHistory')?.querySelectorAll('[data-def-batch]').forEach(el=>setCheck(el,eligible.filter(r=>r.userId+'|'+(r.listId||r.id)===el.dataset.defBatch).map(r=>r.id)));
+  if($('cpDefSelectAll'))setCheck($('cpDefSelectAll'),eligible.map(r=>r.id));
+  const drafts=$('cpDefRows')?.querySelectorAll('[data-draft-select]:checked:not(:disabled)').length||0;
+  if($('cpDefDeleteDraft'))$('cpDefDeleteDraft').disabled=deleting||!(drafts+selectedIds.size);
+  if($('cpDefSelectionCount'))$('cpDefSelectionCount').textContent=selectedIds.size?`${selectedIds.size} kayıt seçili`:'';
+ }
+ async function loadPermissions(){
+  if(permissionRequest)return permissionRequest;
+  const c=context;
+  const pending=(async()=>{try{
+   const flushed=await window.__v89CloudSync?.flush?.();if(!validContext(c))return;
+   if(flushed===false)throw Error('Bulut kaydı tamamlanamadı. Yeniden deneyin.');
+   const data=await request('GET');if(!validContext(c))return;
+   permissions.clear();for(const r of data.records)permissions.set(r.id,!!r.canDelete);
+   for(const id of selectedIds)if(!permissions.get(id))selectedIds.delete(id);
+   $('cpDefPermissionStatus').textContent='';selectionState();refreshPanels();
+  }catch(error){if(validContext(c))$('cpDefPermissionStatus').textContent=error.message;}})();
+  permissionRequest=pending;try{await pending;}finally{if(permissionRequest===pending)permissionRequest=null;}
  }
  function addRow(){
-  if(savedList)return;
+  if(savedList){newList();return;}
   const host=$('cpDefRows');if(host.children.length>=20){toast('Tek seferde en fazla 20 açıklama ekleyebilirsiniz.');return;}
   const group=document.createElement('fieldset');group.className='cp-def-entry';
-  group.innerHTML=`<legend><label><input type="checkbox" data-draft-select aria-label="Silmek için seç"> Eksik kaydı</label></legend><div class="cp-def-entry-head"><span>İş kalemleri · birden fazla seçebilirsiniz</span><button type="button" data-remove aria-label="Bu eksik satırını kaldır">×</button></div><div class="cp-def-items">${(DATA[context.block]?.[context.facade]?.items||[]).filter(raw=>String(raw?.[0]||'').trim()).map(raw=>`<label><input type="checkbox" value="${esc(raw[0])}"><span>${esc(raw[10]?raw[10]+' · ':'')}${esc(raw[0])}</span></label>`).join('')}</div><label class="cp-def-description">Açıklama<textarea rows="2" maxlength="2000" placeholder="Eksik veya tamamlanması gereken işi açıklayın." aria-label="Eksik açıklaması"></textarea></label>`;
+  group.innerHTML=`<legend><label><input class="cp-def-check" type="checkbox" data-draft-select aria-label="Silmek için seç"> Eksik kaydı</label></legend><div class="cp-def-entry-head"><span>İş kalemleri · birden fazla seçebilirsiniz</span><button type="button" data-remove aria-label="Bu eksik satırını kaldır">×</button></div><div class="cp-def-items">${(DATA[context.block]?.[context.facade]?.items||[]).filter(raw=>String(raw?.[0]||'').trim()).map(raw=>`<label><input type="checkbox" value="${esc(raw[0])}"><span>${esc(raw[10]?raw[10]+' · ':'')}${esc(raw[0])}</span></label>`).join('')}</div><label class="cp-def-description">Açıklama<textarea rows="2" maxlength="2000" placeholder="Eksik veya tamamlanması gereken işi açıklayın." aria-label="Eksik açıklaması"></textarea></label>`;
   group.querySelector('[data-remove]').onclick=()=>{if(host.children.length>1)group.remove();else{group.querySelectorAll('input').forEach(el=>el.checked=false);group.querySelector('textarea').value='';}draftSelection();};
   host.append(group);group.addEventListener('change',draftSelection);draftSelection();
  }
@@ -52,21 +76,36 @@
   }
   store.set(KEY,[...(store.get(KEY,[])||[]),...entries]);savedList=true;
   $('cpDefRows').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=true);$('cpDefDate').disabled=true;
-  $('cpDefDeleteDraft').hidden=true;$('cpDefAdd').hidden=true;$('cpDefSave').hidden=true;$('cpDefNew').hidden=false;historyLimit=25;history();
+  $('cpDefDeleteDraft').hidden=false;$('cpDefAdd').hidden=false;$('cpDefSave').hidden=true;$('cpDefNew').hidden=false;historyLimit=25;history();
   $('cpDefMessage').textContent=`${entries.length} eksik bu listeye kaydedildi. Devam etmek için Yeni Eksik Listesi düğmesine basın. Bulut durumu üst çubukta izlenebilir.`;
-  $('cpDefNew').focus();
+  loadPermissions();$('cpDefNew').focus();
  }
  function newList(){
   savedList=false;$('cpDefDate').disabled=false;$('cpDefDate').value=today();$('cpDefMessage').textContent='';
   $('cpDefDeleteDraft').hidden=false;$('cpDefAdd').hidden=false;$('cpDefSave').hidden=false;$('cpDefNew').hidden=true;$('cpDefRows').replaceChildren();addRow();
  }
- function draftSelection(){if($('cpDefDeleteDraft'))$('cpDefDeleteDraft').disabled=!$('cpDefRows').querySelector('[data-draft-select]:checked');}
- function validContext(c){return c===context&&allowed()&&c.project===window.CepheProProjects.project()?.id&&c.userId===String(currentUser.id);}
- function listView(){
-  detailId=null;requestVersion++;const d=$('cpDefDialog');if(!d)return;
-  d.classList.remove('cp-def-detail');d.style.left='';d.style.top='';d.style.margin='';
-  $('cpDefListBody').hidden=false;$('cpDefDetail').hidden=true;$('cpDefPin').hidden=true;
-  if(context)$('cpDefTitle').textContent=`${context.block} / ${context.facade} — Eksikler`;
+ function draftSelection(){selectionState();}
+ function validContext(c){return !!c&&c===context&&allowed()&&c.project===window.CepheProProjects.project()?.id&&c.userId===String(currentUser.id);}
+ function closePanel(id){const panel=panels.get(id);if(panel){panel.el.remove();panels.delete(id);}}
+ function refreshPanels(){
+  const live=new Set(records().map(r=>r.id));for(const [id,panel] of panels){
+   if(!live.has(id)){closePanel(id);continue;}
+   panel.el.querySelector('[data-panel-delete]').disabled=deleting||!permissions.get(id);
+   panel.el.querySelector('[data-panel-status]').textContent=permissions.has(id)?permissions.get(id)?'':'Bu kaydı silme yetkiniz yok.':'Bulut kaydı kontrol ediliyor…';
+  }
+ }
+ async function deleteSelected(ids=[...selectedIds]){
+  if(deleting||!validContext(context))return;
+  const c=context,drafts=ids.length?[]:[...$('cpDefRows').querySelectorAll('[data-draft-select]:checked:not(:disabled)')];
+  if(!ids.length){for(const box of drafts)box.closest('fieldset').remove();if(!$('cpDefRows').children.length&&!savedList)addRow();selectionState();return;}
+  if(!confirm(`${ids.length} eksik kaydı silinsin mi?`))return;
+  deleting=true;selectionState();refreshPanels();
+  try{
+   if(ids.length>500)throw Error('Tek seferde en fazla 500 kayıt silebilirsiniz.');
+   const result=await request('DELETE',{ids});if(!validContext(c))return;
+   window.__v89CloudSync.applyDeficiencies(result.deficiencies);for(const id of ids){selectedIds.delete(id);permissions.delete(id);closePanel(id);}history();toast(`${result.deleted} eksik kaydı silindi.`);
+  }catch(error){if(validContext(c)){$('cpDefPermissionStatus').textContent=error.message;toast(error.message);}}
+  finally{deleting=false;if(validContext(c)){selectionState();refreshPanels();}}
  }
  async function request(method,body){
   const token=localStorage.getItem('cp_cloud_token')||localStorage.getItem('cp_remembered_cloud_token')||'';
@@ -74,39 +113,38 @@
   const response=await fetch(url+(method==='GET'?'?view=deficiencies':''),{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:body?JSON.stringify(body):undefined,cache:'no-store'});
   const data=await response.json();if(!response.ok)throw Error(data.error||'Eksik kaydı işlenemedi.');return data;
  }
- async function showRecord(id){
+ function showRecord(id){
   const row=records().find(r=>r.id===id);if(!row||!validContext(context))return;
-  detailId=id;const version=++requestVersion,c=context,d=$('cpDefDialog');
-  d.classList.add('cp-def-detail');d.style.left='';d.style.top='';d.style.margin='';pinned=false;
-  $('cpDefPin').hidden=false;$('cpDefPin').textContent='Sabitle';$('cpDefPin').setAttribute('aria-pressed','false');
-  $('cpDefTitle').textContent='Kayıtlı Eksik';$('cpDefListBody').hidden=true;$('cpDefDetail').hidden=false;
-  $('cpDefDetail').innerHTML=`<strong>${esc(row.pozNo?row.pozNo+' · ':'')}${esc(row.item)}</strong><small>${esc(row.date)} · ${esc(row.user)}</small><p class="cp-def-record-description">${esc(row.description)}</p><div class="cp-def-actions"><button type="button" id="cpDefBack">Liste</button><button type="button" id="cpDefDeleteSaved" disabled>Eksik Sil</button></div><p id="cpDefDeleteStatus" role="status" class="cp-def-hint">Bulut kaydı kontrol ediliyor…</p>`;
-  $('cpDefBack').onclick=listView;
-  const fresh=()=>validContext(c)&&detailId===id&&requestVersion===version;
-  try{
-   const flushed=await window.__v89CloudSync?.flush?.();if(!fresh())return;
-   if(flushed===false)throw Error('Bulut kaydı tamamlanamadı. Yeniden deneyin.');
-   const data=await request('GET');if(!fresh())return;
-   const saved=data.records.find(r=>r.id===id);if(!saved)throw Error('Bu kayıt henüz bulutta yok veya silinmiş. Listeyi yenileyin.');
-   $('cpDefDeleteStatus').textContent=saved.canDelete?'':'Bu eksik kaydını silme yetkiniz yok.';
-   $('cpDefDeleteSaved').disabled=!saved.canDelete;
-   $('cpDefDeleteSaved').onclick=async()=>{
-    if(!fresh()||!confirm('Bu eksik kaydı silinsin mi?'))return;
-    $('cpDefDeleteSaved').disabled=true;
-    try{const result=await request('DELETE',{ids:[id]});if(!fresh())return;
-     window.__v89CloudSync.applyDeficiencies(result.deficiencies);listView();history();toast('Eksik kaydı silindi.');
-    }catch(error){if(fresh()){$('cpDefDeleteStatus').textContent=error.message;$('cpDefDeleteSaved').disabled=false;}}
-   };
-  }catch(error){if(fresh())$('cpDefDeleteStatus').textContent=error.message;}
+  if(panels.has(id)){panels.get(id).el.style.zIndex=++zOrder;panels.get(id).el.querySelector('[data-panel-pin]').focus();return;}
+  for(const [other,panel] of panels)if(!panel.pinned)closePanel(other);
+  const el=document.createElement('section');el.className='cp-def-dialog cp-def-floating';el.setAttribute('role','dialog');el.setAttribute('aria-label',`${row.item} — Kayıtlı Eksik`);el.dataset.recordId=id;
+  el.innerHTML=`<div class="cp-def-head"><strong>Kayıtlı Eksik</strong><button type="button" data-panel-pin aria-pressed="false">Sabitle</button><button type="button" data-panel-close aria-label="Eksik panelini kapat">×</button></div><div class="cp-def-body"><strong>${esc(row.pozNo?row.pozNo+' · ':'')}${esc(row.item)}</strong><small>${esc(row.date)} · ${esc(row.user)}</small><p class="cp-def-record-description">${esc(row.description)}</p><div class="cp-def-actions"><button type="button" data-panel-delete disabled>Eksik Sil</button></div><p data-panel-status role="status" class="cp-def-hint"></p></div>`;
+  const panel={el,pinned:false};panels.set(id,panel);$('cpDefPanelHost').append(el);el.style.zIndex=++zOrder;
+  const width=Math.min(350,innerWidth-24),height=el.getBoundingClientRect().height||240,index=panels.size-1;
+  el.style.left=Math.max(12,innerWidth-width-18-(index%2)*(width+12))+'px';el.style.top=Math.min(Math.max(12,innerHeight-height-12),24+Math.floor(index/2)*40+(innerWidth<760?index*65:0))+'px';
+  el.querySelector('[data-panel-close]').onclick=()=>closePanel(id);
+  el.querySelector('[data-panel-delete]').onclick=()=>deleteSelected([id]);
+  el.querySelector('[data-panel-pin]').onclick=()=>{
+   panel.pinned=!panel.pinned;el.dataset.pinned=String(panel.pinned);
+   const button=el.querySelector('[data-panel-pin]');button.textContent=panel.pinned?'Sabitlemeyi Aç':'Sabitle';button.setAttribute('aria-pressed',String(panel.pinned));
+  };
+  let drag=null;const head=el.querySelector('.cp-def-head');
+  head.addEventListener('pointerdown',e=>{if(panel.pinned||e.button!==0||e.target.closest('button'))return;const r=el.getBoundingClientRect();drag={x:e.clientX-r.left,y:e.clientY-r.top};head.setPointerCapture(e.pointerId);e.preventDefault();});
+  head.addEventListener('pointermove',e=>{if(!drag||panel.pinned)return;const r=el.getBoundingClientRect();el.style.left=Math.max(0,Math.min(innerWidth-r.width,e.clientX-drag.x))+'px';el.style.top=Math.max(0,Math.min(innerHeight-r.height,e.clientY-drag.y))+'px';});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])head.addEventListener(event,()=>{drag=null;});
+  el.addEventListener('pointerdown',()=>el.style.zIndex=++zOrder);refreshPanels();loadPermissions();
  }
  function wirePanel(dialog){
   $('cpDefHistory').onclick=e=>{const button=e.target.closest('[data-def-record]');if(button)showRecord(button.dataset.defRecord);};
-  $('cpDefPin').onclick=()=>{pinned=!pinned;$('cpDefPin').textContent=pinned?'Sabitlemeyi Aç':'Sabitle';$('cpDefPin').setAttribute('aria-pressed',String(pinned));};
-  let drag=null;const head=dialog.querySelector('.cp-def-head');
-  head.addEventListener('pointerdown',e=>{if(!detailId||pinned||e.button!==0||e.target.closest('button'))return;const r=dialog.getBoundingClientRect();drag={x:e.clientX-r.left,y:e.clientY-r.top};head.setPointerCapture(e.pointerId);e.preventDefault();});
-  head.addEventListener('pointermove',e=>{if(!drag||pinned)return;const r=dialog.getBoundingClientRect();dialog.style.margin='0';dialog.style.left=Math.max(0,Math.min(innerWidth-r.width,e.clientX-drag.x))+'px';dialog.style.top=Math.max(0,Math.min(innerHeight-r.height,e.clientY-drag.y))+'px';});
-  for(const event of ['pointerup','pointercancel','lostpointercapture'])head.addEventListener(event,()=>{drag=null;});
-  dialog.addEventListener('close',()=>{detailId=null;requestVersion++;});
+  $('cpDefHistory').onchange=e=>{
+   const box=e.target;if(box.matches('[data-def-select]'))box.checked?selectedIds.add(box.dataset.defSelect):selectedIds.delete(box.dataset.defSelect);
+   if(box.matches('[data-def-batch]'))for(const r of historyRows())if(permissions.get(r.id)&&r.userId+'|'+(r.listId||r.id)===box.dataset.defBatch)box.checked?selectedIds.add(r.id):selectedIds.delete(r.id);
+   selectionState();
+  };
+  $('cpDefSelectAll').onchange=e=>{for(const r of historyRows())if(permissions.get(r.id))e.target.checked?selectedIds.add(r.id):selectedIds.delete(r.id);selectionState();};
+  $('cpDefRefresh').onclick=loadPermissions;
+  dialog.addEventListener('close',()=>{for(const id of panels.keys())closePanel(id);});
+  dialog.addEventListener('cancel',e=>{const last=[...panels].reverse().find(([,p])=>!p.pinned);if(last){e.preventDefault();closePanel(last[0]);}});
  }
  function open(){
   if(!allowed()){toast('Önce proje girişini tamamlayın.');return;}
@@ -114,14 +152,15 @@
   if(!$('cpDefDialog')){
    const dialog=document.createElement('dialog');dialog.id='cpDefDialog';dialog.className='cp-def-dialog';
    dialog.setAttribute('aria-labelledby','cpDefTitle');
-   dialog.innerHTML='<div class="cp-def-head"><strong id="cpDefTitle">Eksikler</strong><button type="button" id="cpDefPin" aria-pressed="false" hidden>Sabitle</button><button type="button" id="cpDefClose" aria-label="Eksikler panelini kapat">×</button></div><div class="cp-def-body" id="cpDefListBody"><label class="cp-def-date">Tarih<input type="date" id="cpDefDate"></label><div id="cpDefRows"></div><div class="cp-def-actions"><button type="button" id="cpDefAdd">＋ Eksik Ekle</button><button type="button" id="cpDefDeleteDraft" disabled>Eksik Sil</button><button type="button" id="cpDefSave" class="primary">Kaydet</button><button type="button" id="cpDefNew" class="primary" hidden>＋ Yeni Eksik Listesi</button></div><p id="cpDefMessage" role="status" class="cp-def-hint"></p><details id="cpDefHistoryDetails"><summary id="cpDefCount">Kayıtlı Eksikler</summary><div id="cpDefHistory"></div><button type="button" id="cpDefMore" hidden>Daha Fazla Göster</button></details></div><div id="cpDefDetail" class="cp-def-body" hidden></div>';
+   dialog.innerHTML='<div class="cp-def-head"><strong id="cpDefTitle">Eksikler</strong><button type="button" id="cpDefClose" aria-label="Eksikler panelini kapat">×</button></div><div class="cp-def-body" id="cpDefListBody"><label class="cp-def-date">Tarih<input type="date" id="cpDefDate"></label><div id="cpDefRows"></div><div class="cp-def-actions"><button type="button" id="cpDefAdd">＋ Eksik Ekle</button><button type="button" id="cpDefDeleteDraft" disabled>Eksik Sil</button><button type="button" id="cpDefSave" class="primary">Kaydet</button><button type="button" id="cpDefNew" class="primary" hidden>＋ Yeni Eksik Listesi</button></div><p id="cpDefMessage" role="status" class="cp-def-hint"></p><details id="cpDefHistoryDetails"><summary id="cpDefCount">Kayıtlı Eksikler</summary><div class="cp-def-selectionbar"><label><input class="cp-def-check" id="cpDefSelectAll" type="checkbox"> Tüm kayıtları seç</label><span id="cpDefSelectionCount"></span><button type="button" id="cpDefRefresh">Yenile</button></div><p id="cpDefPermissionStatus" class="cp-def-hint" role="status"></p><div id="cpDefHistory"></div><button type="button" id="cpDefMore" hidden>Daha Fazla Göster</button></details></div><div id="cpDefPanelHost"></div>';
    document.body.append(dialog);$('cpDefClose').onclick=()=>dialog.close();$('cpDefAdd').onclick=addRow;$('cpDefSave').onclick=save;$('cpDefNew').onclick=newList;
-   wirePanel(dialog);$('cpDefDeleteDraft').onclick=()=>{for(const box of $('cpDefRows').querySelectorAll('[data-draft-select]:checked'))box.closest('fieldset').remove();if(!$('cpDefRows').children.length)addRow();draftSelection();};$('cpDefHistoryDetails').ontoggle=history;$('cpDefMore').onclick=()=>{historyLimit+=25;history();};
+   wirePanel(dialog);$('cpDefDeleteDraft').onclick=()=>deleteSelected();$('cpDefHistoryDetails').ontoggle=()=>{history();if($('cpDefHistoryDetails')?.open&&validContext(context))loadPermissions();};$('cpDefMore').onclick=()=>{historyLimit+=25;history();};
   }
+  for(const id of panels.keys())closePanel(id);selectedIds.clear();permissions.clear();permissionRequest=null;
   context={block:currentBlock,facade:currentFacade,project:window.CepheProProjects.project()?.id,userId:String(currentUser.id)};
-  listView();$('cpDefTitle').textContent=`${currentBlock} / ${currentFacade} — Eksikler`;newList();historyLimit=25;$('cpDefHistory').replaceChildren();history();$('cpDefDialog').showModal();
+  $('cpDefTitle').textContent=`${currentBlock} / ${currentFacade} — Eksikler`;newList();historyLimit=25;$('cpDefHistory').replaceChildren();history();if(!$('cpDefDialog').open)$('cpDefDialog').showModal();loadPermissions();
  }
- document.addEventListener('cephepro:locked',()=>{context=null;detailId=null;requestVersion++;$('cpDefDialog')?.remove();});
- document.addEventListener('cephepro:state-updated',()=>{history();if(detailId&&!records().some(r=>r.id===detailId))listView();});
+ document.addEventListener('cephepro:locked',()=>{context=null;permissionRequest=null;selectedIds.clear();permissions.clear();for(const id of panels.keys())closePanel(id);$('cpDefDialog')?.remove();});
+ document.addEventListener('cephepro:state-updated',()=>{history();refreshPanels();});
  window.CepheProDeficiencies={mount,open,report,records};mount();
 })();

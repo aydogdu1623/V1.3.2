@@ -36,7 +36,7 @@ test('Taşeron Excel Poz No insertion preserves all period amount and cumulative
  assert.equal(h.getCell('P8').value.result,15);assert.equal(h.getCell('Q8').value.formula,'IF($F8="","",$F8-P8)');assert.equal(h.getCell('S8').value.result,1700);assert.equal(h.views[0].xSplit,8);assert.equal(h.views[0].topLeftCell,'I8');assert.equal(h.views[0].ySplit,7);
  assert.match(wb.getWorksheet('Özet').getCell('B15').value.formula,/'Hakediş'!\$I\$6/);
  assert.equal(h.getCell('G8').value.result,40);assert.equal(h.getCell('Q8').value.result,45);
- const encoded=await wb.xlsx.writeBuffer(),reopened=new w.ExcelJS.Workbook();await reopened.xlsx.load(encoded);assert.equal(reopened.getWorksheet('Hakediş').getCell('C8').value,'W1');assert.equal(reopened.getWorksheet('Hakediş').getCell('S8').value.result,1700);
+ const encoded=await wb.xlsx.writeBuffer(),reopened=new w.ExcelJS.Workbook();await reopened.xlsx.load(encoded);for(const sh of reopened.worksheets){assert.equal(sh.getCell('A1').border.top.style,'thick');assert.equal(sh.getCell('A1').border.left.style,'thick');const end=sh.getCell(sh.rowCount,sh.columnCount);assert.equal(end.border.bottom.style,'thick');assert.equal(end.border.right.style,'thick');assert.ok(sh.autoFilter||sh.getTables().some(t=>t.table.autoFilterRef));}assert.equal(reopened.getWorksheet('Hakediş').getCell('C8').value,'W1');assert.equal(reopened.getWorksheet('Hakediş').getCell('S8').value.result,1700);
 });
 
 test('Taşeron export includes only the selected and earlier periods with a single header freeze on every tab',async t=>{

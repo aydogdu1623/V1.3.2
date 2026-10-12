@@ -6,20 +6,20 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=224.0">
-<script src="/assets/project-access.js?v=224.0"></script>
-<script src="/assets/session-privacy.js?v=224.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=225.0">
+<script src="/assets/project-access.js?v=225.0"></script>
+<script src="/assets/session-privacy.js?v=225.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/performance.js?v=224.0"></script>
-<meta name="cephepro-build" content="V224.0"/>
+<script src="/assets/performance.js?v=225.0"></script>
+<meta name="cephepro-build" content="V225.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V224";window.CEPHEPRO_BUILD="V224.0";</script>
+<script>window.CEPHEPRO_VERSION="V225";window.CEPHEPRO_BUILD="V225.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -15267,7 +15267,7 @@ function v52CompressLogo(file){
 function v52RenderLogoPreview(){
   const root=document.getElementById("v52ProjectLogoPreview");
   if(!root)return;
-  const logo=v52ProjectLogoDraft||v34ProjectInfo?.logo||"";
+  const logo=v52ProjectLogoDraft??v34ProjectInfo?.logo??"";
   root.innerHTML=logo?`<img src="${logo}" alt="Firma logosu">`:`<span>Logo eklenmedi</span>`;
 }
 
@@ -20122,7 +20122,7 @@ function v63ClampLogoOffset(){
   if(!m||!img)return;
   const scale=v63LogoCrop.baseScale*v63LogoCrop.zoom;
   const dw=img.naturalWidth*scale,dh=img.naturalHeight*scale;
-  const maxX=Math.max(0,(dw-m.w)/2),maxY=Math.max(0,(dh-m.h)/2);
+  const maxX=Math.max(0,(dw+m.w)/2-32),maxY=Math.max(0,(dh+m.h)/2-32);
   v63LogoCrop.offsetX=Math.max(-maxX,Math.min(maxX,v63LogoCrop.offsetX));
   v63LogoCrop.offsetY=Math.max(-maxY,Math.min(maxY,v63LogoCrop.offsetY));
 }
@@ -20139,7 +20139,7 @@ function v63DrawLogoCrop(){
   ctx.drawImage(img,dx,dy,dw,dh);
 }
 function v63SetLogoZoom(value){
-  v63LogoCrop.zoom=Math.max(1,Math.min(5,Number(value)||1));
+  v63LogoCrop.zoom=Math.round(Math.max(.5,Math.min(5,Number(value)||1))*100)/100;
   const slider=document.getElementById("v63LogoZoom");
   if(slider)slider.value=String(v63LogoCrop.zoom);
   v63DrawLogoCrop();
@@ -20151,11 +20151,13 @@ function v63ResetLogoCrop(){
 }
 function v63LoadLogoImage(dataUrl,fileName=""){
   if(!dataUrl)return;
+  const owner=String(currentUser?.id||""),project=window.CepheProProjects?.project()?.id;
   const img=new Image();
   img.onload=()=>{
+    if(owner!==String(currentUser?.id||" ")||project!==window.CepheProProjects?.project()?.id)return;
     const m=v63LogoMetrics();if(!m)return;
     v63LogoCrop.img=img;v63LogoCrop.zoom=1;v63LogoCrop.offsetX=0;v63LogoCrop.offsetY=0;v63LogoCrop.fileName=fileName;
-    v63LogoCrop.baseScale=Math.max(m.w/img.naturalWidth,m.h/img.naturalHeight);
+    v63LogoCrop.baseScale=Math.min(m.w/img.naturalWidth,m.h/img.naturalHeight);
     const z=document.getElementById("v63LogoZoom");if(z)z.value="1";
     document.getElementById("v63LogoEditor")?.classList.add("open");
     v63DrawLogoCrop();
@@ -20170,16 +20172,18 @@ function v63ReadLogoFile(file){
   reader.readAsDataURL(file);
 }
 function v63SaveLogoCrop(){
+  if(currentUser?.role!=="admin"||!window.CepheProProjects?.isReady()){toast("Logo kaydetmek için admin yetkisi ve proje erişimi gerekir.");return;}
   const m=v63LogoMetrics();
   if(!m||!v63LogoCrop.img){toast("Önce logo seç");return}
-  // Canvas itself is the final 720×280 company-logo crop.
+  // The square canvas is the exact saved preview; overlays are not exported.
   v52ProjectLogoDraft=m.canvas.toDataURL("image/png");
+  v34ProjectInfo.logo=v52ProjectLogoDraft;store.set("cp_project_info",v34ProjectInfo);
   const file=document.getElementById("v52ProjectLogoFile");
   if(file)file.textContent=v63LogoCrop.fileName||"Logo düzenlendi";
   document.getElementById("v63LogoEditor")?.classList.remove("open");
   v52RenderLogoPreview();
   v63UpdateLogoEditButton();
-  toast("Logo önizlemesi hazır");
+  toast("Firma logosu kaydedildi");
 }
 function v63UpdateLogoEditButton(){
   const btn=document.getElementById("v63EditProjectLogo");
@@ -20208,9 +20212,10 @@ function v63BindLogoStage(){
     v63LogoCrop.drag=false;stage.classList.remove("dragging");
     try{stage.releasePointerCapture(e.pointerId)}catch(_){}
   };
-  stage.addEventListener("pointerup",end);stage.addEventListener("pointercancel",end);
+  stage.addEventListener("pointerup",end);stage.addEventListener("pointercancel",end);stage.addEventListener("lostpointercapture",()=>{v63LogoCrop.drag=false;stage.classList.remove("dragging");});
+  stage.addEventListener("keydown",e=>{const steps={ArrowLeft:[-8,0],ArrowRight:[8,0],ArrowUp:[0,-8],ArrowDown:[0,8]},step=steps[e.key];if(!step||!v63LogoCrop.img)return;e.preventDefault();v63LogoCrop.offsetX+=step[0];v63LogoCrop.offsetY+=step[1];v63DrawLogoCrop();});
   stage.addEventListener("wheel",e=>{
-    if(!v63LogoCrop.img)return;
+    if(!v63LogoCrop.img||!e.ctrlKey)return;
     e.preventDefault();
     v63SetLogoZoom(v63LogoCrop.zoom+(e.deltaY<0?.12:-.12));
   },{passive:false});
@@ -20227,7 +20232,7 @@ function v63EnsureLogoEditor(){
     const remove=document.getElementById("v52RemoveProjectLogo");
     actions.insertBefore(edit,remove||null);
     edit.addEventListener("click",()=>{
-      const logo=v52ProjectLogoDraft||v34ProjectInfo?.logo||"";
+      const logo=v52ProjectLogoDraft??v34ProjectInfo?.logo??"";
       if(!logo){toast("Önce logo seç");return}
       v63LoadLogoImage(logo,"Kayıtlı logo");
     });
@@ -20237,21 +20242,21 @@ function v63EnsureLogoEditor(){
     const editor=document.createElement("div");
     editor.className="v63-logo-editor";editor.id="v63LogoEditor";
     editor.innerHTML=`
-      <div class="v63-logo-stage" id="v63LogoStage">
-        <canvas id="v63LogoCanvas" width="720" height="280"></canvas>
+      <div class="v63-logo-stage" id="v63LogoStage" tabindex="0" role="group" aria-label="Firma logosunu sürükleyerek veya yön tuşlarıyla konumlandır">
+        <canvas id="v63LogoCanvas" width="512" height="512"></canvas>
         <div class="v63-logo-guide"></div>
       </div>
       <div class="v63-logo-controls">
-        <b style="font-size:9px">Logo konumunu ayarla</b>
-        <div class="sub">Fotoğrafı sürükle. Mouse tekeriyle yakınlaştır/uzaklaştır. Hesap fotoğrafındaki gibi konumu kaydetmeden önce ayarlayabilirsin.</div>
+        <b>Firma logosunu konumlandır</b>
+        <p class="sub">Logoyu sürükle; +/− veya çubuk ile yakınlaştırıp uzaklaştır. Kare içindeki görünüm firma logon olur.</p><div class="v225-logo-tip">Ctrl + fare tekeri: yakınlaştır / uzaklaştır · Yön tuşları: konumlandır</div><label for="v63LogoZoom">Yakınlaştır / Uzaklaştır</label>
         <div class="v63-logo-zoom-row">
           <button class="small-btn" type="button" id="v63LogoZoomOut">−</button>
-          <input id="v63LogoZoom" type="range" min="1" max="5" step="0.01" value="1">
+          <input id="v63LogoZoom" aria-label="Logo yakınlaştırma" type="range" min="0.5" max="5" step="0.01" value="1">
           <button class="small-btn" type="button" id="v63LogoZoomIn">＋</button>
         </div>
         <div class="v63-logo-editor-actions">
           <button class="btn" type="button" id="v63LogoCenter">Ortala</button>
-          <button class="btn primary" type="button" id="v63LogoSaveCrop">Logo Ayarını Kullan</button>
+          <button class="btn primary" type="button" id="v63LogoSaveCrop">Logoyu Kaydet</button>
         </div>
       </div>`;
     card.appendChild(editor);
@@ -20288,6 +20293,8 @@ function v63EnsureLogoEditor(){
   }
   v63UpdateLogoEditButton();
 }
+
+document.addEventListener('cephepro:locked',()=>{v63LogoCrop.img=null;v63LogoCrop.drag=false;v52ProjectLogoDraft=null;document.getElementById('v63LogoEditor')?.classList.remove('open');});
 
 const v63PrevEnsureProjectModal=v34EnsureProjectModal;
 v34EnsureProjectModal=function(){
@@ -24507,17 +24514,17 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
   }
 
   function logoMaxX(){
-    if(typeof window.v63LogoMetrics!=='function' || !window.v63LogoCrop?.img) return 0;
+    if(typeof window.v63LogoMetrics!=='function' || !v63LogoCrop?.img) return 0;
     const m=window.v63LogoMetrics();
     if(!m) return 0;
-    const img=window.v63LogoCrop.img;
-    const scale=window.v63LogoCrop.baseScale*window.v63LogoCrop.zoom;
+    const img=v63LogoCrop.img;
+    const scale=v63LogoCrop.baseScale*v63LogoCrop.zoom;
     const dw=img.naturalWidth*scale;
     return Math.max(0,(dw-m.w)/2);
   }
 
   function setLogoXPercent(value){
-    if(!window.v63LogoCrop?.img){
+    if(!v63LogoCrop?.img){
       if(typeof window.toast==='function') window.toast('Önce logo seç');
       return;
     }
@@ -24525,15 +24532,15 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     const maxX=logoMaxX();
     const slider=document.getElementById('v82LogoX');
     if(slider) slider.value=String(pct);
-    window.v63LogoCrop.offsetX=maxX>0 ? maxX*(pct/100) : 0;
+    v63LogoCrop.offsetX=maxX>0 ? maxX*(pct/100) : 0;
     if(typeof window.v63DrawLogoCrop==='function') window.v63DrawLogoCrop();
   }
 
   function syncLogoX(){
     const slider=document.getElementById('v82LogoX');
-    if(!slider || !window.v63LogoCrop?.img) return;
+    if(!slider || !v63LogoCrop?.img) return;
     const maxX=logoMaxX();
-    const pct=maxX>0 ? Math.round((window.v63LogoCrop.offsetX/maxX)*100) : 0;
+    const pct=maxX>0 ? Math.round((v63LogoCrop.offsetX/maxX)*100) : 0;
     slider.value=String(Math.max(-100,Math.min(100,pct)));
   }
 
@@ -31825,22 +31832,22 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=224.0"></script>
-<script src="/assets/firma-template-v208.js?v=224.0"></script>
-<script src="/assets/claims-v182.js?v=224.0"></script>
+<script src="/assets/claims-report-v191.js?v=225.0"></script>
+<script src="/assets/firma-template-v208.js?v=225.0"></script>
+<script src="/assets/claims-v182.js?v=225.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=224.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=225.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=224.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=225.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=224.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=225.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=224.0"></script>
+<script src="/assets/puantaj-model.js?v=225.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -31860,9 +31867,9 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=224.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=224.0">
-<script src="/assets/deficiencies.js?v=224.0"></script>
+<script src="/assets/puantaj.js?v=225.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=225.0">
+<script src="/assets/deficiencies.js?v=225.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

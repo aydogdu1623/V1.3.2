@@ -20,8 +20,9 @@ test('six original sheets, all 15 periods, revision boundaries, attachments and 
  const input=fixture(),before=JSON.stringify(input),out=await api.build(input,{templateBytes});
  assert.equal(JSON.stringify(input),before);assert.deepEqual(out.sheetNames,['Özet','Hakediş Takip','Tutanak ve Ekler','Kesintiler','Tüm İmalatlar Master','Birim Fiyat Master']);assert.equal(out.extra.length,1);
  const zip=await JSZip.loadAsync(out.bytes),source=await JSZip.loadAsync(templateBytes);
- for(const p of ['xl/styles.xml','xl/theme/theme1.xml'])assert.equal(await zip.file(p).async('string'),await source.file(p).async('string'));
+ for(const p of ['xl/theme/theme1.xml'])assert.equal(await zip.file(p).async('string'),await source.file(p).async('string'));
  for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);if(![2,5,6].includes(i))assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal((b.match(/<pane\b/g)||[]).length,1);assert.doesNotMatch(b,/state="split"/);assert.equal(/xSplit="8"/.test(b),[2,5].includes(i));assert.doesNotMatch(b,/_xludf\./);}
+ const baseStyles=await source.file('xl/styles.xml').async('string'),newStyles=await zip.file('xl/styles.xml').async('string');for(const tag of ['fonts','fills','numFmts']){const re=new RegExp('<'+tag+'[^>]*>[\\s\\S]*?</'+tag+'>');assert.equal(newStyles.match(re)?.[0],baseStyles.match(re)?.[0]);}
  const track=await xml(zip,2),summary=await xml(zip,1),prices=await xml(zip,6);
  assert.match(cell(track,'C6'),/Poz No/);assert.match(cell(track,'D6'),/İş Kalemi/);assert.match(cell(track,'C7'),/POZ-0/);assert.match(cell(track,'D7'),/İmalat 0/);assert.match(cell(prices,'A6'),/POZ-0/);assert.match(cell(prices,'B6'),/İmalat 0/);assert.match(cell(track,'K7'),/VLOOKUP\(D7, &apos;Birim Fiyat Master&apos;!B\$6/);
  assert.equal(value(track,'K7'),100);assert.equal(value(track,'O7'),120);assert.equal(value(track,'W7'),150);assert.equal(value(track,'AM7'),180);assert.equal(value(track,'BC7'),200);
@@ -87,4 +88,23 @@ test('Firma physical remaining and payable balance are distinct, and missing or 
   assert.match(cell(track,'N7'),new RegExp(expected.replace('>','&gt;')));
   if(done===null){assert.doesNotMatch(cell(track,'G7'),/<v>0<\/v>/);assert.doesNotMatch(cell(master,'H7'),/<v>0<\/v>/);}else{assert.equal(value(track,'G7'),500-done);assert.equal(value(track,'M7'),done-2);}
  }
+});
+
+test('every Firma sheet has a valid filter and thick outer frame without losing formulas or inner styles',async()=>{
+ const {JSDOM}=await import('jsdom'),dom=new JSDOM('',{runScripts:'outside-only'});try{
+  dom.window.eval(fs.readFileSync(new URL('../assets/exceljs.min.js',import.meta.url),'utf8'));
+  const out=await api.build(fixture(2,3),{templateBytes}),zip=await JSZip.loadAsync(out.bytes);
+  const styles=new dom.window.DOMParser().parseFromString(await zip.file('xl/styles.xml').async('string'),'text/xml');assert.equal(styles.querySelector('parsererror'),null);
+  const xfs=[...styles.querySelector('cellXfs').children],borders=[...styles.querySelector('borders').children];
+  for(let i=1;i<=6;i++){
+   const doc=new dom.window.DOMParser().parseFromString(await xml(zip,i),'text/xml');assert.equal(doc.querySelector('parsererror'),null);
+   const dimension=doc.querySelector('dimension').getAttribute('ref'),last=dimension.split(':')[1],width=last.replace(/\d/g,''),height=Number(last.match(/\d+/)[0]);
+   const borderFor=ref=>borders[Number(xfs[Number(doc.querySelector(`c[r="${ref}"]`).getAttribute('s'))].getAttribute('borderId'))];
+   for(const [ref,side] of [['A1','left'],['A1','top'],[last,'right'],[last,'bottom']])assert.equal(borderFor(ref).querySelector(side).getAttribute('style'),'thick',`sheet ${i} ${ref} ${side}`);
+
+   const filter=doc.querySelector('autoFilter');assert.ok(filter);assert.equal(doc.querySelectorAll('autoFilter').length,1);
+   if(i===2){assert.equal(filter.getAttribute('ref'),'A6:V30');assert.equal(height,31);}
+  }
+  const wb=new dom.window.ExcelJS.Workbook();await wb.xlsx.load(dom.window.Uint8Array.from(out.bytes));assert.equal(wb.worksheets.length,6);assert.equal(wb.getWorksheet('Hakediş Takip').getCell('L7').result,200);assert.equal(wb.getWorksheet('Hakediş Takip').getCell('J7').result,2);
+ }finally{dom.window.close();}
 });
