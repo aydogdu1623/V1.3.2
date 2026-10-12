@@ -31,7 +31,7 @@
  const lockedReply=()=>new Response(JSON.stringify({error:'Önce proje girişini tamamlayın.',code:'PROJECT_LOCKED'}),{status:403,headers:{'Content-Type':'application/json'}});
  window.fetch=async function(input,init={}){
   const url=new URL(typeof input==='string'||input instanceof URL?String(input):input.url,location.href);
-  const protectedApi=url.origin===location.origin&&/^\/api\/(state|finance|claims|photos|activity|puantaj|auth)\/?$/.test(url.pathname);
+  const protectedApi=url.origin===location.origin&&/^\/api\/(state|finance|claims|photos|activity|puantaj|translate|auth)\/?$/.test(url.pathname);
   if(!protectedApi)return nativeFetch(input,init);
   const isAuth=/\/auth\/?$/.test(url.pathname),captured=context?.token;
   if(!isAuth&&(!verified||!captured))return lockedReply();

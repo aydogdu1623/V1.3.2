@@ -6,20 +6,20 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=225.0">
-<script src="/assets/project-access.js?v=225.0"></script>
-<script src="/assets/session-privacy.js?v=225.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=226.0">
+<script src="/assets/project-access.js?v=226.0"></script>
+<script src="/assets/session-privacy.js?v=226.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/performance.js?v=225.0"></script>
-<meta name="cephepro-build" content="V225.0"/>
+<script src="/assets/performance.js?v=226.0"></script>
+<meta name="cephepro-build" content="V226.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V225";window.CEPHEPRO_BUILD="V225.0";</script>
+<script>window.CEPHEPRO_VERSION="V225";window.CEPHEPRO_BUILD="V226.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -19710,6 +19710,7 @@ try{renderFacadeChartByType()}catch(_){}
       console.error('Native Excel chart injection',e);
       // Workbook data remains valid even if chart XML injection is unavailable.
     }
+    if(window.CepheProI18n)buffer=await window.CepheProI18n.office(buffer,'xlsx');
     const safe=(v34ProjectInfo.projectName||'CephePro').replace(/[^\p{L}\p{N}_-]+/gu,'_');
     v52DownloadBlob(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${safe}_Genel_Rapor_V61.xlsx`);
     toast('Excel raporu oluşturuldu');
@@ -20088,6 +20089,7 @@ try{renderFacadeChartByType()}catch(_){}
       // No corrupt workbook: fall back to V59 data workbook if chart injection fails.
       toast('Excel grafiği eklenemedi; rapor verileri oluşturuldu');
     }
+    if(window.CepheProI18n)buffer=await window.CepheProI18n.office(buffer,'xlsx');
     const safe=(v34ProjectInfo.projectName||'CephePro').replace(/[^\p{L}\p{N}_-]+/gu,'_');
     v52DownloadBlob(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${safe}_Genel_Rapor_V62.xlsx`);toast('Excel raporu oluşturuldu');
   }
@@ -20958,6 +20960,7 @@ try{v41RenderOverview()}catch(_){ }
       console.error('V65 native Excel grafik hatası',err);
       toast('Grafik oluşturulamadı; rapor verileri indiriliyor');
     }
+    if(window.CepheProI18n)buffer=await window.CepheProI18n.office(buffer,'xlsx');
     const safe=(v34ProjectInfo.projectName||'CephePro').replace(/[^\p{L}\p{N}_-]+/gu,'_');
     v52DownloadBlob(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${safe}_Genel_Rapor_V65.xlsx`);
     toast('Excel raporu oluşturuldu');
@@ -21337,6 +21340,7 @@ try{v41RenderOverview()}catch(_){ }
     }catch(err){
       console.error('V66 native Excel grafik hatası',err);toast('Grafikler eklenemedi; rapor verileri yine indiriliyor');
     }
+    if(window.CepheProI18n)buffer=await window.CepheProI18n.office(buffer,'xlsx');
     const safe=(v34ProjectInfo.projectName||'CephePro').replace(/[^\p{L}\p{N}_-]+/gu,'_');
     v52DownloadBlob(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${safe}_Genel_Rapor_V66.xlsx`);
     toast('Excel raporu oluşturuldu');
@@ -21760,7 +21764,7 @@ try{v41RenderOverview()}catch(_){ }
     const items=clean.length?clean:[{label:'Veri yok',value:0}],slot=plotW/items.length,barW=Math.max(12,Math.min(72,slot*.58));
     items.forEach((item,index)=>{const x=left+slot*index+(slot-barW)/2,y=top+plotH-item.value/100*plotH;
       ctx.fillStyle=color;ctx.fillRect(x,y,barW,top+plotH-y);ctx.fillStyle='#20313A';ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.fillText(`%${Math.round(item.value)}`,x+barW/2,Math.max(top+17,y-8));
-      const words=item.label.split(/\s+/),lines=[];let line='';words.forEach(word=>{const next=(line+' '+word).trim();if(ctx.measureText(next).width>Math.max(76,slot-8)&&line){lines.push(line);line=word}else line=next});if(line)lines.push(line);
+      const words=(window.CepheProI18n?.t(item.label)||item.label).split(/\s+/),lines=[];let line='';words.forEach(word=>{const next=(line+' '+word).trim();if(ctx.measureText(next).width>Math.max(76,slot-8)&&line){lines.push(line);line=word}else line=next});if(line)lines.push(line);
       ctx.font=`bold ${items.length>14?11:13}px Arial`;ctx.fillStyle='#315261';lines.slice(0,3).forEach((part,li)=>ctx.fillText(part,x+barW/2,top+plotH+28+li*16));
     });
     ctx.fillStyle='#52758C';ctx.font='bold 15px Arial';ctx.textAlign='center';ctx.fillText('İŞ KALEMİ',width/2,height-18);
@@ -21884,6 +21888,7 @@ try{v41RenderOverview()}catch(_){ }
   }
 
   async function exportExcelV126(){
+    await window.CepheProI18n?.prepareCharts();
     const rows=v57TableRows().filter(row=>isRealReportItem126(row?.[2]));
     const facades=v52SelectedFacades();
     const blocks=[...v52ReportState.blocks].filter(b=>DATA[b]);
@@ -22368,6 +22373,7 @@ ${displayLabel68(f,16)}`;
       toast('Grafik eklenemedi; Excel raporu tablolara göre oluşturuldu.');
     }
 
+    if(window.CepheProI18n)buffer=await window.CepheProI18n.office(buffer,'xlsx');
     const safe=(v34ProjectInfo.projectName||'CephePro').replace(/[^\p{L}\p{N}_-]+/gu,'_');
     v52DownloadBlob(
       new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),
@@ -30067,6 +30073,7 @@ body.v113-member .v113-role-note{display:block}
   }
   function wordRows146(){return reportRows126().map(row=>row.map((value,index)=>index===7?progressText161(value):String(value??'').replace(/\n/g,' / ')))}
   async function buildDocx146(){
+    await window.CepheProI18n?.prepareCharts();
     const D=await ensureDocx146();
     const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,ImageRun,Footer,PageNumber,AlignmentType,WidthType,BorderStyle,ShadingType,PageOrientation,VerticalAlign,HeightRule}=D;
     const p=(typeof v34ProjectInfo==='object'&&v34ProjectInfo)||{},rows=wordRows146(),facades=facades126(),dates=(()=>{try{return v52ReportDates()}catch(_){return{start:'',end:''}}})();
@@ -30149,7 +30156,10 @@ body.v113-member .v113-role-note{display:block}
       ...photoPages];
     const footer=new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:`CephePro ${VERSION} · SAYFA `,size:13,font:'Arial'}),PageNumber.CURRENT,new TextRun({text:' / ',size:13}),PageNumber.TOTAL_PAGES]})]});
     const doc=new Document({creator:p.company||'CephePro',title:`${p.projectName||'CephePro'} Firma Bilgileri ve İlerleme Raporu ${VERSION}`,sections:[{properties:{page:{size:{orientation:PageOrientation.LANDSCAPE},margin:{top:709,right:765,bottom:709,left:765}}},footers:{default:footer},children}]});
-    return Packer.toBlob(doc);
+    const output=await Packer.toBlob(doc);
+    if(!window.CepheProI18n||window.CepheProI18n.language()==='tr')return output;
+    const bytes=await window.CepheProI18n.office(await output.arrayBuffer(),'docx');
+    return new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
   }
   async function exportWord126(){
     if(!reportReady126('Word'))return;
@@ -30168,6 +30178,7 @@ body.v113-member .v113-role-note{display:block}
     if(typeof html2canvas==='undefined'||!window.jspdf){notice('PDF kütüphanesi hazır değil.');return}
     const host=document.createElement('div');host.id='v126ReportRenderHost';host.innerHTML=reportHtml126();document.body.appendChild(host);
     try{
+      await window.CepheProI18n?.translateElement(host);
       if(document.fonts?.ready)await document.fonts.ready;
       const {jsPDF}=window.jspdf,pdf=new jsPDF('l','mm','a4'),pages=[...host.querySelectorAll('.v126-report-page')];
       let first=true;
@@ -31832,22 +31843,22 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=225.0"></script>
-<script src="/assets/firma-template-v208.js?v=225.0"></script>
-<script src="/assets/claims-v182.js?v=225.0"></script>
+<script src="/assets/claims-report-v191.js?v=226.0"></script>
+<script src="/assets/firma-template-v208.js?v=226.0"></script>
+<script src="/assets/claims-v182.js?v=226.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=225.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=226.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=225.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=226.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=225.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=226.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=225.0"></script>
+<script src="/assets/puantaj-model.js?v=226.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -31867,9 +31878,13 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=225.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=225.0">
-<script src="/assets/deficiencies.js?v=225.0"></script>
+<script src="/assets/puantaj.js?v=226.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=226.0">
+<script src="/assets/deficiencies.js?v=226.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
+<link rel="stylesheet" href="/assets/i18n.css?v=226.0">
+<script src="/assets/translations.js?v=226.0"></script>
+<script src="/assets/i18n.js?v=226.0"></script>
+<script src="/assets/i18n-reports.js?v=226.0"></script>

@@ -697,7 +697,8 @@ async function excel(){
   await window.CepheProPerformance?.afterPaint();
   const result=await workbook(),extra=result.extra||[];assertCurrent();
   if(job.kind==='firma'&&JSON.stringify(result.sheetNames)!==JSON.stringify(window.CepheProFirmaTemplate208?.sheetNames))throw Error('Firma hakedişinin altı sayfalı şablonu oluşturulamadı.');
-  const bytes=result.bytes||await result.wb.xlsx.writeBuffer();assertCurrent();
+  let bytes=result.bytes||await result.wb.xlsx.writeBuffer();assertCurrent();
+  if(window.CepheProI18n)bytes=await window.CepheProI18n.office(bytes,'xlsx');assertCurrent();
   const prefix=job.kind==='firma'?'Firma':'Taseron',base=prefix+'_Hakedis_'+String(job.number).padStart(2,'0')+'_'+job.month,name=base+'.xlsx';
   if(extra.some(e=>e.file)){
    if(!window.JSZip)await new Promise((ok,no)=>{
