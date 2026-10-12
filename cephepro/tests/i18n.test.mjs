@@ -42,8 +42,9 @@ test('translation provider validates request/response and uses exact provider wi
 test('translation API requires both user and project sessions; caches remain project-scoped',async t=>{
  const h=await database(t);let called=0;
  const translate=async(texts,lang)=>{called++;return texts.map(s=>lang+':'+s);};
- const handler=createTranslationHandler({...h.deps,requireProject,translateForProject:(sql,me,texts,lang)=>translateForProject(sql,me,texts,lang,translate)});
+ const handler=createTranslationHandler({...h.deps,requireProject,translationEnabled:()=>true,translateForProject:(sql,me,texts,lang)=>translateForProject(sql,me,texts,lang,translate)});
  const body={language:'en',texts:['Özel açıklama']};assert.equal((await h.call(handler,'POST','',body)).code,401);assert.equal((await h.call(handler,'POST','member-a',body,{}, {'x-project-token':''})).code,403);
+ const disabled=createTranslationHandler({...h.deps,requireProject,translationEnabled:()=>false,translateForProject:()=>{throw Error('must not call provider');}});assert.equal((await h.call(disabled,'POST','member-a',body)).body.code,'TRANSLATION_SETUP_REQUIRED');
  let r=await h.call(handler,'POST','member-a',body);assert.equal(r.code,200);assert.equal(r.body.translations[0],'en:Özel açıklama');await h.call(handler,'POST','member-b',body);assert.equal(called,1);
  await translateForProject(h.sql,{id:'member-a',projectId:'another-project'},body.texts,'en',translate);assert.equal(called,2);
  await h.sql`UPDATE cephepro_translation_limits SET requests=90 WHERE user_id='member-a'`;r=await h.call(handler,'POST','member-a',{language:'en',texts:['Different uncached note']});assert.equal(r.code,429);
