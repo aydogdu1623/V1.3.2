@@ -6,20 +6,20 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=223.0">
-<script src="/assets/project-access.js?v=223.0"></script>
-<script src="/assets/session-privacy.js?v=223.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=224.0">
+<script src="/assets/project-access.js?v=224.0"></script>
+<script src="/assets/session-privacy.js?v=224.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/performance.js?v=223.0"></script>
-<meta name="cephepro-build" content="V223.0"/>
+<script src="/assets/performance.js?v=224.0"></script>
+<meta name="cephepro-build" content="V224.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V223";window.CEPHEPRO_BUILD="V223.0";</script>
+<script>window.CEPHEPRO_VERSION="V224";window.CEPHEPRO_BUILD="V224.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -25653,7 +25653,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     }while(localEditVersion>savedEditVersion);
     return true;
   }
-  window.__v89CloudSync={flush:flushState,push:flushState,pull:pullState,revision:()=>cloudRevision};
+  window.__v89CloudSync={flush:flushState,push:flushState,pull:pullState,revision:()=>cloudRevision,applyDeficiencies:rows=>{const known=new Set(rows.map(r=>r.id));localSet('cp_deficiencies',[...rows,...store.get('cp_deficiencies',[]).filter(r=>!known.has(r.id))]);document.dispatchEvent(new CustomEvent('cephepro:state-updated'));}};
   document.addEventListener('cephepro:user-ready',()=>{
     cloudToken=readCloudToken()||cloudToken;
     if(cloudToken)pullState({reload:false,bootstrap:true});
@@ -31825,22 +31825,22 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=223.0"></script>
-<script src="/assets/firma-template-v208.js?v=223.0"></script>
-<script src="/assets/claims-v182.js?v=223.0"></script>
+<script src="/assets/claims-report-v191.js?v=224.0"></script>
+<script src="/assets/firma-template-v208.js?v=224.0"></script>
+<script src="/assets/claims-v182.js?v=224.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=224.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=223.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=224.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=223.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=224.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=223.0"></script>
+<script src="/assets/puantaj-model.js?v=224.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -31860,9 +31860,9 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=223.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=223.0">
-<script src="/assets/deficiencies.js?v=223.0"></script>
+<script src="/assets/puantaj.js?v=224.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=224.0">
+<script src="/assets/deficiencies.js?v=224.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>

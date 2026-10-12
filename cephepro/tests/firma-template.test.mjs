@@ -7,7 +7,7 @@ globalThis.JSZip=require('jszip');
 await import('../assets/firma-template-v208.js');
 const api=globalThis.CepheProFirmaTemplate208;
 const templateBytes=fs.readFileSync(new URL('../assets/firma-hakedis-template-v208.xlsx',import.meta.url));
-const item=(i,props={})=>({key:'key-'+i,code:'POZ-'+i,block:'A',facade:'GC'+i,item:'İmalat '+i,unit:'m²',contractQuantity:500,contractPrice:100,...props});
+const item=(i,props={})=>({key:'key-'+i,code:'POZ-'+i,block:'A',facade:'GC'+i,item:'İmalat '+i,unit:'m²',contractQuantity:500,done:100,contractPrice:100,...props});
 function fixture(count=2,end=15){
  const contractRows=Array.from({length:count},(_,i)=>item(i));
  const periods=Array.from({length:end},(_,i)=>({id:'p'+(i+1),number:i+1,snapshot:{info:{company:'Test Firma',projectName:'Test Cephe Projesi',contractDate:'2026-01-01'},contractRows199:structuredClone(contractRows),firmaRows199:contractRows.map(r=>({...r,quantity:2,price:i<1?100:i<3?120:i<7?150:i<11?180:200})),extraRows:i===0?[{date:'2026-01-15',type:'EK İŞ',desc:'Ek profil',qty:2,price:30,file:{name:'test.txt',data:'data:text/plain;base64,dGVzdA=='}}]:[],cutRows:i===0?[{date:'2026-01-15',type:'CEZA',desc:'Deneme kesintisi',amount:10}]:[]}}));
@@ -21,11 +21,11 @@ test('six original sheets, all 15 periods, revision boundaries, attachments and 
  assert.equal(JSON.stringify(input),before);assert.deepEqual(out.sheetNames,['Özet','Hakediş Takip','Tutanak ve Ekler','Kesintiler','Tüm İmalatlar Master','Birim Fiyat Master']);assert.equal(out.extra.length,1);
  const zip=await JSZip.loadAsync(out.bytes),source=await JSZip.loadAsync(templateBytes);
  for(const p of ['xl/styles.xml','xl/theme/theme1.xml'])assert.equal(await zip.file(p).async('string'),await source.file(p).async('string'));
- for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);if(![2,6].includes(i))assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal((b.match(/<pane\b/g)||[]).length,1);assert.doesNotMatch(b,/state="split"/);assert.equal(/xSplit="4"/.test(b),[2,5].includes(i));assert.doesNotMatch(b,/_xludf\./);}
+ for(let i=1;i<=6;i++){const a=await xml(source,i),b=await xml(zip,i);if(![2,5,6].includes(i))assert.equal(a.match(/<cols>[\s\S]*?<\/cols>/)?.[0],b.match(/<cols>[\s\S]*?<\/cols>/)?.[0]);assert.equal((b.match(/<pane\b/g)||[]).length,1);assert.doesNotMatch(b,/state="split"/);assert.equal(/xSplit="8"/.test(b),[2,5].includes(i));assert.doesNotMatch(b,/_xludf\./);}
  const track=await xml(zip,2),summary=await xml(zip,1),prices=await xml(zip,6);
  assert.match(cell(track,'C6'),/Poz No/);assert.match(cell(track,'D6'),/İş Kalemi/);assert.match(cell(track,'C7'),/POZ-0/);assert.match(cell(track,'D7'),/İmalat 0/);assert.match(cell(prices,'A6'),/POZ-0/);assert.match(cell(prices,'B6'),/İmalat 0/);assert.match(cell(track,'K7'),/VLOOKUP\(D7, &apos;Birim Fiyat Master&apos;!B\$6/);
  assert.equal(value(track,'K7'),100);assert.equal(value(track,'O7'),120);assert.equal(value(track,'W7'),150);assert.equal(value(track,'AM7'),180);assert.equal(value(track,'BC7'),200);
- assert.equal(value(track,'BN7'),30);assert.equal(value(track,'BP7'),400);assert.match(cell(track,'G7'),/<f>F7-BM7<\/f>/);
+ assert.equal(value(track,'BN7'),30);assert.equal(value(track,'BP7'),400);assert.equal(value(track,'G7'),400);assert.equal(value(track,'H7'),100);assert.equal(value(track,'BQ7'),70);assert.match(cell(track,'BR7'),/Uygun/);assert.match(cell(track,'G7'),/COUNT\(F7,H7\)/);
  assert.equal(value(prices,'G6'),2);assert.equal(value(prices,'I6'),4);assert.equal(value(prices,'K6'),8);assert.equal(value(prices,'M6'),12);
  assert.equal(value(summary,'B9'),400);assert.equal(value(summary,'C9'),60);assert.equal(value(summary,'D9'),10);assert.equal(value(summary,'F9'),45);assert.equal(value(summary,'G9'),405);
  assert.equal(value(summary,'B23'),800);assert.equal(value(summary,'G23'),720);
@@ -66,16 +66,25 @@ test('selected period bounds every Firma report sheet and one freeze remains wit
   assert.match(cell(summary,'B'+(9+end)),new RegExp('SUM\\(B9:B'+(8+end)+'\\)'));
   for(let i=1;i<=6;i++){
    const sheet=await xml(zip,i);assert.equal((sheet.match(/<pane\b/g)||[]).length,1);assert.equal((sheet.match(/<selection\b/g)||[]).length,1);
-   assert.doesNotMatch(sheet,/state="split"/);assert.equal(/xSplit="4"/.test(sheet),[2,5].includes(i));
+   assert.doesNotMatch(sheet,/state="split"/);assert.equal(/xSplit="8"/.test(sheet),[2,5].includes(i));
    if([2,5].includes(i)){
-    const endCol=8+end*4;
+    const endCol=10+end*4;
     assert.match(sheet,new RegExp('<dimension ref="A1:'+column(endCol)+'\\d+"'));
     for(const m of sheet.matchAll(/<c\b[^>]*\br="([A-Z]+)\d+"/g))assert.ok([...m[1]].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0)<=endCol);
-    assert.match(sheet,/topLeftCell="E7"/);
+    assert.match(sheet,/topLeftCell="I7"/);
     assert.doesNotMatch(sheet,new RegExp('>'+(end+1)+'\\. (?:Hakediş|Dönem)'));
    }
   }
   const track=await xml(zip,2);assert.equal(value(track,column(8+end*4)+'7'),2*(end===1?100:end===3?120:200));
-  assert.match(cell(track,'G7'),new RegExp('F7-'+column(9+(end-1)*4)+'7'));
+  assert.equal(value(track,'G7'),400);assert.equal(value(track,column(9+end*4)+'7'),100-end*2);assert.match(cell(track,column(10+end*4)+'6'),/Kontrol/);
+ }
+});
+
+test('Firma physical remaining and payable balance are distinct, and missing or over-certified data is flagged',async()=>{
+ for(const [done,expected] of [[null,'Metraj eksik'],[1,'Verilen > kümülatif'],[501,'Kümülatif > sözleşme'],[-1,'Negatif giriş']]){
+  const input=fixture(1,1);input.contractRows[0].done=done;input.periods[0].snapshot.contractRows199[0].done=done;input.periods[0].snapshot.firmaRows199[0].done=done;
+  const out=await api.build(input,{templateBytes}),zip=await JSZip.loadAsync(out.bytes),track=await xml(zip,2),master=await xml(zip,5);
+  assert.match(cell(track,'N7'),new RegExp(expected.replace('>','&gt;')));
+  if(done===null){assert.doesNotMatch(cell(track,'G7'),/<v>0<\/v>/);assert.doesNotMatch(cell(master,'H7'),/<v>0<\/v>/);}else{assert.equal(value(track,'G7'),500-done);assert.equal(value(track,'M7'),done-2);}
  }
 });

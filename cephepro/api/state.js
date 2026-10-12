@@ -1,4 +1,5 @@
-import {mergeDeficiencies} from '../lib/deficiencies.js';
+import {mergeDeficiencies,deleteDeficiencies} from '../lib/deficiencies.js';
+import {canDeleteUpload} from '../lib/upload-permissions.js';
 import {requireProject} from '../lib/project-access.js';
 import { getSql,noStore,bearer } from '../lib/db.js';
 import { ensureSchema } from '../lib/schema.js';
@@ -153,6 +154,18 @@ export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUs
     const sql=getSql();await ensureSchema(sql);
     const me=await sessionUser(sql,bearer(req));if(!me)return res.status(401).json({error:'Oturum geçersiz.'});
     if(!await requireProject(sql,req,me,res))return;
+    if(req.method==='DELETE'||req.method==='GET'&&req.query?.view==='deficiencies'){
+      const [current]=await sql`SELECT state->'cp_deficiencies' AS records,revision FROM cephepro_project_state WHERE project_key=${me.projectId} LIMIT 1`;
+      const records=Array.isArray(current?.records)?current.records:[],ownerIds=[...new Set(records.map(r=>String(r.userId)))];
+      const owners=ownerIds.length?await sql`SELECT id,role,email FROM cephepro_users WHERE id=ANY(${ownerIds}::text[])`:[];
+      if(req.method==='GET')return res.status(200).json({records:records.filter(r=>!r.deletedAt).map(r=>({...r,canDelete:canDeleteUpload(me,owners.find(u=>String(u.id)===String(r.userId))||{id:r.userId})}))});
+      const result=deleteDeficiencies(records,req.body?.ids,me,owners);
+      if(!result.deleted)return res.status(200).json({ok:true,deleted:0,deficiencies:result.records});
+      const updated=await sql`UPDATE cephepro_project_state SET state=jsonb_set(state,'{cp_deficiencies}',${JSON.stringify(result.records)}::jsonb,true),revision=revision+1,updated_at=now(),updated_by=${String(me.id)} WHERE project_key=${me.projectId} AND revision=${Number(current?.revision||0)} RETURNING revision`;
+      if(!updated.length){req.cepheproRetry=(req.cepheproRetry||0)+1;if(req.cepheproRetry<4)return handler(req,res);return res.status(409).json({error:'Eşzamanlı kayıt var. Silmeyi yeniden deneyin.'});}
+      await logActivity(sql,me,'deficiency_delete',`${result.deleted} adet eksik kaydı sildi.`,{ids:req.body.ids});
+      return res.status(200).json({ok:true,deleted:result.deleted,deficiencies:result.records});
+    }
     if(req.method==='GET'){
       const since=/^\d+$/.test(String(req.query?.since))&&Number(req.query.since)<=2147483647?Number(req.query.since):-1;
       const rows=await sql`SELECT CASE WHEN revision=${since} THEN NULL ELSE state END AS state,revision,updated_at,updated_by FROM cephepro_project_state WHERE project_key=${me.projectId} LIMIT 1`;
@@ -217,7 +230,7 @@ export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUs
     if(logActivities)await logActivities(sql,me,'project_change',logs.slice(0,40));
     else for(const l of logs.slice(0,40))await logActivity(sql,me,'project_change',l.summary,l.details);
     return res.status(200).json({ok:true,revision:Number(rows[0]?.revision||oldRevision+1),updatedAt:rows[0]?.updated_at||null,corrected,state:responseState});
-  }catch(err){if(err.status===400||err.status===409)return res.status(err.status).json({error:err.message});console.error(err);return res.status(500).json({error:'Sunucu hatası.'});}
+  }catch(err){if([400,403,404,409].includes(err.status))return res.status(err.status).json({error:err.message});console.error(err);return res.status(500).json({error:'Sunucu hatası.'});}
 }
 
 }

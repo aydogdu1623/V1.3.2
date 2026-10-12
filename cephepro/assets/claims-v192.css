@@ -18,3 +18,29 @@
 #settingsModal #cl-pane .cl-history-table .cl-history-cell[data-history-field=quantity]{border-left:2px solid #ccdbea}
 #settingsModal #cl-pane .cl-history-table .cl-history-only td{color:#526f7b}
 #settingsModal #cl-pane .cl-history-table .cl-history-missing{font-size:11px}
+
+/* Keep item identity and physical quantities together while period fields scroll. */
+#settingsModal #cl-pane .cl-claim-table table{border-collapse:separate;border-spacing:0;width:max-content}
+#settingsModal #cl-pane .cl-claim-table thead{position:sticky;top:0;z-index:4}
+#settingsModal #cl-pane .cl-claim-table thead th{position:static}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(-n+8),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(-n+8){position:sticky;z-index:2;box-sizing:border-box;background:#f5faf9;white-space:normal;overflow-wrap:anywhere}
+#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(-n+8){background:#e4f1ef;z-index:5}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(1),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(1){left:0px;width:30px;min-width:30px;max-width:30px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(2),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(2){left:30px;width:40px;min-width:40px;max-width:40px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(3),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(3){left:70px;width:55px;min-width:55px;max-width:55px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(4),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(4){left:125px;width:55px;min-width:55px;max-width:55px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(5),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(5){left:180px;width:145px;min-width:145px;max-width:145px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(6),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(6){left:325px;width:78px;min-width:78px;max-width:78px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(7),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(7){left:403px;width:78px;min-width:78px;max-width:78px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(8),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(8){left:481px;width:78px;min-width:78px;max-width:78px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(8),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(8){border-right:2px solid #99bab5}
+@media(max-width:700px){#settingsModal #cl-pane .cl-claim-table{--cl-pin-scale:.6}#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(-n+8),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(-n+8){font-size:8px;padding:2px}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(1),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(1){left:0px;width:20px;min-width:20px;max-width:20px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(2),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(2){left:20px;width:24px;min-width:24px;max-width:24px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(3),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(3){left:44px;width:30px;min-width:30px;max-width:30px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(4),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(4){left:74px;width:30px;min-width:30px;max-width:30px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(5),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(5){left:104px;width:75px;min-width:75px;max-width:75px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(6),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(6){left:179px;width:42px;min-width:42px;max-width:42px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(7),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(7){left:221px;width:42px;min-width:42px;max-width:42px;}
+#settingsModal #cl-pane .cl-claim-table tbody td:nth-child(8),#settingsModal #cl-pane .cl-claim-table thead tr:first-child th:nth-child(8){left:263px;width:42px;min-width:42px;max-width:42px;}
+}

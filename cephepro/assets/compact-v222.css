@@ -55,3 +55,10 @@
 /* Panel changes do not wait for decorative animation. */
 .settings-pane,.settingsTab,.modalback,.panel{transition:none!important;animation:none!important;scroll-behavior:auto!important}
 button.btn{transition-duration:80ms!important;transition-delay:0s!important}
+
+/* Compact saved deficiency viewer; draft form remains intact behind the view. */
+.cp-def-dialog [hidden]{display:none!important}.cp-def-dialog.cp-def-detail{width:min(380px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+.cp-def-detail .cp-def-head{cursor:move;touch-action:none;user-select:none;gap:6px}.cp-def-head strong{flex:1}.cp-def-head #cpDefPin{font-size:11px;padding:3px 7px;width:auto}
+.cp-def-detail .cp-def-body{padding:10px;display:grid;gap:8px}.cp-def-detail small{font-size:11px;opacity:.75}.cp-def-record-description{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;max-height:40vh;overflow:auto}
+.cp-def-dialog .cp-def-record{display:block;width:100%;text-align:left;padding:7px 8px;margin:4px 0;white-space:normal;height:auto}.cp-def-record p{margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:normal}
+.cp-def-entry legend label{display:inline-flex;align-items:center;gap:5px}.cp-def-entry [data-draft-select]{width:14px;height:14px;margin:0}

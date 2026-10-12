@@ -171,3 +171,11 @@ test('successful project login remembers only the two codes when selected and pr
  reject=true;$('cpRememberCodes').checked=true;$('cpProjectPassword').value='wrong';await $('cpProjectLogin').onsubmit({preventDefault(){},currentTarget:$('cpProjectLogin')});
  assert.equal(w.localStorage.getItem('cp_project_access_codes:owner'),null);assert.equal($('cpProjectLogin').querySelector('[type=submit]').disabled,false);
 });
+
+test('project action menus close on outside click, switching menus and Escape',async t=>{
+ const {w}=mini(t);await w.CepheProProjects.ensure(user);w.CepheProProjects.ready();
+ const host=w.document.getElementById('cpProjectsList');host.innerHTML='<div class="cp-project-actions"><details><summary>Bir</summary><span>İçerik</span></details></div><div class="cp-project-actions"><details><summary>İki</summary><span>İçerik</span></details></div>';
+ const [a,b]=host.querySelectorAll('details');a.querySelector('summary').click();assert.equal(a.open,true);a.querySelector('span').click();assert.equal(a.open,true);
+ b.querySelector('summary').click();assert.equal(a.open,false);assert.equal(b.open,true);w.document.body.click();assert.equal(b.open,false);
+ a.querySelector('summary').click();w.document.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape'}));assert.equal(a.open,false);
+});

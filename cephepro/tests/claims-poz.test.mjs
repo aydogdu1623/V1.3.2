@@ -17,7 +17,7 @@ test('Firma and Taşeron claims show the defined Poz No before the item and pers
  for(const kind of ['firma','taseron']){
   w.document.getElementById('cl-'+kind).click();
   const table=w.document.querySelector('.cl-claim-table table'),heads=[...table.querySelectorAll('thead tr:first-child th')].map(c=>c.textContent);assert.equal(heads[heads.indexOf('İş Kalemi')-1],'Poz No');
-  const cells=table.querySelector('tbody tr').children;assert.equal(cells[3].textContent,'W1');assert.equal(cells[4].textContent,'W1 - ANKRAJ MONTAJI');
+  const cells=table.querySelector('tbody tr').children;assert.equal(cells[3].textContent,'W1');assert.equal(cells[4].textContent,'W1 - ANKRAJ MONTAJI');assert.equal(heads[5],'Sözleşme Miktarı');assert.equal(heads[6],'Kümülatif Yapılan');assert.equal(heads[7],'Kalan Miktar');assert.equal(cells[7].textContent,'40,00');assert.ok(table.querySelector('[data-claim-balance]'));assert.ok(table.querySelector('[data-claim-control]'));
   const row=w.__claims182.allRows()[0];assert.equal(row.pozNo,'W1');w.__claims190.model().selected[row.key]=true;w.__claims190.period().entries[row.key]={mode:'quantity',value:5};w.__claims190.period().dirty190=true;
   const report=w.__claims191.currentReport();assert.equal(report.snapshot.rows[0].pozNo,'W1');assert.equal(report.snapshot.rows[0].quantity,5);assert.equal(report.snapshot.rows[0].price,100);
   assert.ok(w.__claims191.saveLocal());
@@ -31,11 +31,12 @@ test('Taşeron Excel Poz No insertion preserves all period amount and cumulative
  const bytes=fs.readFileSync(new URL('../assets/taseron-hakedis-template-v191.xlsx',import.meta.url));w.fetch=async()=>({ok:true,arrayBuffer:async()=>w.Uint8Array.from(bytes).buffer});
  const make=(n,qty,price)=>({id:'p'+n,number:n,month:'2026-0'+n,snapshot:{rows:[{key:'one',block:'A',facade:'Kuzey',pozNo:'W1',item:'ANKRAJ',unit:'adet',total:100,done:60,quantity:qty,price}],info:{company:'Test'},extraRows:[],cutRows:[]}});
  const out=await w.__claimsReport191.build({ExcelJS:w.ExcelJS,templateUrl:'/fixture',periods:[make(1,5,100),make(2,10,120)],selectedPeriodId:'p2'}),wb=out.wb,h=wb.getWorksheet('Hakediş');
- assert.equal(h.getCell('C7').value,'Poz No');assert.equal(h.getCell('D7').value,'İş Kalemi');assert.equal(h.getCell('C8').value,'W1');assert.equal(h.getCell('D8').value,'ANKRAJ');assert.equal(h.getCell('H8').value,100);assert.equal(h.getCell('I8').value,5);
- assert.equal(h.getCell('J8').value.formula,'IF(AND(H8="",I8=""),"",IF(COUNT(H8:I8)<2,"Eksik giriş",ROUND(H8*I8,2)))');assert.equal(h.getCell('J8').value.result,500);assert.equal(h.getCell('M8').value.result,1200);
- assert.equal(h.getCell('O8').value.result,15);assert.equal(h.getCell('P8').value.formula,'IF($F8="","",$F8-O8)');assert.equal(h.getCell('R8').value.result,1700);assert.equal(h.views[0].xSplit,4);assert.equal(h.views[0].topLeftCell,'E8');assert.equal(h.views[0].ySplit,7);
- assert.match(wb.getWorksheet('Özet').getCell('B15').value.formula,/'Hakediş'!\$H\$6/);
- const encoded=await wb.xlsx.writeBuffer(),reopened=new w.ExcelJS.Workbook();await reopened.xlsx.load(encoded);assert.equal(reopened.getWorksheet('Hakediş').getCell('C8').value,'W1');assert.equal(reopened.getWorksheet('Hakediş').getCell('R8').value.result,1700);
+ assert.equal(h.getCell('C7').value,'Poz No');assert.equal(h.getCell('D7').value,'İş Kalemi');assert.equal(h.getCell('C8').value,'W1');assert.equal(h.getCell('D8').value,'ANKRAJ');assert.equal(h.getCell('I8').value,100);assert.equal(h.getCell('J8').value,5);
+ assert.equal(h.getCell('K8').value.formula,'IF(AND(I8="",J8=""),"",IF(COUNT(I8:J8)<2,"Eksik giriş",ROUND(I8*J8,2)))');assert.equal(h.getCell('K8').value.result,500);assert.equal(h.getCell('N8').value.result,1200);
+ assert.equal(h.getCell('P8').value.result,15);assert.equal(h.getCell('Q8').value.formula,'IF($F8="","",$F8-P8)');assert.equal(h.getCell('S8').value.result,1700);assert.equal(h.views[0].xSplit,8);assert.equal(h.views[0].topLeftCell,'I8');assert.equal(h.views[0].ySplit,7);
+ assert.match(wb.getWorksheet('Özet').getCell('B15').value.formula,/'Hakediş'!\$I\$6/);
+ assert.equal(h.getCell('G8').value.result,40);assert.equal(h.getCell('Q8').value.result,45);
+ const encoded=await wb.xlsx.writeBuffer(),reopened=new w.ExcelJS.Workbook();await reopened.xlsx.load(encoded);assert.equal(reopened.getWorksheet('Hakediş').getCell('C8').value,'W1');assert.equal(reopened.getWorksheet('Hakediş').getCell('S8').value.result,1700);
 });
 
 test('Taşeron export includes only the selected and earlier periods with a single header freeze on every tab',async t=>{
@@ -47,9 +48,9 @@ test('Taşeron export includes only the selected and earlier periods with a sing
   const h=wb.getWorksheet('Hakediş'),summary=wb.getWorksheet('Özet');
   const headers=h.getRow(7).values.filter(v=>typeof v==='string'&&/^Tutar \d+$/.test(v));
   assert.equal(headers.length,end);assert.equal(headers.at(-1),'Tutar '+end);
-  assert.equal(h.getCell(8,12+3*end).value.result,end*100);
+  assert.equal(h.getCell(8,13+3*end).value.result,end*100);
   assert.equal(summary.getCell(10,end+1).value,end);assert.equal(summary.getCell(10,end+2).value,'Dönem sonu');
-  wb.eachSheet(sheet=>{assert.equal(sheet.views.length,1);assert.equal(sheet.views[0].state,'frozen');assert.equal(sheet.views[0].xSplit,sheet.name==='Hakediş'?4:undefined);assert.ok(sheet.views[0].ySplit>0);});
-  const reopened=new w.ExcelJS.Workbook();await reopened.xlsx.load(await wb.xlsx.writeBuffer());assert.equal(reopened.getWorksheet('Hakediş').getCell(8,12+3*end).value.result,end*100);
+  wb.eachSheet(sheet=>{assert.equal(sheet.views.length,1);assert.equal(sheet.views[0].state,'frozen');assert.equal(sheet.views[0].xSplit,sheet.name==='Hakediş'?8:undefined);assert.ok(sheet.views[0].ySplit>0);});
+  const reopened=new w.ExcelJS.Workbook();await reopened.xlsx.load(await wb.xlsx.writeBuffer());assert.equal(reopened.getWorksheet('Hakediş').getCell(8,13+3*end).value.result,end*100);
  }
 });

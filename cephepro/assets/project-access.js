@@ -202,7 +202,11 @@
   $('cpGateCreate').onclick=()=>form('create');$('cpProjectCreate')?.addEventListener('click',()=>form('create'));
   $('cpProjectRetry').onclick=()=>location.reload();
   $('cpProjectLogout').onclick=async()=>{try{await nativeFetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+accountToken()},body:JSON.stringify({action:'logout'})});}catch{}for(const key of ['cp_cloud_token','cp_remembered_cloud_token','cp_session'])nativeRemove.call(localStorage,key);lock(true);location.reload();};
-  document.addEventListener('click',event=>{const button=event.target.closest('[data-project-action]');if(button){event.preventDefault();action(button.dataset.projectAction,button.dataset.id);}if(event.target.closest('[data-pane="settingsSave"]'))refresh();});
+  const menuSelector='.cp-project-actions>details';
+  const closeMenus=except=>document.querySelectorAll(menuSelector+'[open]').forEach(menu=>{if(menu!==except)menu.open=false;});
+  document.addEventListener('click',event=>{const menu=event.target.closest(menuSelector);closeMenus(menu);const button=event.target.closest('[data-project-action]');if(button){if(menu)menu.open=false;event.preventDefault();action(button.dataset.projectAction,button.dataset.id);}if(event.target.closest('[data-pane="settingsSave"]'))refresh();});
+  document.addEventListener('toggle',event=>{if(event.target.matches?.(menuSelector)&&event.target.open)closeMenus(event.target);},true);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenus();});
   render();
  }
  document.addEventListener('DOMContentLoaded',mount);

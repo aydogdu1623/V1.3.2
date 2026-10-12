@@ -59,7 +59,7 @@ test('Refresh opens the newest publisher record for both kinds and Excel uses it
   if(kind==='firma'){
    const zip=await w.JSZip.loadAsync(out.bytes),xml=await zip.file('xl/worksheets/sheet2.xml').async('string');
    assert.match(xml,/<c\b[^>]*r="K7"[^>]*>[\s\S]*?<v>120<\/v>/);assert.match(xml,/<c\b[^>]*r="L7"[^>]*>[\s\S]*?<v>1320<\/v>/);
-  }else{const sheet=out.wb.getWorksheet('Hakediş');assert.equal(sheet.getCell('H8').value,120);assert.equal(sheet.getCell('I8').value,11);assert.equal(sheet.getCell('J8').value.result,1320);}
+  }else{const sheet=out.wb.getWorksheet('Hakediş');assert.equal(sheet.getCell('I8').value,120);assert.equal(sheet.getCell('J8').value,11);assert.equal(sheet.getCell('K8').value.result,1320);}
   h.update(7);
  }
  const old=JSON.stringify(w.__claims191.currentReport());h.fail();await w.document.getElementById('cl-refresh').onclick();assert.equal(JSON.stringify(w.__claims191.currentReport()),old);assert.equal(w.lastToast,'Bağlantı kesildi.');assert.equal(w.document.getElementById('cl-refresh').disabled,false);
