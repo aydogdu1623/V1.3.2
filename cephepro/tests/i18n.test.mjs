@@ -9,11 +9,11 @@ import {requireProject} from '../lib/project-access.js';
 import {database} from './helpers/test-db.mjs';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 function harness(markup=''){
- const dom=new JSDOM('<!doctype html><html><body><section id="settingsGeneral"></section>'+markup+'</body></html>',{url:'https://test.invalid',runScripts:'outside-only'}),w=dom.window,calls=[];
+ const dom=new JSDOM('<!doctype html><html><body><section id="settingsGeneral"></section>'+markup+'</body></html>',{url:'https://test.invalid',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window,calls=[];
  w.AbortController=AbortController;let project='project-a';w.CepheProProjects={isReady:()=>!!project,project:()=>project?{id:project}:null};w.localStorage.setItem('cp_cloud_token','synthetic');
  w.fetch=async(url,options)=>{const body=JSON.parse(options.body);calls.push(body);return{ok:true,json:async()=>({translations:body.texts.map(x=>body.language==='de'?'DE: '+x:'EN: '+x)})};};
  w.JSZip={loadAsync:input=>JSZip.loadAsync(ArrayBuffer.isView(input)?Buffer.from(input.buffer,input.byteOffset,input.byteLength):Object.prototype.toString.call(input)==='[object ArrayBuffer]'?Buffer.from(new Uint8Array(input)):input)};
- for(const f of ['assets/translations.js','assets/i18n.js','assets/i18n-reports.js'])w.eval(read(f));
+ for(const f of ['assets/translations.js','assets/i18n.js','assets/i18n-fields.js','assets/i18n-reports.js'])w.eval(read(f));
  return {dom,w,I:w.CepheProI18n,calls,project:value=>{project=value;}};
 }
 const delay=()=>new Promise(r=>setTimeout(r,60));
@@ -73,4 +73,27 @@ test('both complete claim workbooks reopen in both languages with totals, filter
   for(const sheet of reopened.worksheets){assert.ok(sheet.autoFilter||sheet.getTables().some(t=>t.table.autoFilterRef));assert.equal(sheet.getCell('A1').border.top.style,'thick');}
   const xml=await JSZip.loadAsync(localized);for(const file of Object.values(xml.files).filter(f=>/xl\/(worksheets|tables)\/.*\.xml$/.test(f.name))){const source=await file.async('string');assert.doesNotMatch(source,/#REF!/);assert.doesNotMatch(source,/\[Tutar\]|'Hakediş'!|'Birim Fiyat Master'!/);}
  }}
+});
+test('screenshot UI labels, icon menus and composite item codes translate locally in EN and DE',async t=>{
+ const labels=['İşlemler ▾','Üye Yap','Süre (örnek: 45 gün)','Admin / Üye Filtresi','Buluttan sil','Son 48 saatte yüklenmiş hareket yok.','Açık proje · İlerleme %0','Projeye Geç','.cephe_rpr Aç','Kayıt Sahibi','Hakediş Seç','Firma ve Sözleşme Bilgileri','Vergi Dairesi / No','Sözleşme bedeli (KDV hariç, TL)','Toplam Pursantaj:','Birim Fiyat (₺)','AI Destekli Analiz','Kişisel Düzenimi Kaydet','Profil Bilgileri','Bilgileri Kaydet','W1 - ANKRAJ MONTAJI','W1 - ANKRAJ MONTAJI (m²)','3. Hakediş Dönemi · 2026-10','3. Brüt Hakediş','Kayıtlı Eksikler (4)'];
+ const {dom,w,I,calls}=harness(labels.map(s=>'<p>'+s+'</p>').join(''));t.after(()=>dom.window.close());
+ for(const language of ['en','de']){await I.setLanguage(language);for(const label of labels){assert.notEqual(I.local(label),undefined,label);assert.notEqual(I.t(label),label,label);}assert.equal(calls.length,0,'Built-in screenshot labels should not require the gateway');}
+ await I.setLanguage('tr');assert.deepEqual([...w.document.querySelectorAll('body > p')].map(p=>p.textContent),labels);
+});
+test('translated editor surfaces never replace source values, FormData or source identifiers',async t=>{
+ const {dom,w,I}=harness('<form id="edit"><div><input class="v34WiName" name="item" value="CEPHE MONTAJI"><input name="code" value="W1"><input type="password" name="password" value="synthetic"></div><label><textarea name="description">Yağmur yağdı</textarea></label></form>');t.after(()=>dom.window.close());
+ await I.setLanguage('en');const input=w.document.querySelector('.v34WiName'),overlay=input.parentElement.querySelector('.cp-i18n-value');assert.equal(overlay.textContent,'FACADE INSTALLATION');assert.equal(overlay.hidden,false);assert.equal(input.value,'CEPHE MONTAJI');assert.equal(new w.FormData(w.document.querySelector('form')).get('item'),'CEPHE MONTAJI');assert.equal(w.document.querySelector('input[type=password]').classList.contains('cp-i18n-masked'),false);
+ input.focus();assert.equal(overlay.hidden,true);input.value='SAC';input.dispatchEvent(new w.Event('input'));input.blur();assert.equal(overlay.textContent,'SHEET METAL');await I.setLanguage('de');assert.equal(overlay.textContent,'BLECH');await I.setLanguage('tr');assert.equal(overlay.hidden,true);assert.equal(input.value,'SAC');
+});
+test('long descriptions are translated in bounded batches without losing whitespace',async t=>{
+ const {dom,w,I,calls}=harness();t.after(()=>dom.window.close());await I.setLanguage('en');w.fetch=async(_,options)=>{const b=JSON.parse(options.body);calls.push(b);return{ok:true,json:async()=>({translations:b.texts.map(s=>s.trim().replaceAll('açıklama','description'))})};};
+ const source=('Saha açıklama metni. ').repeat(420);await I.ensure([source]);assert.equal(I.t(source),source.replaceAll('açıklama','description'));assert.ok(calls.every(b=>b.texts.length<=40&&b.texts.every(s=>s.length<=2400)&&b.texts.reduce((n,s)=>n+s.length,0)<=10000));
+});
+test('Excel headers, footers, validation prompts and chart series translate with control tokens intact',async t=>{
+ const {dom,w,I}=harness();t.after(()=>dom.window.close());await I.setLanguage('de');
+ const zip=new JSZip();zip.file('xl/worksheets/sheet1.xml','<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><headerFooter><oddHeader>&amp;L&amp;Bİş Kalemi&amp;B&amp;RSayfa &amp;P / &amp;N</oddHeader><oddFooter>&amp;CÇalışma Olmadı</oddFooter></headerFooter><dataValidations><dataValidation promptTitle="İş Kalemi" prompt="Açıklama" errorTitle="Kontrol" error="Eksik açıklaması" sqref="A1"/></dataValidations></worksheet>');zip.file('xl/charts/chart1.xml','<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:tx><c:v>İş Kalemi</c:v></c:tx></c:chart>');
+ const result=await JSZip.loadAsync(await I.office(await zip.generateAsync({type:'uint8array'})));const xml=await result.file('xl/worksheets/sheet1.xml').async('string');assert.match(xml,/&amp;L&amp;BLeistungsposition&amp;B&amp;RSeite &amp;P \/ &amp;N/);assert.match(xml,/prompt="Beschreibung"/);assert.match(xml,/&amp;CKeine Arbeiten/);assert.match(await result.file('xl/charts/chart1.xml').async('string'),/Leistungsposition/);
+});
+test('gateway setup failures distinguish card verification, credit, authentication and limits',async()=>{
+ for(const [status,type,code]of [[403,'customer_verification_required','VERIFICATION_REQUIRED'],[402,'insufficient_funds','CREDITS_REQUIRED'],[401,'unauthorized','AUTH_REQUIRED'],[429,'rate_limited','RATE_LIMIT']])await assert.rejects(translateBatch(['açıklama'],'en',{token:'synthetic',fetcher:async()=>({ok:false,status,json:async()=>({error:{type}})})}),new RegExp('TRANSLATION_'+code));
 });

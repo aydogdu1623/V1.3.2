@@ -27,7 +27,7 @@
   if(I.language()==='tr')return bytes;
   const language=I.language(),ctx=I.context();
   if(!root.JSZip)throw Error('Rapor çeviri bileşeni yüklenemedi.');
-  const zip=await root.JSZip.loadAsync(bytes),docs=new Map(),texts=new Set(),entries=[],formulaNodes=[],formulaAttrs=[],formatAttrs=[];
+  const zip=await root.JSZip.loadAsync(bytes),docs=new Map(),texts=new Set(),entries=[],formulaNodes=[],formulaAttrs=[],formatAttrs=[],headers=[];
   const add=(node,attr=null)=>{const text=attr?node.getAttribute(attr):node.textContent;if(!text)return;entries.push({node,attr,text});texts.add(text);};
   for(const [path,file] of Object.entries(zip.files)){
    if(file.dir||!path.endsWith('.xml')||!/^((xl|word)\/|docProps\/)/.test(path))continue;
@@ -38,7 +38,11 @@
     for(const node of all(doc,'pt'))if(node.parentElement?.localName==='strCache'||node.parentElement?.localName==='strLit')for(const n of [...node.children].filter(n=>n.localName==='v'))add(n);
     for(const name of ['f','formula','formula1','formula2','definedName','calculatedColumnFormula','totalsRowFormula'])for(const node of all(doc,name)){formulaNodes.push(node);for(const m of node.textContent.matchAll(/"((?:[^"]|"")*)"/g)){const text=m[1].replace(/""/g,'"');if(!/[!$]/.test(text))texts.add(text);}}
     for(const node of all(doc,'hyperlink'))if(node.hasAttribute('location'))formulaAttrs.push({node,attr:'location'});
-    for(const name of ['oddHeader','evenHeader','firstHeader','oddFooter','evenFooter','firstFooter'])for(const node of all(doc,name)){const source=node.textContent;node.textContent=source.replace(/SAYFA/g,I.t('SAYFA'));}
+    for(const name of ['oddHeader','evenHeader','firstHeader','oddFooter','evenFooter','firstFooter'])for(const node of all(doc,name)){
+     const parts=node.textContent.split(/(&(?:"[^"]*"|\d+|K[\dA-Fa-f]{6}|[A-Za-z&+\-]))/g);headers.push({node,parts});parts.forEach((part,i)=>{if(i%2===0)texts.add(part);});
+    }
+    for(const node of all(doc,'dataValidation'))for(const attr of ['promptTitle','prompt','errorTitle','error'])if(node.hasAttribute(attr))add(node,attr);
+    for(const node of all(doc,'tx'))for(const n of [...node.children].filter(n=>n.localName==='v'))add(n);
     for(const node of all(doc,'tableColumn'))add(node,'name');
     for(const node of all(doc,'sheet'))add(node,'name');
     for(const node of all(doc,'numFmt')){const format=node.getAttribute('formatCode');if(format){formatAttrs.push({node,format});for(const m of format.matchAll(/"([^"]*)"/g))texts.add(m[1]);}}
@@ -60,6 +64,7 @@
   for(const node of formulaNodes)node.textContent=formulaText(node.textContent,sheets,columns,I.t);
   for(const {node,attr} of formulaAttrs)node.setAttribute(attr,formulaText(node.getAttribute(attr),sheets,columns,I.t));
   for(const {node,format} of formatAttrs)node.setAttribute('formatCode',format.replace(/"([^"]*)"/g,(_,text)=>'"'+I.t(text).replace(/"/g,"'")+'"'));
+  for(const {node,parts} of headers)node.textContent=parts.map((part,i)=>i%2?part:I.t(part)).join('');
   for(const [path,doc] of docs)zip.file(path,serial(doc));
   return zip.generateAsync({type:'uint8array',compression:'DEFLATE'});
  }

@@ -3,3 +3,6 @@
 #cpLanguageStatus{font-size:11px;color:var(--muted);margin:0;flex:1;min-width:170px}#cpLanguageStatus[data-error=true]{color:#d77b62}
 #cpLanguageRetry{padding:5px 9px;font-size:11px}html:not([lang=tr]) .btn{white-space:normal;overflow-wrap:anywhere}
 html:not([lang=tr]) .settingsTab{white-space:normal}html:not([lang=tr]) .pt-tabs button{white-space:normal;min-width:80px}
+.cp-i18n-masked:not(:focus){color:transparent!important;-webkit-text-fill-color:transparent!important}
+.cp-i18n-value{position:absolute;display:block;box-sizing:border-box;border-style:solid;border-color:transparent;pointer-events:none;overflow:hidden;text-overflow:ellipsis;color:var(--text,#173d4c);z-index:1}
+.cp-i18n-value[hidden]{display:none}
