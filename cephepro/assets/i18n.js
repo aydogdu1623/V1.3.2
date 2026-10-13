@@ -7,7 +7,8 @@
  const templates=Object.entries(root.CepheProDictionary||{}).filter(([key])=>/\{\w+\}/.test(key)).map(([key,values])=>{const names=[];const parts=key.split(/(\{\w+\})/g);const pattern=parts.map(part=>{if(/^\{\w+\}$/.test(part)){names.push(part);return part==='{n}'?'([\\d.,%+/-]+)':'(.+?)';}return part.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('');return {pattern:new RegExp('^'+pattern+'$','u'),names,values};});
  const PREF='cephepro_language',SKIP='script,style,textarea,input,[contenteditable="true"],[translate="no"],[data-cp-no-translate],#cpLanguageStatus,.cp-i18n-value';
  let language='tr';try{const saved=localStorage.getItem(PREF);if(['tr','en','de'].includes(saved))language=saved;}catch{}
- let generation=0,controller=null,running=null,timer=null,paused=false;
+ let generation=0,running=null,timer=null,paused=false,reports=0;
+ const controllers=new Set(),inflight=new Map();
  const cache=new Map(),pending=new Set(),failed=new Set(),tracked=new Set(),sources=new WeakMap(),attributeSources=new WeakMap();
  const languageNames={tr:'Türkçe',en:'English',de:'Deutsch'};
  const token=()=>localStorage.getItem('cp_cloud_token')||localStorage.getItem('cp_remembered_cloud_token')||'';
@@ -66,43 +67,73 @@
   while((n=walker.nextNode())){if(n.nodeType===3)renderText(n);else renderAttributes(n);}
  }
  function refreshTracked(){for(const n of tracked){if(!n.isConnected){tracked.delete(n);continue;}n.nodeType===3?renderText(n):renderAttributes(n);}root.CepheProI18n?.refreshValues?.();}
- async function request(texts,lang,seq,ctx,attempt=0){
-  const response=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify({language:lang,texts}),signal:controller?.signal,cache:'no-store'});
-  const data=await response.json();
+ async function fetchBatch(texts,lang,seq,ctx,attempt=0){
+  const controller=new AbortController();controllers.add(controller);let timeout;
+  let response,data;
+  try{
+   ({response,data}=await Promise.race([
+    (async()=>{const response=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify({language:lang,texts}),signal:controller.signal,cache:'no-store'});let data;try{data=await response.json();}catch{throw Error('TRANSLATION_UNAVAILABLE');}return {response,data};})(),
+    new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(Error('TRANSLATION_TIMEOUT'));},30000);})
+   ]));
+  }finally{clearTimeout(timeout);controllers.delete(controller);}
   if(seq!==generation||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');
   if(!response.ok||!Array.isArray(data.translations)||data.translations.length!==texts.length){
-   if(attempt<2&&(response.status===429||data.code==='TRANSLATION_UNAVAILABLE')){await new Promise(r=>setTimeout(r,500*(attempt+1)));if(seq!==generation||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');return request(texts,lang,seq,ctx,attempt+1);}
+   if(attempt<1&&(response.status===429||data.code==='TRANSLATION_UNAVAILABLE')){await new Promise(r=>setTimeout(r,500));if(seq!==generation||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');return fetchBatch(texts,lang,seq,ctx,attempt+1);}
    throw Error(data.code||'TRANSLATION_UNAVAILABLE');
   }
-  texts.forEach((s,i)=>{if(typeof data.translations[i]!=='string'||!data.translations[i].trim())throw Error('TRANSLATION_INVALID_RESPONSE');const start=s.match(/^\s*/)[0],end=s.match(/\s*$/)[0];cache.set(lang+'|'+s,start+data.translations[i].trim()+end);});
+  if(data.translations.some(s=>typeof s!=='string'||!s.trim()))throw Error('TRANSLATION_INVALID_RESPONSE');
+  texts.forEach((s,i)=>{const start=s.match(/^\s*/)[0],end=s.match(/\s*$/)[0];cache.set(lang+'|'+s,start+data.translations[i].trim()+end);pending.delete(s);});
+ }
+ async function request(texts,lang,seq,ctx){
+  const missing=texts.filter(s=>local(s,lang)===undefined),fresh=missing.filter(s=>!inflight.has(lang+'|'+s));
+  let work;
+  if(fresh.length){work=fetchBatch(fresh,lang,seq,ctx);for(const s of fresh)inflight.set(lang+'|'+s,work);}
+  try{await Promise.all([...new Set(missing.map(s=>inflight.get(lang+'|'+s)))]);}
+  finally{if(work)for(const s of fresh)if(inflight.get(lang+'|'+s)===work)inflight.delete(lang+'|'+s);}
+  if(seq!==generation||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');
  }
  async function drain(){
-  if(running)return running;if(!pending.size||language==='tr'||!ready()||paused)return;
-  const seq=generation,lang=language,ctx=context();controller=new AbortController();status('Çeviriler hazırlanıyor…');
+  if(running)return running;if(!pending.size||language==='tr'||!ready()||paused||reports)return;
+  const seq=generation,lang=language,ctx=context();status('Çeviriler hazırlanıyor…');
   const work=(async()=>{try{
-   while(pending.size&&seq===generation){const batch=[];let count=0;for(const s of pending){if(batch.length>=40||count+s.length>9000&&batch.length)break;pending.delete(s);batch.push(s);count+=s.length;}
+   while(pending.size&&seq===generation&&!reports){const batch=[];let count=0;for(const s of pending){if(batch.length>=40||count+s.length>9000&&batch.length)break;pending.delete(s);if(local(s,lang)!==undefined)continue;batch.push(s);count+=s.length;}
     await request(batch,lang,seq,ctx);refreshTracked();await new Promise(r=>setTimeout(r,0));
-   }if(seq===generation)status('Çeviriler hazır.');
+   }if(seq===generation&&!pending.size)status('Çeviriler hazır.');
   }catch(e){if(seq===generation){for(const s of pending)failed.add(lang+'|'+s);pending.clear();paused=true;status(errorMessage(e.message),true);}throw e;}
   finally{if(seq===generation)running=null;}})();running=work;return work;
  }
- async function ensure(texts,{strict=true}={}){
+ async function ensure(texts,{strict=true,timeoutMs=120000}={}){
   if(language==='tr')return;
-  const lang=language,seq=generation;
+  const lang=language,seq=generation,ctx=context(),deadline=Date.now()+timeoutMs;
   const list=[...new Set(texts.filter(s=>typeof s==='string'&&translatable(s)))];
-  if(paused){paused=false;failed.clear();}
-  for(const s of list)enqueue(s);
-  // A report can enqueue strings while the final batch of a screen translation is resolving.
-  do{await drain();}while(pending.size&&!paused&&seq===generation);
-  if(seq!==generation||lang!==language)throw Error('Dil veya proje değişti. Raporu yeniden oluşturun.');
-  if(strict&&list.some(s=>local(s)===undefined))throw Error(t('Çeviri tamamlanamadı. Tekrar deneyin.'));
+  const missing=[...new Set(list.filter(s=>local(s,lang)===undefined).flatMap(fragments))].filter(s=>local(s,lang)===undefined);
+  if(!missing.length)return;
+  if(!ready())throw Error('TRANSLATION_PROJECT_REQUIRED');
+  reports++;let completed=0;
+  const progress=()=>document.dispatchEvent(new CustomEvent('cephepro:translation-progress',{detail:{completed,total:missing.length,language:lang}}));
+  try{
+   progress();
+   // Report strings have their own queue: unrelated screens must never delay a download.
+   while(completed<missing.length){
+    if(seq!==generation||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');
+    const batch=[];let count=0;
+    for(const s of missing.slice(completed)){if(batch.length>=40||count+s.length>9000&&batch.length)break;batch.push(s);count+=s.length;}
+    let timeout;
+    try{await Promise.race([request(batch,lang,seq,ctx),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('TRANSLATION_TIMEOUT')),Math.max(0,deadline-Date.now()));})]);}finally{clearTimeout(timeout);}
+    completed+=batch.length;progress();
+   }
+   if(seq!==generation||lang!==language||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');
+   if(strict&&list.some(s=>local(s,lang)===undefined))throw Error('TRANSLATION_INVALID_RESPONSE');
+   paused=false;failed.clear();refreshTracked();
+  }catch(error){if(seq===generation){paused=true;status(errorMessage(error.message),true);}throw error;}
+  finally{reports--;if(!reports&&!paused)drain().catch(()=>{});}
  }
  async function translateElement(el){
   if(language==='tr')return el;const texts=[],walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;
   while((n=walker.nextNode()))if(eligible(n))texts.push(sources.get(n)?.source??n.nodeValue);
   await ensure(texts);scan(el);return el;
  }
- function reset(){generation++;controller?.abort();running=null;clearTimeout(timer);timer=null;pending.clear();failed.clear();paused=false;cache.clear();}
+ function reset(){generation++;for(const controller of controllers)controller.abort();controllers.clear();inflight.clear();running=null;clearTimeout(timer);timer=null;pending.clear();failed.clear();paused=false;cache.clear();}
  async function setLanguage(value){
   if(!['tr','en','de'].includes(value))return;reset();language=value;try{localStorage.setItem(PREF,value);}catch{}
   document.documentElement.lang=value;document.documentElement.dataset.cpLanguage=value;
@@ -124,8 +155,9 @@
   scheduled=false;const start=performance.now();for(const n of roots){roots.delete(n);if(n.isConnected)scan(n);if(performance.now()-start>6)break;}if(roots.size)schedule(roots.values().next().value);
  });}
  const observer=new MutationObserver(records=>{for(const record of records){if(record.type==='characterData'){const s=sources.get(record.target);if(!s||record.target.nodeValue!==s.output)schedule(record.target);}else if(record.type==='attributes'){const s=attributeSources.get(record.target)?.[record.attributeName];if(!s||record.target.getAttribute(record.attributeName)!==s.output)schedule(record.target);}else for(const n of record.addedNodes)schedule(n);}});
- function errorMessage(code){return ({TRANSLATION_SETUP_REQUIRED:'Otomatik çeviri için Vercel AI Gateway kurulumu tamamlanmalı.',TRANSLATION_VERIFICATION_REQUIRED:'Vercel, ücretsiz otomatik çeviriyi açmak için hesap sahibinden kart doğrulaması istiyor.',TRANSLATION_CREDITS_REQUIRED:'Otomatik çeviri kredisi tükendi. Kayıtlarınız korunuyor.',TRANSLATION_AUTH_REQUIRED:'Çeviri servisi kimlik doğrulaması başarısız. Bağlantı ayarları kontrol edilmeli.',TRANSLATION_RATE_LIMIT:'Çeviri servisi yoğun. Kısa süre sonra tekrar deneyin.'})[code]||'Çeviri tamamlanamadı. Tekrar deneyin.';}
- root.CepheProI18n={t,ensure,translateElement,setLanguage,language:()=>language,locale:()=>({tr:'tr-TR',en:'en-GB',de:'de-DE'}[language]),context,scan,local,translatable,enqueue,errorMessage};
+ function errorMessage(code){return ({TRANSLATION_TIMEOUT:'Çeviri zaman aşımına uğradı. İndirme düğmesine yeniden basın.',TRANSLATION_CONTEXT_CHANGED:'Dil veya proje değişti. Raporu yeniden oluşturun.',TRANSLATION_PROJECT_REQUIRED:'Raporu indirmek için projeye yeniden giriş yapın.',SESSION_EXPIRED:'Oturum süresi doldu. Yeniden giriş yapın.',TRANSLATION_SETUP_REQUIRED:'Otomatik çeviri için Vercel AI Gateway kurulumu tamamlanmalı.',TRANSLATION_VERIFICATION_REQUIRED:'Vercel, ücretsiz otomatik çeviriyi açmak için hesap sahibinden kart doğrulaması istiyor.',TRANSLATION_CREDITS_REQUIRED:'Otomatik çeviri kredisi tükendi. Kayıtlarınız korunuyor.',TRANSLATION_AUTH_REQUIRED:'Çeviri servisi kimlik doğrulaması başarısız. Bağlantı ayarları kontrol edilmeli.',TRANSLATION_RATE_LIMIT:'Çeviri servisi yoğun. Kısa süre sonra tekrar deneyin.'})[code]||'Çeviri tamamlanamadı. Tekrar deneyin.';}
+ function downloadError(error){const code=String(error?.message||error||'');if(code.startsWith('TRANSLATION_')||code==='SESSION_EXPIRED'){const message=t(errorMessage(code));root.alert(message);return message;}return code;}
+ root.CepheProI18n={downloadError,t,ensure,translateElement,setLanguage,language:()=>language,locale:()=>({tr:'tr-TR',en:'en-GB',de:'de-DE'}[language]),context,scan,local,translatable,enqueue,errorMessage};
  document.addEventListener('cephepro:locked',()=>{reset();tracked.clear();});
  document.addEventListener('cephepro:state-updated',()=>{mount();schedule(document.body);});
  document.addEventListener('cephepro:user-ready',()=>{mount();schedule(document.body);});

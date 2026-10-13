@@ -6,20 +6,20 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=227.0">
-<script src="/assets/project-access.js?v=227.0"></script>
-<script src="/assets/session-privacy.js?v=227.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=228.0">
+<script src="/assets/project-access.js?v=228.0"></script>
+<script src="/assets/session-privacy.js?v=228.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/performance.js?v=227.0"></script>
-<meta name="cephepro-build" content="V227.0"/>
+<script src="/assets/performance.js?v=228.0"></script>
+<meta name="cephepro-build" content="V228.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V227";window.CEPHEPRO_BUILD="V227.0";</script>
+<script>window.CEPHEPRO_VERSION="V228";window.CEPHEPRO_BUILD="V228.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -30169,7 +30169,7 @@ body.v113-member .v113-role-note{display:block}
       if(!(blob instanceof Blob)||!blob.size)throw new Error('Word dosyası boş oluştu');
       saveBlob126(blob,`${cleanFile(v34ProjectInfo?.projectName)}_Ana_Firma_Raporu_${VERSION}.docx`);
       notice(`Word raporu ${VERSION} olarak indirildi.`);
-    }catch(error){console.error(error);notice(`Word raporu oluşturulamadı: ${String(error?.message||error||'bilinmeyen hata')}`)}
+    }catch(error){console.error(error);notice(`Word raporu oluşturulamadı: ${(window.CepheProI18n?.downloadError(error)||String(error?.message||error||'bilinmeyen hata'))}`)}
   }
   window.__v152BuildDocx=buildDocx146;
   async function exportPdf126(){
@@ -30192,7 +30192,7 @@ body.v113-member .v113-role-note{display:block}
         }
       }
       pdf.save(`${cleanFile(v34ProjectInfo?.projectName)}_Genel_Rapor_${VERSION}.pdf`);notice(`PDF raporu ${VERSION} olarak oluşturuldu.`);
-    }catch(error){console.error(error);notice('PDF raporu oluşturulamadı.')}finally{host.remove()}
+    }catch(error){console.error(error);notice('PDF raporu oluşturulamadı: '+(window.CepheProI18n?.downloadError(error)||error.message))}finally{host.remove()}
   }
   const excel126=typeof exportExcel==='function'?exportExcel:window.exportExcel;
   try{exportWord=exportWord126;exportPDF=exportPdf126}catch(_){}
@@ -30205,23 +30205,27 @@ body.v113-member .v113-role-note{display:block}
     saveBlob126(new Blob(['\ufeff',html],{type:'application/msword;charset=utf-8'}),`${cleanFile(v34ProjectInfo?.projectName)}_Ana_Firma_Raporu_${VERSION}.doc`);
   }
   const reportBusy157={excel:false,word:false,pdf:false};
+  function reportBusyState157(kind,busy){
+    reportBusy157[kind]=busy;const button=document.getElementById({excel:'settingsExcelBtn',word:'settingsWordBtn',pdf:'settingsPdfBtn'}[kind]);
+    if(button){button.disabled=busy;button.setAttribute('aria-busy',String(busy));}
+  }
   async function v154RunExcel(){
-    if(reportBusy157.excel)return;reportBusy157.excel=true;
+    if(reportBusy157.excel)return;reportBusyState157('excel',true);
     const action=window.__v152ExportExcel||excel126;
-    if(typeof action!=='function'){reportBusy157.excel=false;notice('Excel rapor işlevi hazır değil.');return}
+    if(typeof action!=='function'){reportBusyState157('excel',false);notice('Excel rapor işlevi hazır değil.');return}
     try{notice('Excel raporu hazırlanıyor…');await window.CepheProPerformance?.afterPaint();await action()}
-    catch(error){console.error(error);notice(`Excel raporu oluşturulamadı: ${String(error?.message||error||'bilinmeyen hata')}`)}
-    finally{reportBusy157.excel=false}
+    catch(error){console.error(error);notice(`Excel raporu oluşturulamadı: ${(window.CepheProI18n?.downloadError(error)||String(error?.message||error||'bilinmeyen hata'))}`)}
+    finally{reportBusyState157('excel',false)}
   }
   async function v154RunWord(){
-    if(reportBusy157.word||!reportReady126('Word'))return;reportBusy157.word=true;
+    if(reportBusy157.word||!reportReady126('Word'))return;reportBusyState157('word',true);
     try{notice('Word raporu hazırlanıyor…');await window.CepheProPerformance?.afterPaint();await exportWord126()}
-    catch(error){console.error(error);notice(`Word raporu oluşturulamadı: ${String(error?.message||error||'bilinmeyen hata')}`)}
-    finally{reportBusy157.word=false}
+    catch(error){console.error(error);notice(`Word raporu oluşturulamadı: ${(window.CepheProI18n?.downloadError(error)||String(error?.message||error||'bilinmeyen hata'))}`)}
+    finally{reportBusyState157('word',false)}
   }
   async function v154RunPdf(){
-    if(reportBusy157.pdf)return;reportBusy157.pdf=true;
-    try{notice('PDF raporu hazırlanıyor…');await window.CepheProPerformance?.afterPaint();await exportPdf126()}finally{reportBusy157.pdf=false}
+    if(reportBusy157.pdf)return;reportBusyState157('pdf',true);
+    try{notice('PDF raporu hazırlanıyor…');await window.CepheProPerformance?.afterPaint();await exportPdf126()}finally{reportBusyState157('pdf',false)}
   }
   window.__v154ReportActions={excel:v154RunExcel,word:v154RunWord,pdf:v154RunPdf};
 
@@ -30231,9 +30235,10 @@ body.v113-member .v113-role-note{display:block}
     const actions={settingsExcelBtn:v154RunExcel,settingsWordBtn:v154RunWord,settingsPdfBtn:v154RunPdf};
     Object.entries(actions).forEach(([id,action])=>{
       const old=document.getElementById(id);if(!old)return;
-      if(old.dataset.v154Bound==='1'){old.disabled=false;old.removeAttribute('disabled');return}
+      const kind=id==='settingsExcelBtn'?'excel':id==='settingsWordBtn'?'word':'pdf';
+      if(old.dataset.v154Bound==='1'){old.disabled=reportBusy157[kind];return}
       const button=old.cloneNode(true);
-      button.disabled=false;button.removeAttribute('disabled');button.dataset.v154Bound='1';
+      button.disabled=reportBusy157[kind];button.dataset.v154Bound='1';
       old.replaceWith(button);window[id]=button;
       button.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();void action()},true);
     });
@@ -30248,7 +30253,7 @@ body.v113-member .v113-role-note{display:block}
     const button=event.target?.closest?.('#settingsExcelBtn,#settingsWordBtn,#settingsPdfBtn');
     if(!button)return;
     event.preventDefault();event.stopImmediatePropagation();
-    button.disabled=false;button.removeAttribute('disabled');
+    if(button.disabled||button.getAttribute('aria-busy')==='true')return;
     const action=button.id==='settingsExcelBtn'?v154RunExcel:button.id==='settingsWordBtn'?v154RunWord:v154RunPdf;
     void action();
   },true);
@@ -31843,22 +31848,22 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=227.0"></script>
-<script src="/assets/firma-template-v208.js?v=227.0"></script>
-<script src="/assets/claims-v182.js?v=227.0"></script>
+<script src="/assets/claims-report-v191.js?v=228.0"></script>
+<script src="/assets/firma-template-v208.js?v=228.0"></script>
+<script src="/assets/claims-v182.js?v=228.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=227.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=228.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=227.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=228.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=227.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=228.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=227.0"></script>
+<script src="/assets/puantaj-model.js?v=228.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -31878,14 +31883,14 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=227.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=227.0">
-<script src="/assets/deficiencies.js?v=227.0"></script>
+<script src="/assets/puantaj.js?v=228.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=228.0">
+<script src="/assets/deficiencies.js?v=228.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
-<link rel="stylesheet" href="/assets/i18n.css?v=227.0">
-<script src="/assets/translations.js?v=227.0"></script>
-<script src="/assets/i18n.js?v=227.0"></script>
-<script src="/assets/i18n-fields.js?v=227.0"></script>
-<script src="/assets/i18n-reports.js?v=227.0"></script>
+<link rel="stylesheet" href="/assets/i18n.css?v=228.0">
+<script src="/assets/translations.js?v=228.0"></script>
+<script src="/assets/i18n.js?v=228.0"></script>
+<script src="/assets/i18n-fields.js?v=228.0"></script>
+<script src="/assets/i18n-reports.js?v=228.0"></script>

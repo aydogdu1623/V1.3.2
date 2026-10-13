@@ -717,7 +717,7 @@ async function excel(){
    download(archive,base+'_ve_Ekler.zip');
   }else download(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
   claimNotice(job.number+'. hakediş için Excel'+(extra.some(e=>e.file)?' ve ekleri':'')+' hazırlandı.');
- }catch(e){claimNotice('Excel oluşturulamadı: '+e.message);toast('Excel oluşturulamadı: '+e.message);}
+ }catch(e){const message=window.CepheProI18n?.downloadError(e)||e.message;claimNotice('Excel oluşturulamadı: '+message);toast('Excel oluşturulamadı: '+message);}
  finally{exporting=false;const b=$('cl-excel');if(b){b.disabled=deleting;b.textContent=label;b.removeAttribute('aria-busy');}}
 }
 async function open(showChoice=true){

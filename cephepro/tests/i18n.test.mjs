@@ -17,6 +17,32 @@ function harness(markup=''){
  return {dom,w,I:w.CepheProI18n,calls,project:value=>{project=value;}};
 }
 const delay=()=>new Promise(r=>setTimeout(r,60));
+test('downloads translate only their own strings while unrelated screen requests are blocked',async t=>{
+ const {dom,w,I}=harness();t.after(()=>dom.window.close());await I.setLanguage('en');
+ let finishScreen;const calls=[];
+ w.fetch=async(url,options)=>{const body=JSON.parse(options.body);calls.push(body.texts);if(body.texts.includes('Ekranın çok uzun özel açıklaması'))return new Promise(resolve=>{finishScreen=resolve;});return {ok:true,json:async()=>({translations:body.texts.map(()=> 'Report note translated')})};};
+ I.enqueue('Ekranın çok uzun özel açıklaması');await new Promise(r=>setTimeout(r,130));assert.ok(finishScreen);
+ await I.ensure(['İş Kalemi','Yağmur yağdı']);assert.equal(calls.length,1,'Dictionary-only reports never wait for the screen');
+ await I.ensure(['Rapora özgü yeni saha açıklaması']);assert.equal(I.t('Rapora özgü yeni saha açıklaması'),'Report note translated');assert.deepEqual(calls[1],['Rapora özgü yeni saha açıklaması']);
+ finishScreen({ok:false,json:async()=>({code:'TRANSLATION_VERIFICATION_REQUIRED'})});await delay();
+ await I.ensure(['Rapora özgü yeni saha açıklaması']);
+});
+test('concurrent report jobs share requests and timed-out jobs can be retried',async t=>{
+ const {dom,w,I}=harness();t.after(()=>dom.window.close());await I.setLanguage('en');let complete,calls=0;
+ w.fetch=()=>{calls++;return new Promise(resolve=>{complete=resolve;});};
+ const one=I.ensure(['Özgün rapor notu']),two=I.ensure(['Özgün rapor notu']);assert.equal(calls,1);
+ complete({ok:true,json:async()=>({translations:['Original report note']})});await Promise.all([one,two]);
+ const timed=I.ensure(['Sonraki rapor notu'],{timeoutMs:20});await assert.rejects(timed,/TRANSLATION_TIMEOUT/);
+ complete({ok:true,json:async()=>({translations:['Next report note']})});await delay();await I.ensure(['Sonraki rapor notu']);assert.equal(I.t('Sonraki rapor notu'),'Next report note');
+});
+test('report button prevents duplicate downloads, explains Gateway verification and recovers for retry',async t=>{
+ const {dom,w,I}=harness('<button id="settingsExcelBtn">Excel</button>');t.after(()=>dom.window.close());await I.setLanguage('en');const messages=[],alerts=[];w.notice=s=>messages.push(s);w.alert=s=>alerts.push(s);w.console.error=()=>{};
+ let finish,downloads=0;w.__v152ExportExcel=()=>new Promise((resolve,reject)=>{finish={resolve,reject};});
+ const html=read('index.html'),start=html.indexOf('  const reportBusy157='),end=html.indexOf('\n  // Rapor paneli her açılışta',start);w.eval(html.slice(start,end));
+ const button=w.document.getElementById('settingsExcelBtn'),action=w.__v154ReportActions.excel;
+ const pending=action();await delay();assert.equal(button.disabled,true);await action();finish.reject(Error('TRANSLATION_VERIFICATION_REQUIRED'));await pending;assert.equal(button.disabled,false);assert.equal(button.getAttribute('aria-busy'),'false');assert.match(alerts[0],/verify a card/i);
+ w.__v152ExportExcel=async()=>{await I.ensure(['İş Kalemi','Yağmur yağdı']);downloads++;};await action();assert.equal(downloads,1);assert.equal(button.disabled,false);
+});
 test('TR/EN/DE round trip preserves editable values, identifiers and numeric values',async t=>{
  const {dom,w,I}=harness('<button id="btn">Eksik Ekle</button><p id="note">Yağmur yağdı</p><p id="item">Ankraj Çakımı</p><p id="code">DYŞH_1000</p><input id="input" value="Yağmur yağdı" placeholder="Açıklama"><select id="side"><option>Kuzey</option></select>');t.after(()=>dom.window.close());
  await I.setLanguage('en');assert.equal(w.document.getElementById('note').textContent,'It rained');assert.equal(w.document.getElementById('item').textContent,'Anchor driving');assert.equal(w.document.getElementById('code').textContent,'DYŞH_1000');assert.equal(w.document.getElementById('input').value,'Yağmur yağdı');assert.equal(w.document.getElementById('input').placeholder,'Description');assert.equal(w.document.getElementById('side').value,'Kuzey');

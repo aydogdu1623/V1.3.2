@@ -1072,6 +1072,22 @@ window.CepheProDictionary={
   "en": "Original Turkish text is displayed.",
   "de": "Türkische Originaltexte werden angezeigt."
  },
+ "Çeviri zaman aşımına uğradı. İndirme düğmesine yeniden basın.": {
+  "en": "Translation timed out. Click the download button to try again.",
+  "de": "Zeitüberschreitung bei der Übersetzung. Klicken Sie erneut auf Herunterladen."
+ },
+ "Dil veya proje değişti. Raporu yeniden oluşturun.": {
+  "en": "The language or project changed. Generate the report again.",
+  "de": "Die Sprache oder das Projekt wurde geändert. Erstellen Sie den Bericht erneut."
+ },
+ "Raporu indirmek için projeye yeniden giriş yapın.": {
+  "en": "Sign in to the project again to download the report.",
+  "de": "Melden Sie sich erneut beim Projekt an, um den Bericht herunterzuladen."
+ },
+ "Oturum süresi doldu. Yeniden giriş yapın.": {
+  "en": "Your session expired. Sign in again.",
+  "de": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an."
+ },
  "Çeviri tamamlanamadı. Tekrar deneyin.": {
   "en": "Translation could not be completed. Try again.",
   "de": "Übersetzung nicht abgeschlossen. Bitte erneut versuchen."

@@ -65,3 +65,17 @@ test('Refresh opens the newest publisher record for both kinds and Excel uses it
  const old=JSON.stringify(w.__claims191.currentReport());h.fail();await w.document.getElementById('cl-refresh').onclick();assert.equal(JSON.stringify(w.__claims191.currentReport()),old);assert.equal(w.lastToast,'Bağlantı kesildi.');assert.equal(w.document.getElementById('cl-refresh').disabled,false);
  assert.ok(h.requests.filter(r=>r.url.includes('latest=1')).every(r=>r.opts.cache==='no-store'));
 });
+test('both English claim download buttons recover after Gateway failure and download translated Excel archives',async t=>{
+ const {w}=client(t);w.AbortController=AbortController;w.CepheProProjects={isReady:()=>true,project:()=>({id:'fixture'})};let available=false,downloaded;
+ const originalFetch=w.fetch;w.fetch=async(url,opts)=>{if(url!=='/api/translate')return originalFetch(url,opts);if(!available)return {ok:false,json:async()=>({code:'TRANSLATION_VERIFICATION_REQUIRED'})};const body=JSON.parse(opts.body);return {ok:true,json:async()=>({translations:body.texts.map(s=>'EN: '+s)})};};
+ class BrowserZip extends JSZip{};BrowserZip.loadAsync=input=>JSZip.loadAsync(ArrayBuffer.isView(input)?Buffer.from(input.buffer,input.byteOffset,input.byteLength):Object.prototype.toString.call(input)==='[object ArrayBuffer]'?Buffer.from(new Uint8Array(input)):input);w.JSZip=BrowserZip;
+ w.alert=()=>{};w.URL.createObjectURL=b=>{downloaded=b;return 'blob:fixture';};w.URL.revokeObjectURL=()=>{};w.HTMLAnchorElement.prototype.click=function(){w.downloadName=this.download;};
+ for(const file of ['assets/translations.js','assets/i18n.js','assets/i18n-reports.js'])w.eval(read(file).toString());await w.CepheProI18n.setLanguage('en');await w.__claims190.open();
+ for(const kind of ['firma','taseron']){
+  await w.document.getElementById('cl-'+kind).onclick();await w.document.getElementById('cl-refresh').onclick();downloaded=null;
+  available=false;await w.document.getElementById('cl-excel').onclick();assert.equal(downloaded,null);assert.equal(w.document.getElementById('cl-excel').disabled,false);assert.match(w.lastToast,/verify a card/);
+  available=true;await w.document.getElementById('cl-excel').onclick();assert.ok(downloaded?.size>0);assert.match(w.downloadName,/\.zip$/);assert.equal(w.document.getElementById('cl-excel').disabled,false);
+  const bytes=Buffer.from(await downloaded.arrayBuffer());
+  const archive=await JSZip.loadAsync(bytes),file=Object.values(archive.files).find(f=>f.name.endsWith('.xlsx'));assert.ok(file);const workbook=await JSZip.loadAsync(await file.async('uint8array'));const shared=(await Promise.all(Object.values(workbook.files).filter(f=>/^xl\/(?:sharedStrings|worksheets\/sheet\d+)\.xml$/.test(f.name)).map(f=>f.async('string')))).join('');assert.match(shared,/Work Item|Work item|WORK ITEM/);assert.doesNotMatch(shared,/>İş Kalemi</);
+ }
+});
