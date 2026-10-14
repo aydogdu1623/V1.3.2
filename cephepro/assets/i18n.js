@@ -5,7 +5,7 @@
  const dictionaries={en:new Map(),de:new Map()};
  for(const [source,values] of Object.entries(root.CepheProDictionary||{}))for(const lang of ['en','de'])dictionaries[lang].set(normalize(source),values[lang]);
  const templates=Object.entries(root.CepheProDictionary||{}).filter(([key])=>/\{\w+\}/.test(key)).map(([key,values])=>{const names=[];const parts=key.split(/(\{\w+\})/g);const pattern=parts.map(part=>{if(/^\{\w+\}$/.test(part)){names.push(part);return part==='{n}'?'([\\d.,%+/-]+)':'(.+?)';}return part.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('');return {pattern:new RegExp('^'+pattern+'$','u'),names,values};});
- const PREF='cephepro_language',SKIP='script,style,textarea,input,[contenteditable="true"],[translate="no"],[data-cp-no-translate],#cpLanguageStatus,.cp-i18n-value';
+ const PREF='cephepro_language',SKIP='script,style,textarea,input,[contenteditable="true"],[translate="no"],[data-cp-no-translate],#cpLanguageStatus,#cpLanguageRetry,.cp-i18n-value';
  let language='tr';try{const saved=localStorage.getItem(PREF);if(['tr','en','de'].includes(saved))language=saved;}catch{}
  let generation=0,running=null,timer=null,paused=false,reports=0;
  const controllers=new Set(),inflight=new Map();
@@ -22,7 +22,7 @@
   if(found){const core=s.trim(),upper=core===core.toLocaleUpperCase('tr-TR');return s.slice(0,s.indexOf(core))+(upper?found.toLocaleUpperCase(lang):found)+s.slice(s.indexOf(core)+core.length);}
   const saved=cache.get(lang+'|'+s);if(saved!==undefined)return saved;
   if(s.length>2400){const parts=fragments(s).map(part=>local(part,lang,depth+1));return parts.every(p=>p!==undefined)?parts.join(''):undefined;}
-  for(const template of templates){const match=s.trim().match(template.pattern);if(match){let text=template.values[lang];template.names.forEach((name,i)=>{const source=match[i+1];text=text.split(name).join(/\{(?:text|item|label|month)\}/.test(name)&&depth<3?(local(source,lang,depth+1)??source):source);});return text;}}
+  for(const template of templates){const match=s.trim().match(template.pattern);if(match){let text=template.values[lang],complete=true;template.names.forEach((name,i)=>{const source=match[i+1],value=/\{(?:text|item|label|month|reason|action|facade|unit)\}/.test(name)?(depth<5?local(source,lang,depth+1):undefined):source;if(value===undefined)complete=false;text=text.split(name).join(value??source);});if(complete)return s.match(/^\s*/)[0]+text+s.match(/\s*$/)[0];}}
   // Keep button icons outside the translation unit.
   const m=s.match(/^([^\p{L}\p{N}]*)([\s\S]+?)([\s:▾▼⌄…]*$)/u);
   if(m&&m[2]!==s){const word=dictionaries[lang].get(normalize(m[2]));if(word)return m[1]+word+m[3];}
@@ -36,10 +36,11 @@
    const parts=s.split(/(\s+[·/—–]\s+|\s*:\s*|\n)/u);
    if(parts.length>1){let changed=false,complete=true;const translated=parts.map((p,i)=>{if(i%2)return p;const v=local(p,lang,depth+1);if(v===undefined){complete=false;return p;}changed||=v!==p;return v;});if(complete&&changed)return translated.join('');}
   }
+  if(depth<5){const sentences=s.split(/(?<=[.!?])(?=\s+[\p{Lu}“])/u);if(sentences.length>1){const translated=sentences.map(sentence=>local(sentence,lang,depth+1));if(translated.every(value=>value!==undefined))return translated.join('');}}
   return undefined;
  }
  function t(s,lang=language){if(typeof s!=='string')return s;return local(s,lang)??s;}
- function status(text,error=false){const el=document.getElementById('cpLanguageStatus');if(el){el.textContent=t(text);el.dataset.error=String(error);}const retry=document.getElementById('cpLanguageRetry');if(retry)retry.hidden=!error;}
+ function status(text,error=false){const el=document.getElementById('cpLanguageStatus');if(el){el.textContent=t(text);el.dataset.error=String(error);}const retry=document.getElementById('cpLanguageRetry');if(retry){retry.hidden=language==='tr';retry.textContent=t(error?'Ücretsiz çeviriyi başlat':'Çeviriyi yenile');}}
  function enqueue(s){if(language==='tr'||!translatable(s)||local(s)!==undefined||failed.has(language+'|'+s)||!ready()||paused)return;for(const part of fragments(s))if(local(part)===undefined)pending.add(part);if(!timer&&!running)timer=setTimeout(()=>{timer=null;drain().catch(()=>{});},100);}
  function eligible(node){return node.nodeType===3&&node.parentElement&&!node.parentElement.closest(SKIP);}
  function renderText(node){
@@ -67,22 +68,18 @@
   while((n=walker.nextNode())){if(n.nodeType===3)renderText(n);else renderAttributes(n);}
  }
  function refreshTracked(){for(const n of tracked){if(!n.isConnected){tracked.delete(n);continue;}n.nodeType===3?renderText(n):renderAttributes(n);}root.CepheProI18n?.refreshValues?.();}
- async function fetchBatch(texts,lang,seq,ctx,attempt=0){
-  const controller=new AbortController();controllers.add(controller);let timeout;
-  let response,data;
+ async function fetchBatch(texts,lang,seq,ctx){
+  const controller=new AbortController();controllers.add(controller);let timeout,translations;
   try{
-   ({response,data}=await Promise.race([
-    (async()=>{const response=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify({language:lang,texts}),signal:controller.signal,cache:'no-store'});let data;try{data=await response.json();}catch{throw Error('TRANSLATION_UNAVAILABLE');}return {response,data};})(),
+   if(!root.CepheProLocalTranslation)throw Error('TRANSLATION_BROWSER_UNSUPPORTED');
+   translations=await Promise.race([
+    root.CepheProLocalTranslation.translate(texts,lang,{signal:controller.signal}),
     new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(Error('TRANSLATION_TIMEOUT'));},30000);})
-   ]));
+   ]);
   }finally{clearTimeout(timeout);controllers.delete(controller);}
   if(seq!==generation||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');
-  if(!response.ok||!Array.isArray(data.translations)||data.translations.length!==texts.length){
-   if(attempt<1&&(response.status===429||data.code==='TRANSLATION_UNAVAILABLE')){await new Promise(r=>setTimeout(r,500));if(seq!==generation||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');return fetchBatch(texts,lang,seq,ctx,attempt+1);}
-   throw Error(data.code||'TRANSLATION_UNAVAILABLE');
-  }
-  if(data.translations.some(s=>typeof s!=='string'||!s.trim()))throw Error('TRANSLATION_INVALID_RESPONSE');
-  texts.forEach((s,i)=>{const start=s.match(/^\s*/)[0],end=s.match(/\s*$/)[0];cache.set(lang+'|'+s,start+data.translations[i].trim()+end);pending.delete(s);});
+  if(!Array.isArray(translations)||translations.length!==texts.length||translations.some(s=>typeof s!=='string'||!s.trim()))throw Error('TRANSLATION_INVALID_RESPONSE');
+  texts.forEach((s,i)=>{const start=s.match(/^\s*/)[0],end=s.match(/\s*$/)[0];cache.set(lang+'|'+s,start+translations[i].trim()+end);pending.delete(s);});
  }
  async function request(texts,lang,seq,ctx){
   const missing=texts.filter(s=>local(s,lang)===undefined),fresh=missing.filter(s=>!inflight.has(lang+'|'+s));
@@ -128,26 +125,41 @@
   }catch(error){if(seq===generation){paused=true;status(errorMessage(error.message),true);}throw error;}
   finally{reports--;if(!reports&&!paused)drain().catch(()=>{});}
  }
+ function reportWarning(){
+  let box=document.getElementById('cpReportTranslationWarning');
+  if(!box){box=document.createElement('div');box.id='cpReportTranslationWarning';box.setAttribute('role','status');box.setAttribute('translate','no');}
+  const host=[...document.querySelectorAll('dialog[open]')].at(-1)||document.body;if(box.parentElement!==host)host.appendChild(box);
+  box.replaceChildren();const text=document.createElement('span');text.textContent=t('Dosya indirilebilir. Bazı özel açıklamalar özgün dilinde kaldı. Tam çeviri için Ayarlar > Genel bölümünden ücretsiz çeviriyi başlatın.');
+  const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label',t('Kapat'));close.onclick=()=>box.remove();box.append(text,close);
+ }
+ async function ensureReport(texts){
+  const lang=language,ctx=context();let failure;
+  try{await ensure(texts,{timeoutMs:15000});}catch(e){failure=e;}
+  if(language!==lang||context()!==ctx||failure?.message==='TRANSLATION_CONTEXT_CHANGED'||failure?.message==='TRANSLATION_PROJECT_REQUIRED')throw Error('TRANSLATION_CONTEXT_CHANGED');
+  const complete=texts.every(s=>typeof s!=='string'||local(s,lang)!==undefined);
+  if(!complete)reportWarning();return {complete};
+ }
  async function translateElement(el){
   if(language==='tr')return el;const texts=[],walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;
   while((n=walker.nextNode()))if(eligible(n))texts.push(sources.get(n)?.source??n.nodeValue);
-  await ensure(texts);scan(el);return el;
+  await ensureReport(texts);scan(el);return el;
  }
  function reset(){generation++;for(const controller of controllers)controller.abort();controllers.clear();inflight.clear();running=null;clearTimeout(timer);timer=null;pending.clear();failed.clear();paused=false;cache.clear();}
  async function setLanguage(value){
   if(!['tr','en','de'].includes(value))return;reset();language=value;try{localStorage.setItem(PREF,value);}catch{}
   document.documentElement.lang=value;document.documentElement.dataset.cpLanguage=value;
   const select=document.getElementById('cpLanguageSelect');if(select)select.value=value;
+  if(value!=='tr')root.CepheProLocalTranslation?.prepare(value,{interactive:true}).catch(()=>{});
   refreshTracked();scan(document.body);status(value==='tr'?'Türkçe özgün metinler gösteriliyor.':'Çeviriler hazırlanıyor…');
   document.dispatchEvent(new CustomEvent('cephepro:language-changed',{detail:{language:value}}));
-  try{await drain();if(!paused&&value!=='tr')status('Çeviriler hazır.');}catch{}return value;
+  try{await drain();if(!paused&&value!=='tr')status('Hazır metinler çevrildi. Özel açıklamalar için ücretsiz çeviriyi başlatabilirsiniz.');}catch{}return value;
  }
  function mount(){
   const general=document.getElementById('settingsGeneral');if(general&&!document.getElementById('cpLanguageSelect')){
    const box=document.createElement('div');box.className='report-preview cp-language-settings';
    box.innerHTML='<label for="cpLanguageSelect">Site ve rapor dili</label><select id="cpLanguageSelect" translate="no"><option value="tr">Türkçe</option><option value="en">English</option><option value="de">Deutsch</option></select><p id="cpLanguageStatus" role="status" aria-live="polite"></p><button id="cpLanguageRetry" type="button" hidden>Tekrar Dene</button>';
    general.prepend(box);box.querySelector('select').value=language;box.querySelector('select').onchange=e=>setLanguage(e.target.value);
-   box.querySelector('button').onclick=()=>{paused=false;failed.clear();refreshTracked();drain().catch(()=>{});};
+   box.querySelector('button').onclick=async()=>{try{await root.CepheProLocalTranslation?.prepare(language,{interactive:true});paused=false;failed.clear();refreshTracked();scan(document.body);await drain();}catch(e){status(errorMessage(e.message),true);}};
   }
  }
  const roots=new Set();let scheduled=false;
@@ -155,9 +167,11 @@
   scheduled=false;const start=performance.now();for(const n of roots){roots.delete(n);if(n.isConnected)scan(n);if(performance.now()-start>6)break;}if(roots.size)schedule(roots.values().next().value);
  });}
  const observer=new MutationObserver(records=>{for(const record of records){if(record.type==='characterData'){const s=sources.get(record.target);if(!s||record.target.nodeValue!==s.output)schedule(record.target);}else if(record.type==='attributes'){const s=attributeSources.get(record.target)?.[record.attributeName];if(!s||record.target.getAttribute(record.attributeName)!==s.output)schedule(record.target);}else for(const n of record.addedNodes)schedule(n);}});
- function errorMessage(code){return ({TRANSLATION_TIMEOUT:'Çeviri zaman aşımına uğradı. İndirme düğmesine yeniden basın.',TRANSLATION_CONTEXT_CHANGED:'Dil veya proje değişti. Raporu yeniden oluşturun.',TRANSLATION_PROJECT_REQUIRED:'Raporu indirmek için projeye yeniden giriş yapın.',SESSION_EXPIRED:'Oturum süresi doldu. Yeniden giriş yapın.',TRANSLATION_SETUP_REQUIRED:'Otomatik çeviri için Vercel AI Gateway kurulumu tamamlanmalı.',TRANSLATION_VERIFICATION_REQUIRED:'Vercel, ücretsiz otomatik çeviriyi açmak için hesap sahibinden kart doğrulaması istiyor.',TRANSLATION_CREDITS_REQUIRED:'Otomatik çeviri kredisi tükendi. Kayıtlarınız korunuyor.',TRANSLATION_AUTH_REQUIRED:'Çeviri servisi kimlik doğrulaması başarısız. Bağlantı ayarları kontrol edilmeli.',TRANSLATION_RATE_LIMIT:'Çeviri servisi yoğun. Kısa süre sonra tekrar deneyin.'})[code]||'Çeviri tamamlanamadı. Tekrar deneyin.';}
+ function errorMessage(code){return ({TRANSLATION_BROWSER_UNSUPPORTED:'Bu tarayıcı ücretsiz otomatik çeviriyi desteklemiyor. Masaüstü Chrome kullanın. Raporları yine indirebilirsiniz.',TRANSLATION_DOWNLOAD_REQUIRED:'Özel açıklamaları çevirmek için Ücretsiz çeviriyi başlat düğmesine basın. İlk kullanımda dil paketi indirilir.',TRANSLATION_LOCAL_UNAVAILABLE:'Ücretsiz dil paketi kullanılamıyor. Raporları hazır çevirilerle indirebilirsiniz.',TRANSLATION_TIMEOUT:'Çeviri zaman aşımına uğradı. İndirme düğmesine yeniden basın.',TRANSLATION_CONTEXT_CHANGED:'Dil veya proje değişti. Raporu yeniden oluşturun.',TRANSLATION_PROJECT_REQUIRED:'Raporu indirmek için projeye yeniden giriş yapın.',SESSION_EXPIRED:'Oturum süresi doldu. Yeniden giriş yapın.',TRANSLATION_SETUP_REQUIRED:'Otomatik çeviri için Vercel AI Gateway kurulumu tamamlanmalı.',TRANSLATION_VERIFICATION_REQUIRED:'Vercel, ücretsiz otomatik çeviriyi açmak için hesap sahibinden kart doğrulaması istiyor.',TRANSLATION_CREDITS_REQUIRED:'Otomatik çeviri kredisi tükendi. Kayıtlarınız korunuyor.',TRANSLATION_AUTH_REQUIRED:'Çeviri servisi kimlik doğrulaması başarısız. Bağlantı ayarları kontrol edilmeli.',TRANSLATION_RATE_LIMIT:'Çeviri servisi yoğun. Kısa süre sonra tekrar deneyin.'})[code]||'Çeviri tamamlanamadı. Tekrar deneyin.';}
  function downloadError(error){const code=String(error?.message||error||'');if(code.startsWith('TRANSLATION_')||code==='SESSION_EXPIRED'){const message=t(errorMessage(code));root.alert(message);return message;}return code;}
- root.CepheProI18n={downloadError,t,ensure,translateElement,setLanguage,language:()=>language,locale:()=>({tr:'tr-TR',en:'en-GB',de:'de-DE'}[language]),context,scan,local,translatable,enqueue,errorMessage};
+ root.CepheProI18n={prepareDownload:()=>{if(language!=='tr')root.CepheProLocalTranslation?.prepare(language,{interactive:true}).catch(()=>{});},downloadError,t,ensure,ensureReport,translateElement,setLanguage,language:()=>language,locale:()=>({tr:'tr-TR',en:'en-GB',de:'de-DE'}[language]),context,scan,local,translatable,enqueue,errorMessage};
+ document.addEventListener('cephepro:local-translation',e=>{if(e.detail.language!==language)return;if(e.detail.state==='loading')status(t('Ücretsiz dil paketi hazırlanıyor…')+(e.detail.progress===undefined?'':' '+e.detail.progress+'%'));if(e.detail.state==='ready'){paused=false;failed.clear();refreshTracked();drain().catch(()=>{});}});
+ document.addEventListener('click',e=>{if(language!=='tr'&&e.target?.closest?.('#settingsExcelBtn,#settingsWordBtn,#settingsPdfBtn,#cl-excel,#v40DetailBtn'))root.CepheProLocalTranslation?.prepare(language,{interactive:true}).catch(()=>{});},true);
  document.addEventListener('cephepro:locked',()=>{reset();tracked.clear();});
  document.addEventListener('cephepro:state-updated',()=>{mount();schedule(document.body);});
  document.addEventListener('cephepro:user-ready',()=>{mount();schedule(document.body);});

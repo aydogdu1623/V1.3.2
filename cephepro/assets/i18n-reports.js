@@ -50,7 +50,7 @@
    if(path.startsWith('docProps/'))for(const name of ['title','subject','description'])for(const node of all(doc,name))add(node);
    if(path.startsWith('word/'))for(const node of all(doc,'lang'))node.setAttributeNS(node.namespaceURI,'w:val',language==='de'?'de-DE':'en-GB');
   }
-  await I.ensure([...texts]);
+  await I.ensureReport([...texts]);
   if(I.language()!==language||I.context()!==ctx)throw Error('Dil veya proje değişti. Raporu yeniden oluşturun.');
   const sheets=new Map(),columns=new Map(),used=new Set();
   for(const entry of entries){
@@ -73,7 +73,7 @@
   if(I.language()==='tr')return;
   const texts=['Genel ve Blok İlerleme - Toplam Metraj','İş Kalemi İlerleme Durumu - Tüm Metraja Göre','Cephe İlerleme Durumu','İş Kalemleri','Toplam','Kümülatif','İlerleme %','GENEL'];
   if(typeof DATA!=='undefined')for(const [b,fs] of Object.entries(DATA||{})){texts.push(b,typeof v33BlockLabel==='function'?v33BlockLabel(b):b);for(const [f,d] of Object.entries(fs||{})){texts.push(f,`${typeof v33BlockLabel==='function'?v33BlockLabel(b):b} / ${f}`,`${typeof v33BlockLabel==='function'?v33BlockLabel(b):b} / ${f} - İş Kalemleri`);for(const r of d.items||[])texts.push(r[0]);}}
-  await I.ensure(texts);
+  await I.ensureReport(texts);
  }
  // Only report drawing is localized. UI editors retain their original editable text.
  const proto=root.CanvasRenderingContext2D?.prototype;

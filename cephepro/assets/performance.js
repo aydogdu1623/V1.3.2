@@ -24,7 +24,7 @@
  function cancel(){if(worker)worker.terminate();worker=null;for(const job of jobs.values()){clearTimeout(job.timer);job.reject(Error('İşlem iptal edildi; proje veya oturum değişti.'));}jobs.clear();}
  function run(task,payload,fallback){
   if(typeof root.Worker!=='function')return Promise.resolve().then(fallback);
-  if(!worker){try{worker=new Worker('/assets/background-worker.js?v=228.0');}catch(_){return Promise.resolve().then(fallback);}
+  if(!worker){try{worker=new Worker('/assets/background-worker.js?v=229.0');}catch(_){return Promise.resolve().then(fallback);}
    worker.onmessage=event=>{const {id,result,error}=event.data||{},job=jobs.get(id);if(!job)return;jobs.delete(id);clearTimeout(job.timer);error?job.reject(Error(error)):job.resolve(result);};
    worker.onerror=()=>{worker?.terminate();worker=null;const failed=[...jobs.values()];jobs.clear();for(const job of failed){clearTimeout(job.timer);Promise.resolve().then(job.fallback).then(job.resolve,job.reject);}};
   }

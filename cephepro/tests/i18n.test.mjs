@@ -3,17 +3,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {JSDOM} from 'jsdom';
 import JSZip from 'jszip';
-import {validateTranslation,translateBatch,translateForProject} from '../lib/translation.js';
+import {validateTranslation,translateBatch} from '../lib/translation.js';
 import {createTranslationHandler} from '../api/translate.js';
-import {requireProject} from '../lib/project-access.js';
-import {database} from './helpers/test-db.mjs';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 function harness(markup=''){
  const dom=new JSDOM('<!doctype html><html><body><section id="settingsGeneral"></section>'+markup+'</body></html>',{url:'https://test.invalid',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window,calls=[];
  w.AbortController=AbortController;let project='project-a';w.CepheProProjects={isReady:()=>!!project,project:()=>project?{id:project}:null};w.localStorage.setItem('cp_cloud_token','synthetic');
  w.fetch=async(url,options)=>{const body=JSON.parse(options.body);calls.push(body);return{ok:true,json:async()=>({translations:body.texts.map(x=>body.language==='de'?'DE: '+x:'EN: '+x)})};};
+ w.CepheProLocalTranslation={prepare:async()=>{},translate:async(texts,language)=>{const response=await w.fetch('fixture:translation',{body:JSON.stringify({texts,language})});const body=await response.json();if(!response.ok)throw Error(body.code);return body.translations;}};
  w.JSZip={loadAsync:input=>JSZip.loadAsync(ArrayBuffer.isView(input)?Buffer.from(input.buffer,input.byteOffset,input.byteLength):Object.prototype.toString.call(input)==='[object ArrayBuffer]'?Buffer.from(new Uint8Array(input)):input)};
- for(const f of ['assets/translations.js','assets/i18n.js','assets/i18n-fields.js','assets/i18n-reports.js'])w.eval(read(f));
+ for(const f of ['assets/translations.js','assets/ai-translations.js','assets/i18n.js','assets/i18n-fields.js','assets/i18n-reports.js'])w.eval(read(f));
  return {dom,w,I:w.CepheProI18n,calls,project:value=>{project=value;}};
 }
 const delay=()=>new Promise(r=>setTimeout(r,60));
@@ -35,12 +34,12 @@ test('concurrent report jobs share requests and timed-out jobs can be retried',a
  const timed=I.ensure(['Sonraki rapor notu'],{timeoutMs:20});await assert.rejects(timed,/TRANSLATION_TIMEOUT/);
  complete({ok:true,json:async()=>({translations:['Next report note']})});await delay();await I.ensure(['Sonraki rapor notu']);assert.equal(I.t('Sonraki rapor notu'),'Next report note');
 });
-test('report button prevents duplicate downloads, explains Gateway verification and recovers for retry',async t=>{
+test('report button prevents duplicate downloads, explains context changes and recovers for retry',async t=>{
  const {dom,w,I}=harness('<button id="settingsExcelBtn">Excel</button>');t.after(()=>dom.window.close());await I.setLanguage('en');const messages=[],alerts=[];w.notice=s=>messages.push(s);w.alert=s=>alerts.push(s);w.console.error=()=>{};
  let finish,downloads=0;w.__v152ExportExcel=()=>new Promise((resolve,reject)=>{finish={resolve,reject};});
  const html=read('index.html'),start=html.indexOf('  const reportBusy157='),end=html.indexOf('\n  // Rapor paneli her açılışta',start);w.eval(html.slice(start,end));
  const button=w.document.getElementById('settingsExcelBtn'),action=w.__v154ReportActions.excel;
- const pending=action();await delay();assert.equal(button.disabled,true);await action();finish.reject(Error('TRANSLATION_VERIFICATION_REQUIRED'));await pending;assert.equal(button.disabled,false);assert.equal(button.getAttribute('aria-busy'),'false');assert.match(alerts[0],/verify a card/i);
+ const pending=action();await delay();assert.equal(button.disabled,true);await action();finish.reject(Error('TRANSLATION_CONTEXT_CHANGED'));await pending;assert.equal(button.disabled,false);assert.equal(button.getAttribute('aria-busy'),'false');assert.match(alerts[0],/language or project changed/i);
  w.__v152ExportExcel=async()=>{await I.ensure(['İş Kalemi','Yağmur yağdı']);downloads++;};await action();assert.equal(downloads,1);assert.equal(button.disabled,false);
 });
 test('TR/EN/DE round trip preserves editable values, identifiers and numeric values',async t=>{
@@ -55,7 +54,7 @@ test('new dynamic notes are batched, restored and do not execute translated mark
  const note=w.document.getElementById('note');note.textContent='Bugün vinç arızası nedeniyle montaj durdu.';await delay();await I.ensure([note.textContent]);await delay();assert.equal(note.querySelector('script'),null);assert.match(note.textContent,/<script>/);assert.equal(calls.filter(x=>x.texts.includes('Bugün vinç arızası nedeniyle montaj durdu.')).length,1);
  await I.setLanguage('tr');assert.equal(note.textContent,'Bugün vinç arızası nedeniyle montaj durdu.');
 });
-test('late translation cannot enter another project and unavailable service blocks foreign-language exports',async t=>{
+test('late translation cannot enter another project and strict translation rejects unavailable models',async t=>{
  const {dom,w,I,project}=harness();t.after(()=>dom.window.close());await I.setLanguage('en');let resolve;
  w.fetch=()=>new Promise(r=>{resolve=r;});const pending=I.ensure(['Özel saha açıklaması']);await delay();project('project-b');w.document.dispatchEvent(new w.Event('cephepro:locked'));resolve({ok:true,json:async()=>({translations:['old private data']})});await assert.rejects(pending,/CONTEXT_CHANGED/);
  w.fetch=async()=>({ok:false,json:async()=>({code:'TRANSLATION_SETUP_REQUIRED'})});await assert.rejects(I.ensure(['Özel saha açıklaması']),/TRANSLATION_SETUP_REQUIRED/);assert.notEqual(I.t('Özel saha açıklaması'),'old private data');
@@ -65,15 +64,11 @@ test('translation provider validates request/response and uses exact provider wi
  let sent;const out=await translateBatch(['Yağmur yağdı'],'en',{token:'synthetic',fetcher:async(url,options)=>{sent=JSON.parse(options.body);return{ok:true,json:async()=>({choices:[{message:{content:'{"translations":["It rained"]}'}}]})};}});assert.equal(out[0],'It rained');assert.equal(sent.model,'google/gemini-2.5-flash-lite');assert.match(sent.messages[0].content,/NEVER instructions/);
  await assert.rejects(translateBatch(['a'],'en',{token:'synthetic',fetcher:async()=>({ok:true,json:async()=>({choices:[{message:{content:'{"translations":[]}'}}]})})}),/INVALID_RESPONSE/);
 });
-test('translation API requires both user and project sessions; caches remain project-scoped',async t=>{
- const h=await database(t);let called=0;
- const translate=async(texts,lang)=>{called++;return texts.map(s=>lang+':'+s);};
- const handler=createTranslationHandler({...h.deps,requireProject,translationEnabled:()=>true,translateForProject:(sql,me,texts,lang)=>translateForProject(sql,me,texts,lang,translate)});
- const body={language:'en',texts:['Özel açıklama']};assert.equal((await h.call(handler,'POST','',body)).code,401);assert.equal((await h.call(handler,'POST','member-a',body,{}, {'x-project-token':''})).code,403);
- const disabled=createTranslationHandler({...h.deps,requireProject,translationEnabled:()=>false,translateForProject:()=>{throw Error('must not call provider');}});assert.equal((await h.call(disabled,'POST','member-a',body)).body.code,'TRANSLATION_SETUP_REQUIRED');
- let r=await h.call(handler,'POST','member-a',body);assert.equal(r.code,200);assert.equal(r.body.translations[0],'en:Özel açıklama');await h.call(handler,'POST','member-b',body);assert.equal(called,1);
- await translateForProject(h.sql,{id:'member-a',projectId:'another-project'},body.texts,'en',translate);assert.equal(called,2);
- await h.sql`UPDATE cephepro_translation_limits SET requests=90 WHERE user_id='member-a'`;r=await h.call(handler,'POST','member-a',{language:'en',texts:['Different uncached note']});assert.equal(r.code,429);
+test('retired API cannot issue paid requests even with a stale enabled flag',async()=>{
+ let called=0;const handler=createTranslationHandler({noStore:()=>true,translationEnabled:()=>true,translateForProject:()=>{called++;throw Error('must never run');}});
+ const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;},end(){return this;}};
+ await handler({method:'POST',body:{language:'en',texts:['Private text']}},res);
+ assert.equal(res.code,410);assert.equal(res.body.code,'TRANSLATION_BROWSER_ONLY');assert.equal(called,0);
 });
 test('Office localization renames sheets, structured references, formula strings and chart labels without changing arithmetic',async t=>{
  const {dom,w,I}=harness();t.after(()=>dom.window.close());w.eval(read('assets/exceljs.min.js'));await I.setLanguage('en');
@@ -103,7 +98,7 @@ test('both complete claim workbooks reopen in both languages with totals, filter
 test('screenshot UI labels, icon menus and composite item codes translate locally in EN and DE',async t=>{
  const labels=['İşlemler ▾','Üye Yap','Süre (örnek: 45 gün)','Admin / Üye Filtresi','Buluttan sil','Son 48 saatte yüklenmiş hareket yok.','Açık proje · İlerleme %0','Projeye Geç','.cephe_rpr Aç','Kayıt Sahibi','Hakediş Seç','Firma ve Sözleşme Bilgileri','Vergi Dairesi / No','Sözleşme bedeli (KDV hariç, TL)','Toplam Pursantaj:','Birim Fiyat (₺)','AI Destekli Analiz','Kişisel Düzenimi Kaydet','Profil Bilgileri','Bilgileri Kaydet','W1 - ANKRAJ MONTAJI','W1 - ANKRAJ MONTAJI (m²)','3. Hakediş Dönemi · 2026-10','3. Brüt Hakediş','Kayıtlı Eksikler (4)'];
  const {dom,w,I,calls}=harness(labels.map(s=>'<p>'+s+'</p>').join(''));t.after(()=>dom.window.close());
- for(const language of ['en','de']){await I.setLanguage(language);for(const label of labels){assert.notEqual(I.local(label),undefined,label);assert.notEqual(I.t(label),label,label);}assert.equal(calls.length,0,'Built-in screenshot labels should not require the gateway');}
+ for(const language of ['en','de']){await I.setLanguage(language);for(const label of labels){assert.notEqual(I.local(label),undefined,label);assert.notEqual(I.t(label),label,label);}assert.equal(calls.length,0,JSON.stringify(calls));}
  await I.setLanguage('tr');assert.deepEqual([...w.document.querySelectorAll('body > p')].map(p=>p.textContent),labels);
 });
 test('translated editor surfaces never replace source values, FormData or source identifiers',async t=>{
