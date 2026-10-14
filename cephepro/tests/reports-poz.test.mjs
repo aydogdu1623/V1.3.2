@@ -23,7 +23,7 @@ function harness(){
  w.eval(html.slice(start,end)+'window.testExport=exportExcelV126;})();');
  const docStart=html.indexOf('>',html.indexOf('<script id="v126FinalReportAndUserScript"'))+1;
  const docEnd=html.indexOf('  const excel126=',docStart);
- w.eval(html.slice(docStart,docEnd)+'window.testDocx=buildDocx146;window.testHtml=reportHtml126;})();');
+ w.eval(html.slice(docStart,docEnd)+'window.testDocx=buildDocx146;window.testHtml=reportHtml126;window.testWord=exportWord126;window.testPdf=exportPdf126;})();');
  return {dom,w,rows};
 }
 test('Poz No resolves saved metadata, preserves legacy hyphens and report keys',()=>{
@@ -35,6 +35,16 @@ test('Poz No resolves saved metadata, preserves legacy hyphens and report keys',
  assert.equal(t.rows[0][3],'W1');assert.equal(t.rows[1][3],'W2');assert.equal(t.rows[0][4],100);assert.equal(t.rows[0][2],rows[0][2]);
  assert.equal(api.table(t.headers,t.rows).headers.length,5);dom.window.close();
 });
+for(const available of [true,false])test('English report downloads with quantities and formulas intact; browser translation available='+available,async t=>{
+ const {w}=harness();t.after(()=>w.close());w.AbortController=AbortController;w.localStorage.setItem('cp_cloud_token','synthetic');w.CepheProProjects={isReady:()=>true,project:()=>({id:'fixture'})};
+ w.fetch=async(url,opts)=>{const body=JSON.parse(opts.body);return {ok:true,json:async()=>({translations:body.texts.map(text=>'EN: '+text)})};};
+ w.CepheProLocalTranslation={prepare:async()=>{},translate:async(texts)=>{if(!available)throw Error('TRANSLATION_BROWSER_UNSUPPORTED');return texts.map(text=>'EN: '+text);}};
+ for(const file of ['assets/translations.js','assets/ai-translations.js','assets/i18n.js','assets/i18n-reports.js'])w.eval(read(file));await w.CepheProI18n.setLanguage('en');
+ let blob;w.v52DownloadBlob=b=>{blob=b;};await w.testExport();assert.ok(blob?.size>0);
+ const bytes=await new Promise(resolve=>{const r=new w.FileReader();r.onload=()=>resolve(new w.Uint8Array(r.result));r.readAsArrayBuffer(blob);});
+ const wb=new w.ExcelJS.Workbook();await wb.xlsx.load(bytes);const report=wb.getWorksheet('Report');assert.ok(report);assert.equal(report.getCell('C7').value,'Work item');assert.equal(report.getCell('D8').value,'W1');assert.equal(report.getCell('G8').value,100);assert.equal(report.getCell('I8').formula,'IFERROR(H8/G8*100,0)');
+ const deficiencies=wb.getWorksheet('Deficiencies');assert.ok(deficiencies);if(available)assert.match(deficiencies.getCell('F5').value,/^EN:/);else{assert.equal(deficiencies.getCell('F5').value,'Ankraj vidası eksik <test>');assert.match(w.document.getElementById('cpReportTranslationWarning').textContent,/original language/);}
+});
 test('PDF report HTML includes adjacent Poz No columns in detail, facade and work history tables',()=>{
  const {dom,w}=harness(),markup=w.testHtml(),doc=new JSDOM(markup).window.document;
  assert.ok(doc.querySelector('[data-v126-page="Eksikler"]').textContent.includes('Ankraj vidası eksik <test>'));assert.equal(doc.querySelector('test'),null);
@@ -42,6 +52,23 @@ test('PDF report HTML includes adjacent Poz No columns in detail, facade and wor
  assert.equal(tables.length,4);
  for(const t of tables){const heads=[...t.querySelectorAll('thead th')].map(x=>x.textContent),i=heads.indexOf('İş Kalemi');const poz=heads.indexOf('Poz No');assert.equal(Math.abs(poz-i),1);const cells=t.querySelector('tbody tr').children;assert.equal(cells[poz].textContent,'W1');assert.equal(cells.length,heads.length);}
  dom.window.close();
+});
+test('Word and PDF export actions reach download even when the free model is unavailable',async t=>{
+ const {w}=harness();t.after(()=>w.close());w.AbortController=AbortController;
+ w.CepheProProjects={isReady:()=>true,project:()=>({id:'fixture'})};
+ for(const file of ['assets/translations.js','assets/ai-translations.js','assets/local-translation.js','assets/i18n.js','assets/i18n-reports.js'])w.eval(read(file));await w.CepheProI18n.setLanguage('en');
+ w.Blob.prototype.arrayBuffer=function(){return new Promise(resolve=>{const r=new w.FileReader();r.onload=()=>resolve(r.result);r.readAsArrayBuffer(this);});};
+ class Node{constructor(options){this.options=options;}}
+ w.docx=Object.fromEntries(['Document','Paragraph','TextRun','Table','TableRow','TableCell','ImageRun','Footer'].map(type=>[type,Node]));
+ for(const key of ['PageNumber','AlignmentType','WidthType','BorderStyle','ShadingType','PageOrientation','VerticalAlign','HeightRule'])w.docx[key]=new Proxy({},{get:(_,k)=>String(k)});
+ w.docx.Packer={toBlob:async()=>{const z=new JSZip();z.file('word/document.xml','<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>İş Kalemi</w:t></w:r><w:r><w:t>Özgün saha açıklaması</w:t></w:r></w:p></w:body></w:document>');return new w.Blob([await z.generateAsync({type:'uint8array'})]);}};
+ w.__v158ReportChartPng=()=> 'data:image/png;base64,iVBORw0KGgo=';
+ let word,pdfName,rendered=[];w.v52DownloadBlob=(blob,name)=>{word={blob,name};};
+ await w.testWord();assert.match(word?.name,/\.docx$/);const doc=await JSZip.loadAsync(Buffer.from(await word.blob.arrayBuffer()));assert.match(await doc.file('word/document.xml').async('string'),/Work item/);
+ w.ensurePdfLibraries=async()=>{};w.jspdf={jsPDF:class{addPage(){}addImage(){}save(name){pdfName=name;}}};
+ w.HTMLCanvasElement.prototype.getContext=()=>({fillRect(){},drawImage(){}});w.HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/png;base64,iVBORw0KGgo=';
+ w.html2canvas=async el=>{rendered.push(el.textContent);return {width:800,height:300};};
+ await w.testPdf();assert.match(pdfName,/\.pdf$/);assert.ok(rendered.some(text=>/WORK ITEM|Work item/.test(text)));assert.ok(rendered.some(text=>text.includes('Ankraj vidası eksik <test>')));assert.match(w.document.getElementById('cpReportTranslationWarning').textContent,/original language/);assert.equal(w.document.getElementById('v126ReportRenderHost'),null);
 });
 test('Word table construction includes code cells without changing summary totals',async()=>{
  const {dom,w}=harness();let document;
