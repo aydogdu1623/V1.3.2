@@ -19,7 +19,9 @@
   if(sessions.has(language))return sessions.get(language);
   // Start inside the language/button gesture, before any asynchronous availability check.
   if(interactive&&root.navigator.userActivation?.isActive)return create(language);
-  const availability=await root.Translator.availability({sourceLanguage:'tr',targetLanguage:language});
+  let availability;
+  try{availability=await root.Translator.availability({sourceLanguage:'tr',targetLanguage:language});}
+  catch{throw error('TRANSLATION_LOCAL_UNAVAILABLE');}
   if(sessions.has(language))return sessions.get(language);
   if(availability==='unavailable')throw error('TRANSLATION_LOCAL_UNAVAILABLE');
   if(availability!=='available')throw error('TRANSLATION_DOWNLOAD_REQUIRED');
@@ -27,16 +29,34 @@
  }
  async function translate(texts,language,{signal}={}){
   const seq=generation,translator=await prepare(language),result=[];
+  const check=()=>{if(seq!==generation||signal?.aborted)throw error('TRANSLATION_CONTEXT_CHANGED');};
+  const numbers=s=>(s.match(/\d+(?:[.,:/-]\d+)*/g)||[]).sort();
+  const codes=s=>(s.match(/(?<![\p{L}\d_])[\p{L}_]+[-_]?\d+[\p{L}\d_-]*/gu)||[]).sort();
+  const safe=(source,value)=>typeof value==='string'&&!!value.trim()&&JSON.stringify(numbers(source))===JSON.stringify(numbers(value))&&JSON.stringify(codes(source))===JSON.stringify(codes(value));
+  const call=async source=>{
+   try{return await translator.translate(source,{signal});}
+   catch(e){check();sessions.delete(language);emit(language,'unavailable');throw error(e?.name==='NotAllowedError'?'TRANSLATION_DOWNLOAD_REQUIRED':'TRANSLATION_LOCAL_UNAVAILABLE');}
+  };
   for(const source of texts){
-   if(seq!==generation||signal?.aborted)throw error('TRANSLATION_CONTEXT_CHANGED');
-   const value=await translator.translate(source);
-   if(seq!==generation||signal?.aborted)throw error('TRANSLATION_CONTEXT_CHANGED');
-   if(typeof value!=='string'||!value.trim())throw error('TRANSLATION_INVALID_RESPONSE');
-   // Never accept a model changing a position code, quantity or date in a report.
-   const numbers=s=>s.match(/\d+(?:[.,:/-]\d+)*/g)||[];
-   const codes=source.match(/(?<![\p{L}\d_])[\p{L}_]+[-_]?\d+[\p{L}\d_-]*/gu)||[];
-   if(JSON.stringify(numbers(source))!==JSON.stringify(numbers(value))||codes.some(code=>!value.includes(code)))throw error('TRANSLATION_INVALID_RESPONSE');
-   result.push(value);
+   check();let value=await call(source);check();
+   if(!safe(source,value)){
+    // Retry with exact placeholders before discarding an unsafe translation.
+    // A bad sentence must not discard translations for the rest of the batch.
+    let prefix='ZXQKEEP';while(source.includes(prefix))prefix+='X';
+    const kept=[];
+    const protectedText=source.replace(/(?<![\p{L}\d_])[\p{L}_]+[-_]?\d+[\p{L}\d_-]*|\d+(?:[.,:/-]\d+)*/gu,token=>{
+     let n=kept.length,suffix='';do{suffix=String.fromCharCode(65+n%26)+suffix;n=Math.floor(n/26)-1;}while(n>=0);
+     const marker=prefix+'_'+suffix+'_QXZ';kept.push([marker,token]);return marker;
+    });
+    if(kept.length){
+     let retried=await call(protectedText);check();
+     if(typeof retried==='string'&&kept.every(([marker])=>retried.split(marker).length===2)){
+      for(const [marker,token] of kept)retried=retried.replace(marker,()=>token);
+      value=retried;
+     }
+    }
+   }
+   result.push(safe(source,value)?value:null);
   }
   return result;
  }
