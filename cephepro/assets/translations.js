@@ -3708,3 +3708,5 @@ Object.assign(window.CepheProDictionary,{
   "de": "Sie können bis zu 500 Einträge gleichzeitig löschen."
  }
 });
+
+Object.assign(window.CepheProDictionary,{"Para birimi":{"en":"Currency","de":"Währung"}});

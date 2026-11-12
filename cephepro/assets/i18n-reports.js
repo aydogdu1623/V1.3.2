@@ -24,7 +24,7 @@
   return result+ordinary(formula.slice(last));
  }
  async function office(bytes,kind='xlsx'){
-  if(I.language()==='tr')return bytes;
+  if(I.language()==='tr'&&(!root.CepheProCurrency||root.CepheProCurrency.code()==='TRY'))return bytes;
   const language=I.language(),ctx=I.context();
   if(!root.JSZip)throw Error('Rapor çeviri bileşeni yüklenemedi.');
   const zip=await root.JSZip.loadAsync(bytes),docs=new Map(),texts=new Set(),entries=[],formulaNodes=[],formulaAttrs=[],formatAttrs=[],headers=[];
@@ -48,7 +48,7 @@
     for(const node of all(doc,'numFmt')){const format=node.getAttribute('formatCode');if(format){formatAttrs.push({node,format});for(const m of format.matchAll(/"([^"]*)"/g))texts.add(m[1]);}}
    }
    if(path.startsWith('docProps/'))for(const name of ['title','subject','description'])for(const node of all(doc,name))add(node);
-   if(path.startsWith('word/'))for(const node of all(doc,'lang'))node.setAttributeNS(node.namespaceURI,'w:val',language==='de'?'de-DE':'en-GB');
+   if(path.startsWith('word/')&&language!=='tr')for(const node of all(doc,'lang'))node.setAttributeNS(node.namespaceURI,'w:val',language==='de'?'de-DE':'en-GB');
   }
   await I.ensureReport([...texts]);
   if(I.language()!==language||I.context()!==ctx)throw Error('Dil veya proje değişti. Raporu yeniden oluşturun.');
@@ -63,7 +63,7 @@
   for(const {node,attr,text} of entries){const translated=node.localName==='sheet'&&attr==='name'?sheets.get(text):I.t(text);if(attr)node.setAttribute(attr,translated);else node.textContent=translated;}
   for(const node of formulaNodes)node.textContent=formulaText(node.textContent,sheets,columns,I.t);
   for(const {node,attr} of formulaAttrs)node.setAttribute(attr,formulaText(node.getAttribute(attr),sheets,columns,I.t));
-  for(const {node,format} of formatAttrs)node.setAttribute('formatCode',format.replace(/"([^"]*)"/g,(_,text)=>'"'+I.t(text).replace(/"/g,"'")+'"'));
+  for(const {node,format} of formatAttrs)node.setAttribute('formatCode',(root.CepheProCurrency?.format(format)||format).replace(/"([^"]*)"/g,(_,text)=>'"'+I.t(text).replace(/"/g,"'")+'"'));
   for(const {node,parts} of headers)node.textContent=parts.map((part,i)=>i%2?part:I.t(part)).join('');
   for(const [path,doc] of docs)zip.file(path,serial(doc));
   return zip.generateAsync({type:'uint8array',compression:'DEFLATE'});
