@@ -33,12 +33,17 @@ async function harness(t,items=[]){
     function v53Saved(){}
     function v45BindAllSmartNumbers(){}
     function toast(message){notices.push(message)}
+    function showContextMenu(x,y,entries,title){window.menu=entries;window.menuTitle=title}
   `);
   w.DATA.A.North.items=JSON.parse(JSON.stringify(items));
   const priceKey=name=>'A|North|'+encodeURIComponent(name);
-  const prices=Object.fromEntries(items.map(row=>[priceKey(row[0]),150]));
+  let prices=Object.fromEntries(items.map(row=>[priceKey(row[0]),150])),revision=1;
+  const writes=[];
   w.localStorage.setItem('cp_cloud_token','synthetic-test-token');
-  w.fetch=async()=>({ok:true,json:async()=>({data:prices,revision:1})});
+  w.fetch=async(url,options={})=>{
+    if(options.method==='PUT'){prices=JSON.parse(options.body).data;writes.push(prices);revision++;}
+    return {ok:true,json:async()=>({data:{...prices},revision})};
+  };
   run(renameSource);run(draftSource);run(financeSource);
   run('(function(){function enablePan(){}'+section('  /* ---------- İş kalemi çoklu seçim ---------- */','  /* ---------- Fotoğraf çoklu seçim ---------- */')+'})();');
   run('v32RenderWorkItems()');await w.__v169Financial.load();await tick();
@@ -46,7 +51,7 @@ async function harness(t,items=[]){
   const input=(selector,value)=>{const el=$(selector);assert.ok(el,selector);el.value=String(value);el.dispatchEvent(new w.Event('input',{bubbles:true}));};
   const click=selector=>$(selector).click();
   const reopen=async()=>{run('v53WorkDraft=null;v32RenderWorkItems()');await tick();};
-  return {w,$,input,click,reopen,priceKey};
+  return {w,$,input,click,reopen,priceKey,writes};
 }
 
 test('Poz No saves separately, displays with the name, and survives a reload',async t=>{
@@ -106,4 +111,56 @@ test('selected definitions reach all other facades once without copying money, q
  assert.equal(JSON.stringify({prices:w.__v169Financial.data,daily:w.dailyEntries}),before);assert.ok(w.saved.B);
  const after=JSON.stringify(w.DATA);h.click('.v220-assign-all');assert.equal(JSON.stringify(w.DATA),after);
  w.currentUser.role='member';await h.reopen();assert.equal(h.$('.v220-assign-all').hidden,true);assert.equal(h.$('.v220-assign-all').disabled,true);
+});
+
+test('bulk prices update matching existing items across blocks, persist and preserve all structure data',async t=>{
+ const rows=[['W1 - ANKRAJ',100,20,20,'','',0,50,'adet',false,'W1'],['W2 - CAM',80,10,12.5,'','',0,50,'m²',false,'W2']];
+ const h=await harness(t,rows),w=h.w;
+ w.DATA.A.South={items:[['W1 - ANKRAJ',900,700,78,'','',0,10,'adet',false,'W1'],['W2 - CAM',5,1,20,'','',0,90,'m²',false,'W2']]};
+ w.DATA.B={East:{items:[['w1 - ankraj',50,0,0,'','',0,100,'adet',false,'W1']]},WrongUnit:{items:[['W1 - ANKRAJ',1,0,0,'','',0,100,'m²',false,'W1']]},Empty:{items:[]}};
+ const before=JSON.stringify(w.DATA);
+ h.input('.v169-unit-price',245.75);
+ h.click('.v232-transfer-prices');await tick();
+ assert.equal(w.__v169Financial.unitWeight('A','South','W1 - ANKRAJ'),245.75);
+ assert.equal(w.__v169Financial.unitWeight('A','South','W2 - CAM'),150);
+ assert.equal(w.__v169Financial.unitWeight('B','East','w1 - ankraj'),245.75);
+ assert.equal(w.__v169Financial.unitWeight('B','WrongUnit','W1 - ANKRAJ'),0);
+ assert.equal(JSON.stringify(w.DATA),before);assert.equal(h.writes.length,1);
+ assert.equal(h.writes[0]['A|South|'+encodeURIComponent('W1 - ANKRAJ')],245.75);
+ await w.__v169Financial.load();await h.reopen();
+ assert.equal(w.__v169Financial.unitWeight('A','South','W1 - ANKRAJ'),245.75);
+ assert.match(w.notices.at(-1),/2 cephede 3 iş kaleminin/);
+ h.$('.v102-work-check').click();h.input('.v169-unit-price',0);h.click('.v232-transfer-prices');await tick();
+ assert.equal(w.__v169Financial.unitWeight('A','South','W1 - ANKRAJ'),0);
+ assert.equal(w.__v169Financial.unitWeight('A','South','W2 - CAM'),150);
+ w.currentUser.role='member';await h.reopen();assert.equal(h.$('.v232-transfer-prices'),null);
+});
+
+test('price transfer reports a failed cloud save and permits retry without claiming success',async t=>{
+ const row=['W1 - ANKRAJ',100,20,20,'','',0,100,'adet',false,'W1'];
+ const h=await harness(t,[row]),w=h.w;w.DATA.A.South={items:[row.slice()]};
+ const fetch=w.fetch;w.fetch=async()=>({ok:false,json:async()=>({error:'offline'})});
+ h.click('.v232-transfer-prices');await tick();
+ assert.match(w.notices.at(-1),/kaydedilemedi/);assert.equal(h.$('.v232-transfer-prices').disabled,false);assert.equal(h.writes.length,0);
+ w.fetch=fetch;h.click('.v232-transfer-prices');await tick();
+ assert.match(w.notices.at(-1),/aktarıldı ve kaydedildi/);assert.equal(h.writes.length,1);
+});
+
+test('right-click moves complete work items, preserves selected identity and saves the order on reopening',async t=>{
+ const rows=['ANKRAJ','CAM','KAPAK'].map((name,i)=>[`W${i+1} - ${name}`,100+i,20+i,20,'','',0,30,'adet',false,`W${i+1}`]);
+ const h=await harness(t,rows),w=h.w;
+ h.input('.v169-unit-price',222);h.$('.v102-work-check').click();
+ h.$('.v34-work-row').dispatchEvent(new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true}));
+ assert.equal(w.menu.length,1);assert.equal(w.menu[0][0],'Aşağı Taşı');w.menu[0][1]();await tick();
+ assert.equal(h.$('.v34-work-row[data-i="1"] .v102-work-check').checked,true);
+ assert.equal(h.$('.v34-work-row[data-i="1"] .v169-unit-price').value,'222');
+ assert.equal(h.$('.v34-work-row[data-i="1"] .v34WiTotal').value,'100');
+ h.click('#v53SaveWorkItems');await tick();
+ assert.deepEqual(Array.from(w.saved.A.North.items,x=>x[0]),[rows[1][0],rows[0][0],rows[2][0]]);
+ w.DATA=JSON.parse(JSON.stringify(w.saved));await h.reopen();
+ assert.equal(h.$('.v34WiName').value,'CAM');
+ h.$('.v34-work-row[data-i="2"]').dispatchEvent(new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true}));
+ assert.equal(w.menu.length,1);assert.equal(w.menu[0][0],'Yukarı Taşı');w.menu[0][1]();await tick();h.click('#v53SaveWorkItems');await tick();
+ assert.deepEqual(Array.from(w.saved.A.North.items,x=>x[0]),[rows[1][0],rows[2][0],rows[0][0]]);
+ w.menu=null;w.currentUser.role='member';await h.reopen();h.$('.v34-work-row').dispatchEvent(new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true}));assert.equal(w.menu,null);
 });
