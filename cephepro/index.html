@@ -6,20 +6,21 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=229.0">
-<script src="/assets/project-access.js?v=229.0"></script>
-<script src="/assets/session-privacy.js?v=229.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=230.0">
+<script src="/assets/project-access.js?v=230.0"></script>
+<script src="/assets/session-privacy.js?v=230.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/performance.js?v=229.0"></script>
-<meta name="cephepro-build" content="V229.0"/>
+<script src="/assets/structure-state.js?v=230.0"></script>
+<script src="/assets/performance.js?v=230.0"></script>
+<meta name="cephepro-build" content="V230.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V229";window.CEPHEPRO_BUILD="V229.0";</script>
+<script>window.CEPHEPRO_VERSION="V230";window.CEPHEPRO_BUILD="V230.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -6606,7 +6607,8 @@ let selectedManageFacade=currentFacade;
 
 function saveStructureState(){
  store.set("cp_block_order",blockOrder);
- store.set("cp_dynamic_data",DATA);
+ window.CepheProStructure?.capture(DATA);
+  store.set("cp_dynamic_data",DATA);
 
  try{rebuildTree();renderBlockChartByType()}catch(e){}
 
@@ -6617,6 +6619,7 @@ const dynamicSaved=store.get("cp_dynamic_data",null);
 if(dynamicSaved && typeof dynamicSaved==="object"){
  Object.keys(DATA).forEach(k=>delete DATA[k]);
  Object.assign(DATA,dynamicSaved);
+ window.CepheProStructure?.restore(DATA);
  Object.keys(DATA).forEach(b=>{
    if(!DATA[b]||typeof DATA[b]!=="object"||Array.isArray(DATA[b])){delete DATA[b];return}
    Object.keys(DATA[b]).forEach(f=>{
@@ -7615,7 +7618,8 @@ Object.keys(DATA).forEach(b=>{
     }
   });
 });
-store.set("cp_dynamic_data",DATA);
+window.CepheProStructure?.capture(DATA);
+  store.set("cp_dynamic_data",DATA);
 
 effectiveItem=function(row){return v25EffectiveItem(currentBlock,currentFacade,row)};
 
@@ -7703,6 +7707,7 @@ saveStructureState=function(){
   blockOrder=blockOrder.filter(b=>DATA[b]);
   Object.keys(DATA).forEach(b=>{if(!blockOrder.includes(b))blockOrder.push(b)});
   store.set("cp_block_order",blockOrder);
+  window.CepheProStructure?.capture(DATA);
   store.set("cp_dynamic_data",DATA);
   try{rebuildTree()}catch(e){}
   try{renderBlockGraphV21()}catch(e){}
@@ -10118,7 +10123,8 @@ Object.keys(DATA).forEach(b=>{
     }
   });
 });
-store.set("cp_dynamic_data",DATA);
+window.CepheProStructure?.capture(DATA);
+  store.set("cp_dynamic_data",DATA);
 
 // ---------- project header / Maps ----------
 function v34MapQuery(){
@@ -10273,9 +10279,12 @@ function v34EnsureScheduleModal(){
     const actualStart=document.getElementById("v34ActualStart").value;
     const actualEnd=document.getElementById("v34ActualEnd").value;
     if(actualStart&&actualEnd&&v34DiffDays(actualStart,actualEnd)<0){toast("Gerçek bitiş, başlangıçtan önce olamaz");return}
-    const nextSchedule={plannedStart,plannedDuration,plannedEnd,actualStart,actualEnd};
+    if(!plannedStart||!plannedEnd||v34DiffDays(plannedStart,plannedEnd)<0){toast("Planlanan bitiş, başlangıçtan önce olamaz");return}
+    const nextSchedule={plannedStart,plannedDuration:v34DiffDays(plannedStart,plannedEnd)+1,plannedEnd,actualStart,actualEnd};
     if(currentUser?.role==='member')window.__member190?.queueSchedule(b,f,d.schedule||{},nextSchedule);
     d.schedule=nextSchedule;
+    window.CepheProStructure?.sync(DATA);
+    if(typeof v53WorkDraft!=="undefined"&&v53WorkDraft?.b===b&&v53WorkDraft?.f===f){for(const item of v53WorkDraft.items){item.plannedStart=plannedStart;item.plannedEnd=plannedEnd;item.duration=plannedDuration;}}
     saveStructureState();m.style.display="none";
     try{renderTimelineType()}catch(e){}
     toast("Cephe tarih planı kaydedildi");
@@ -10928,6 +10937,7 @@ applyProjectPayload=async function(data,name){
   currentBlock=data.currentBlock&&DATA[data.currentBlock]?data.currentBlock:(blockOrder[0]||Object.keys(DATA)[0]||"");
   currentFacade=data.currentFacade&&DATA[currentBlock]?.[data.currentFacade]?data.currentFacade:(Object.keys(DATA[currentBlock]||{})[0]||"");
   store.set("cp_users",users);store.set("cp_facade_overrides",facadeOverrides);store.set("cp_daily_entries",dailyEntries);store.set("cp_attendance_logs",attendanceLogs);store.set("cp_photos",facadePhotos);
+  window.CepheProStructure?.capture(DATA);
   store.set("cp_dynamic_data",DATA);store.set("cp_block_order",blockOrder);store.set("cp_project_info",v34ProjectInfo);store.set("cp_no_work_notes",v34NoWorkNotes);store.set("cp_user_profiles",v34UserProfiles);
   if(data.personalPanelSnapshot&&currentUser)store.set(v34SnapshotKey(),data.personalPanelSnapshot);
   currentProjectFileName=name||"Proje.cephe_rpr";
@@ -16599,9 +16609,9 @@ function v53NewDraft(b,f){
         done:Number(e[2]||0),
         originalDone:Number(e[2]||0),
         rawBaseDone:Number(raw[2]||0),
-        plannedStart:raw[4]||v34Today(),
-        plannedEnd:raw[5]||v34AddDays(v34Today(),30),
-        duration:Number(raw[6]||0)
+        plannedStart:e[4]||v34Today(),
+        plannedEnd:e[5]||v34AddDays(v34Today(),30),
+        duration:Number(e[6]||0)
       };
     })
   };
@@ -25325,7 +25335,7 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
           localSet(k,normalizeShared(k,state[k]));
         }
       });
-      if(state.cp_dynamic_data){Object.keys(DATA).forEach(key=>delete DATA[key]);Object.assign(DATA,normalizeShared('cp_dynamic_data',state.cp_dynamic_data));}
+      if(state.cp_dynamic_data){Object.keys(DATA).forEach(key=>delete DATA[key]);Object.assign(DATA,normalizeShared('cp_dynamic_data',state.cp_dynamic_data));window.CepheProStructure?.restore(DATA);}
       if(state.cp_daily_entries)dailyEntries=normalizeShared('cp_daily_entries',state.cp_daily_entries);
       if(state.cp_facade_overrides)facadeOverrides=normalizeShared('cp_facade_overrides',state.cp_facade_overrides);
       if(state.cp_block_order)blockOrder=normalizeShared('cp_block_order',state.cp_block_order);
@@ -30523,7 +30533,7 @@ body.v113-member .v113-role-note{display:block}
     const pct=total>0?Math.max(0,Math.min(100,done/total*100)):0;
     const storedWeight=ov.weight!=null?finite(ov.weight):finite(row[7]);
     const weight=window.__v179Weights && (row[9]===true || !(storedWeight>0))?window.__v179Weights.effective(b,f,row):storedWeight;
-    return [row[0],total,done,pct,row[4]||'',row[5]||'',row[6]||0,weight];
+    return [row[0],total,done,pct,...(window.CepheProStructure?.dates(DATA[b]?.[f],row)||[row[4]||'',row[5]||'',row[6]||0]),weight];
   }
 
   // Bütün görünüm ve raporlar aynı tek kümülatif hesabı kullanır.
@@ -31849,22 +31859,22 @@ document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='un
 <script src="/assets/member-v190.js"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=229.0"></script>
-<script src="/assets/firma-template-v208.js?v=229.0"></script>
-<script src="/assets/claims-v182.js?v=229.0"></script>
+<script src="/assets/claims-report-v191.js?v=230.0"></script>
+<script src="/assets/firma-template-v208.js?v=230.0"></script>
+<script src="/assets/claims-v182.js?v=230.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=229.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=230.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=229.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=230.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=229.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=230.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=229.0"></script>
+<script src="/assets/puantaj-model.js?v=230.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -31884,16 +31894,16 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=229.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=229.0">
-<script src="/assets/deficiencies.js?v=229.0"></script>
+<script src="/assets/puantaj.js?v=230.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=230.0">
+<script src="/assets/deficiencies.js?v=230.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
-<link rel="stylesheet" href="/assets/i18n.css?v=229.0">
-<script src="/assets/translations.js?v=229.0"></script>
-<script src="/assets/ai-translations.js?v=229.0"></script>
-<script src="/assets/local-translation.js?v=229.0"></script>
-<script src="/assets/i18n.js?v=229.0"></script>
-<script src="/assets/i18n-fields.js?v=229.0"></script>
-<script src="/assets/i18n-reports.js?v=229.0"></script>
+<link rel="stylesheet" href="/assets/i18n.css?v=230.0">
+<script src="/assets/translations.js?v=230.0"></script>
+<script src="/assets/ai-translations.js?v=230.0"></script>
+<script src="/assets/local-translation.js?v=230.0"></script>
+<script src="/assets/i18n.js?v=230.0"></script>
+<script src="/assets/i18n-fields.js?v=230.0"></script>
+<script src="/assets/i18n-reports.js?v=230.0"></script>

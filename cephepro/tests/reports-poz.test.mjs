@@ -103,3 +103,23 @@ test('real Excel workbook preserves formula targets, filters and native chart af
  for(const sheet of wb.worksheets)sheet.eachRow(row=>row.eachCell(cell=>{if(cell.formula)assert.doesNotMatch(cell.formula,/#REF!/);}));
  dom.window.close();
 });
+
+test('changed facade dates reach Excel, Word source tables and PDF HTML on every export',async t=>{
+ const {w}=harness();t.after(()=>w.close());w.eval(read('assets/structure-state.js'));
+ w.DATA={A:{Kuzey:{items:[['W1 - ANKRAJ MONTAJI',100,25,25,'2026-11-09','2026-12-09',31,100,'m²']],schedule:{plannedStart:'2026-11-17',plannedEnd:'2027-04-15',plannedDuration:150}}}};
+ w.facadeOverrides={};w.dailyEntries={};w.v34ItemKey=(b,f,n)=>b+'_'+f+'__'+n;
+ const start=html.indexOf('  function effective(b,f,row){',html.indexOf('<script id="v131DailyCumulativeFix">')),end=html.indexOf('\n  // Bütün görünüm',start);
+ w.eval('const finite=x=>Number(x)||0;const itemKey=(b,f,n)=>b+"_"+f+"__"+n;'+html.slice(start,end)+'window.v25EffectiveItem=effective;');
+ w.v34FmtDate=s=>s;w.v47ItemActualDates=()=>({actualStart:'',actualEnd:''});
+ w.v34Schedule=()=>w.DATA.A.Kuzey.schedule;
+ w.v52SelectedItemRows=()=>{const e=w.v25EffectiveItem('A','Kuzey',w.DATA.A.Kuzey.items[0]);return [{block:'A',facade:'Kuzey',name:e[0],unit:'m²',weight:100,total:e[1],done:e[2],progress:e[3],plannedStart:e[4],plannedEnd:e[5]}]};w.v53IsRealWorkItem=()=>true;
+ w.eval(html.match(/function v57TableRows\(\)[^\n]+/)[0]);
+ for(const date of ['2026-11-17','2026-12-01']){
+  w.DATA.A.Kuzey.schedule.plannedStart=date;
+  assert.match(w.v57TableRows()[0][8],new RegExp(date));
+  assert.ok(w.testHtml().includes(date),'PDF/Word report HTML uses current plan');
+  let blob;w.v52DownloadBlob=b=>blob=b;await w.testExport();
+  const bytes=await new Promise(resolve=>{const r=new w.FileReader();r.onload=()=>resolve(new w.Uint8Array(r.result));r.readAsArrayBuffer(blob)});
+  const wb=new w.ExcelJS.Workbook();await wb.xlsx.load(bytes);assert.match(String(wb.getWorksheet('Rapor').getCell('J8').value),new RegExp(date));
+ }
+});
