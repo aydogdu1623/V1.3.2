@@ -78,8 +78,12 @@
    ]);
   }finally{clearTimeout(timeout);controllers.delete(controller);}
   if(seq!==generation||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');
-  if(!Array.isArray(translations)||translations.length!==texts.length||translations.some(s=>typeof s!=='string'||!s.trim()))throw Error('TRANSLATION_INVALID_RESPONSE');
-  texts.forEach((s,i)=>{const start=s.match(/^\s*/)[0],end=s.match(/\s*$/)[0];cache.set(lang+'|'+s,start+translations[i].trim()+end);pending.delete(s);});
+  if(!Array.isArray(translations)||translations.length!==texts.length)throw Error('TRANSLATION_INVALID_RESPONSE');
+  texts.forEach((s,i)=>{
+   pending.delete(s);
+   if(typeof translations[i]!=='string'||!translations[i].trim()){failed.add(lang+'|'+s);return;}
+   failed.delete(lang+'|'+s);const start=s.match(/^\s*/)[0],end=s.match(/\s*$/)[0];cache.set(lang+'|'+s,start+translations[i].trim()+end);
+  });
  }
  async function request(texts,lang,seq,ctx){
   const missing=texts.filter(s=>local(s,lang)===undefined),fresh=missing.filter(s=>!inflight.has(lang+'|'+s));
@@ -95,7 +99,7 @@
   const work=(async()=>{try{
    while(pending.size&&seq===generation&&!reports){const batch=[];let count=0;for(const s of pending){if(batch.length>=40||count+s.length>9000&&batch.length)break;pending.delete(s);if(local(s,lang)!==undefined)continue;batch.push(s);count+=s.length;}
     await request(batch,lang,seq,ctx);refreshTracked();await new Promise(r=>setTimeout(r,0));
-   }if(seq===generation&&!pending.size)status('Çeviriler hazır.');
+   }if(seq===generation&&!pending.size)status(failed.size?errorMessage('TRANSLATION_INVALID_RESPONSE'):'Çeviriler hazır.',!!failed.size);
   }catch(e){if(seq===generation){for(const s of pending)failed.add(lang+'|'+s);pending.clear();paused=true;status(errorMessage(e.message),true);}throw e;}
   finally{if(seq===generation)running=null;}})();running=work;return work;
  }
@@ -121,8 +125,8 @@
    }
    if(seq!==generation||lang!==language||ctx!==context())throw Error('TRANSLATION_CONTEXT_CHANGED');
    if(strict&&list.some(s=>local(s,lang)===undefined))throw Error('TRANSLATION_INVALID_RESPONSE');
-   paused=false;failed.clear();refreshTracked();
-  }catch(error){if(seq===generation){paused=true;status(errorMessage(error.message),true);}throw error;}
+   paused=false;refreshTracked();
+  }catch(error){if(seq===generation){paused=error.message!=='TRANSLATION_INVALID_RESPONSE';refreshTracked();status(errorMessage(error.message),true);}throw error;}
   finally{reports--;if(!reports&&!paused)drain().catch(()=>{});}
  }
  function reportWarning(){
@@ -134,7 +138,7 @@
  }
  async function ensureReport(texts){
   const lang=language,ctx=context();let failure;
-  try{await ensure(texts,{timeoutMs:15000});}catch(e){failure=e;}
+  try{await ensure(texts,{strict:false,timeoutMs:15000});}catch(e){failure=e;}
   if(language!==lang||context()!==ctx||failure?.message==='TRANSLATION_CONTEXT_CHANGED'||failure?.message==='TRANSLATION_PROJECT_REQUIRED')throw Error('TRANSLATION_CONTEXT_CHANGED');
   const complete=texts.every(s=>typeof s!=='string'||local(s,lang)!==undefined);
   if(!complete)reportWarning();return {complete};
@@ -152,7 +156,7 @@
   if(value!=='tr')root.CepheProLocalTranslation?.prepare(value,{interactive:true}).catch(()=>{});
   refreshTracked();scan(document.body);status(value==='tr'?'Türkçe özgün metinler gösteriliyor.':'Çeviriler hazırlanıyor…');
   document.dispatchEvent(new CustomEvent('cephepro:language-changed',{detail:{language:value}}));
-  try{await drain();if(!paused&&value!=='tr')status('Hazır metinler çevrildi. Özel açıklamalar için ücretsiz çeviriyi başlatabilirsiniz.');}catch{}return value;
+  try{await drain();if(!paused&&!failed.size&&value!=='tr')status('Hazır metinler çevrildi. Özel açıklamalar için ücretsiz çeviriyi başlatabilirsiniz.');}catch{}return value;
  }
  function mount(){
   const general=document.getElementById('settingsGeneral');if(general&&!document.getElementById('cpLanguageSelect')){
@@ -168,7 +172,7 @@
   scheduled=false;const start=performance.now();for(const n of roots){roots.delete(n);if(n.isConnected)scan(n);if(performance.now()-start>6)break;}if(roots.size)schedule(roots.values().next().value);
  });}
  const observer=new MutationObserver(records=>{for(const record of records){if(record.type==='characterData'){const s=sources.get(record.target);if(!s||record.target.nodeValue!==s.output)schedule(record.target);}else if(record.type==='attributes'){const s=attributeSources.get(record.target)?.[record.attributeName];if(!s||record.target.getAttribute(record.attributeName)!==s.output)schedule(record.target);}else for(const n of record.addedNodes)schedule(n);}});
- function errorMessage(code){return ({TRANSLATION_BROWSER_UNSUPPORTED:'Bu tarayıcı ücretsiz otomatik çeviriyi desteklemiyor. Masaüstü Chrome kullanın. Raporları yine indirebilirsiniz.',TRANSLATION_DOWNLOAD_REQUIRED:'Özel açıklamaları çevirmek için Ücretsiz çeviriyi başlat düğmesine basın. İlk kullanımda dil paketi indirilir.',TRANSLATION_LOCAL_UNAVAILABLE:'Ücretsiz dil paketi kullanılamıyor. Raporları hazır çevirilerle indirebilirsiniz.',TRANSLATION_TIMEOUT:'Çeviri zaman aşımına uğradı. İndirme düğmesine yeniden basın.',TRANSLATION_CONTEXT_CHANGED:'Dil veya proje değişti. Raporu yeniden oluşturun.',TRANSLATION_PROJECT_REQUIRED:'Raporu indirmek için projeye yeniden giriş yapın.',SESSION_EXPIRED:'Oturum süresi doldu. Yeniden giriş yapın.',TRANSLATION_SETUP_REQUIRED:'Otomatik çeviri için Vercel AI Gateway kurulumu tamamlanmalı.',TRANSLATION_VERIFICATION_REQUIRED:'Vercel, ücretsiz otomatik çeviriyi açmak için hesap sahibinden kart doğrulaması istiyor.',TRANSLATION_CREDITS_REQUIRED:'Otomatik çeviri kredisi tükendi. Kayıtlarınız korunuyor.',TRANSLATION_AUTH_REQUIRED:'Çeviri servisi kimlik doğrulaması başarısız. Bağlantı ayarları kontrol edilmeli.',TRANSLATION_RATE_LIMIT:'Çeviri servisi yoğun. Kısa süre sonra tekrar deneyin.'})[code]||'Çeviri tamamlanamadı. Tekrar deneyin.';}
+ function errorMessage(code){return ({TRANSLATION_INVALID_RESPONSE:'Bazı özel metinler güvenli biçimde çevrilemedi ve özgün haliyle korundu. Diğer çeviriler ve rapor indirme kullanılabilir.',TRANSLATION_BROWSER_ONLY:'Ücretsiz çeviri tarayıcıda çalışır. Ayarlar bölümünden ücretsiz çeviriyi başlatın.',TRANSLATION_BROWSER_UNSUPPORTED:'Bu tarayıcı ücretsiz otomatik çeviriyi desteklemiyor. Masaüstü Chrome kullanın. Raporları yine indirebilirsiniz.',TRANSLATION_DOWNLOAD_REQUIRED:'Özel açıklamaları çevirmek için Ücretsiz çeviriyi başlat düğmesine basın. İlk kullanımda dil paketi indirilir.',TRANSLATION_LOCAL_UNAVAILABLE:'Ücretsiz dil paketi kullanılamıyor. Raporları hazır çevirilerle indirebilirsiniz.',TRANSLATION_TIMEOUT:'Çeviri zaman aşımına uğradı. İndirme düğmesine yeniden basın.',TRANSLATION_CONTEXT_CHANGED:'Dil veya proje değişti. Raporu yeniden oluşturun.',TRANSLATION_PROJECT_REQUIRED:'Raporu indirmek için projeye yeniden giriş yapın.',SESSION_EXPIRED:'Oturum süresi doldu. Yeniden giriş yapın.',TRANSLATION_SETUP_REQUIRED:'Otomatik çeviri için Vercel AI Gateway kurulumu tamamlanmalı.',TRANSLATION_VERIFICATION_REQUIRED:'Vercel, ücretsiz otomatik çeviriyi açmak için hesap sahibinden kart doğrulaması istiyor.',TRANSLATION_CREDITS_REQUIRED:'Otomatik çeviri kredisi tükendi. Kayıtlarınız korunuyor.',TRANSLATION_AUTH_REQUIRED:'Çeviri servisi kimlik doğrulaması başarısız. Bağlantı ayarları kontrol edilmeli.',TRANSLATION_RATE_LIMIT:'Çeviri servisi yoğun. Kısa süre sonra tekrar deneyin.'})[code]||'Özel metin çevirisi kullanılamıyor. Hazır çeviriler ve rapor indirme kullanılabilir.';}
  function downloadError(error){const code=String(error?.message||error||'');if(code.startsWith('TRANSLATION_')||code==='SESSION_EXPIRED'){const message=t(errorMessage(code));root.alert(message);return message;}return code;}
  root.CepheProI18n={prepareDownload:()=>{if(language!=='tr')root.CepheProLocalTranslation?.prepare(language,{interactive:true}).catch(()=>{});},refresh:()=>{refreshTracked();scan(document.body);},downloadError,t,ensure,ensureReport,translateElement,setLanguage,language:()=>language,locale:()=>({tr:'tr-TR',en:'en-GB',de:'de-DE'}[language]),context,scan,local,translatable,enqueue,errorMessage};
  document.addEventListener('cephepro:local-translation',e=>{if(e.detail.language!==language)return;if(e.detail.state==='loading')status(t('Ücretsiz dil paketi hazırlanıyor…')+(e.detail.progress===undefined?'':' '+e.detail.progress+'%'));if(e.detail.state==='ready'){paused=false;failed.clear();refreshTracked();drain().catch(()=>{});}});

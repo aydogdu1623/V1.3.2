@@ -28,7 +28,7 @@ test('unavailable models never block report preparation, but changing project st
 test('model output cannot change quantities or item codes and locked projects discard pending output',async t=>{
  const w=browser(t),I=w.CepheProLocalTranslation;let value='W2 assembly 13.5 m²',finish;
  w.Translator={availability:async()=> 'available',create:async()=>({translate:async()=>value??new Promise(resolve=>{finish=resolve;}),destroy(){}})};
- await assert.rejects(I.translate(['W1 montajı 12.5 m²'],'en'),/INVALID_RESPONSE/);value=null;
+ assert.deepEqual(Array.from(await I.translate(['W1 montajı 12.5 m²'],'en')),[null]);value=null;
  const job=I.translate(['Gizli açıklama'],'en');await new Promise(r=>setTimeout(r,0));w.document.dispatchEvent(new w.Event('cephepro:locked'));finish('Private note');await assert.rejects(job,/CONTEXT_CHANGED/);
 });
 test('actual AI summary and detail paragraphs translate offline in English and German',async t=>{
@@ -45,4 +45,38 @@ test('actual AI summary and detail paragraphs translate offline in English and G
   await I.setLanguage(lang);for(const source of texts){const translated=I.local(source);assert.notEqual(translated,undefined,source);assert.doesNotMatch(translated,/üretim|kayıt|gün |kalem|Yağmur|ANKRAJ/);assert.deepEqual(translated.match(/\d+(?:[.,]\d+)*/g),source.match(/\d+(?:[.,]\d+)*/g));}
   assert.match(I.t(texts[0]),/W1/);assert.match(I.t(texts[1]),lang==='en'?/It rained/:/Es hat geregnet/);
  }
+});
+
+test('a changed quantity is retried with protected tokens and restored exactly',async t=>{
+ const w=browser(t),calls=[];
+ w.Translator={availability:async()=> 'available',create:async()=>({translate:async source=>{calls.push(source);return source.includes('ZXQKEEP')?source.replace('montajı','installation'):'W1 installation 12,5 m²';}})};
+ const result=await w.CepheProLocalTranslation.translate(['W1 montajı 12.5 m²'],'en');
+ assert.equal(result[0],'W1 installation 12.5 m²');assert.equal(calls.length,2);
+});
+test('valid translation can reorder numbers without changing codes or quantities',async t=>{
+ const w=browser(t);
+ w.Translator={availability:async()=> 'available',create:async()=>({translate:async()=> 'On 17.11.2026, install 150 anchors for W1.'})};
+ const result=await w.CepheProLocalTranslation.translate(['W1 için 150 ankraj 17.11.2026 tarihinde monte edilsin.'],'en');
+ assert.equal(result[0],'On 17.11.2026, install 150 anchors for W1.');
+});
+test('one unsafe sentence neither drops other translations nor stops later UI and report jobs',async t=>{
+ const w=browser(t),calls=[];
+ w.Translator={availability:async()=> 'available',create:async()=>({translate:async source=>{calls.push(source);return source.includes('bozuk')?'W9 damaged 999':source.replace('özgün','original');}})};
+ const I=localize(w);await I.setLanguage('en');
+ const source=['W1 bozuk açıklama 12.5','İkinci özgün açıklama'];
+ const state=await I.ensureReport(source);assert.equal(state.complete,false);
+ assert.equal(I.t(source[0]),source[0]);assert.equal(I.t(source[1]),'İkinci original açıklama');
+ I.enqueue('Sonraki özgün açıklama');await new Promise(r=>setTimeout(r,180));
+ assert.equal(I.t('Sonraki özgün açıklama'),'Sonraki original açıklama');
+ assert.doesNotMatch(w.document.getElementById('cpLanguageStatus').textContent,/Translation could not be completed/);
+ assert.match(w.document.getElementById('cpReportTranslationWarning').textContent,/original language/);
+});
+test('browser API failures are classified and a replacement model can recover',async t=>{
+ const w=browser(t),I=w.CepheProLocalTranslation;
+ w.Translator={availability:async()=>{throw new TypeError('availability failed');},create:async()=>({})};
+ await assert.rejects(I.prepare('en'),/TRANSLATION_LOCAL_UNAVAILABLE/);
+ let broken=true,creates=0;
+ w.Translator={availability:async()=> 'available',create:async()=>{creates++;return {translate:async()=>{if(broken)throw new w.DOMException('session lost','InvalidStateError');return 'Recovered note';}};}};
+ await assert.rejects(I.translate(['Özel not'],'en'),/TRANSLATION_LOCAL_UNAVAILABLE/);broken=false;
+ assert.equal((await I.translate(['Özel not'],'en'))[0],'Recovered note');assert.equal(creates,2);
 });
