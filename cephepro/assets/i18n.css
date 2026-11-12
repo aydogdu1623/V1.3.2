@@ -6,3 +6,5 @@ html:not([lang=tr]) .settingsTab{white-space:normal}html:not([lang=tr]) .pt-tabs
 .cp-i18n-masked:not(:focus){color:transparent!important;-webkit-text-fill-color:transparent!important}
 .cp-i18n-value{position:absolute;display:block;box-sizing:border-box;border-style:solid;border-color:transparent;pointer-events:none;overflow:hidden;text-overflow:ellipsis;color:var(--text,#173d4c);z-index:1}
 .cp-i18n-value[hidden]{display:none}
+#cpReportTranslationWarning{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:2147483000;display:flex;gap:10px;align-items:flex-start;max-width:min(580px,92vw);padding:10px 12px;background:#fff5da;color:#473715;border:1px solid #d9b85e;border-radius:9px;font:12px/1.45 system-ui;box-shadow:0 3px 16px #0002}
+#cpReportTranslationWarning button{flex:none;border:0;background:none;font-size:20px;padding:0 3px;cursor:pointer;color:inherit}

@@ -684,7 +684,7 @@ let exporting=false;
 async function excel(){
  if(exporting||deleting||refreshing)return;
  if(!flushClaimInputs())return;
- exporting=true;
+ window.CepheProI18n?.prepareDownload();exporting=true;
  const button=$('cl-excel'),label=button?.textContent||'Excel ve Ekleri İndir';
  if(button){button.disabled=true;button.textContent='Excel hazırlanıyor…';button.setAttribute('aria-busy','true');}
  const job={kind,number:period().number,month:model().month,id:period().id,owner:recordOwner,session:owner,version:changeVersion};
@@ -717,7 +717,7 @@ async function excel(){
    download(archive,base+'_ve_Ekler.zip');
   }else download(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
   claimNotice(job.number+'. hakediş için Excel'+(extra.some(e=>e.file)?' ve ekleri':'')+' hazırlandı.');
- }catch(e){claimNotice('Excel oluşturulamadı: '+e.message);toast('Excel oluşturulamadı: '+e.message);}
+ }catch(e){const message=window.CepheProI18n?.downloadError(e)||e.message;claimNotice('Excel oluşturulamadı: '+message);toast('Excel oluşturulamadı: '+message);}
  finally{exporting=false;const b=$('cl-excel');if(b){b.disabled=deleting;b.textContent=label;b.removeAttribute('aria-busy');}}
 }
 async function open(showChoice=true){
