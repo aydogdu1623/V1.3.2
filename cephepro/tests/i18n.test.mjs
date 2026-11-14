@@ -16,6 +16,36 @@ function harness(markup=''){
  return {dom,w,I:w.CepheProI18n,calls,project:value=>{project=value;}};
 }
 const delay=()=>new Promise(r=>setTimeout(r,60));
+test('translated fields mask important theme colors and restore editing styles',async t=>{
+ const {dom,w,I}=harness('<style>#v32WorkModal input{color:navy!important;-webkit-text-fill-color:navy!important;text-shadow:1px 1px navy!important}</style><form id="v32WorkModal"><div style="position:relative"><input class="v34WiName" name="item" value="CEPHE MONTAJI" style="color:maroon!important;-webkit-text-fill-color:maroon!important;text-shadow:1px 1px red"></div></form>');
+ t.after(()=>dom.window.close());const input=w.document.querySelector('.v34WiName'),original=input.style.cssText;
+ const parent=input.parentElement;parent.getBoundingClientRect=()=>({left:10,top:10});parent.scrollLeft=30;
+ let width=210;input.getBoundingClientRect=()=>({left:80,top:40,width,height:38});
+ for(const language of ['en','de','en']){
+  await I.setLanguage(language);I.refresh();I.refresh();
+  const overlays=parent.querySelectorAll('.cp-i18n-value');assert.equal(overlays.length,1);const overlay=overlays[0];
+  assert.equal(overlay.hidden,false);assert.equal(overlay.textContent,I.t(input.value));
+  for(const key of ['color','-webkit-text-fill-color']){assert.equal(input.style.getPropertyValue(key),'transparent');assert.equal(input.style.getPropertyPriority(key),'important');}
+  assert.equal(input.style.textShadow,'none');assert.notEqual(overlay.style.color,'transparent');assert.equal(overlay.style.left,'100px');assert.equal(overlay.style.width,width+'px');
+  assert.equal(new w.FormData(w.document.querySelector('form')).get('item'),'CEPHE MONTAJI');
+  input.focus();assert.equal(overlay.hidden,true);assert.equal(input.style.cssText,original);input.blur();assert.equal(overlay.hidden,false);
+  width=170;w.dispatchEvent(new w.Event('resize'));await delay();assert.equal(overlay.style.width,'170px');
+ }
+ await I.setLanguage('tr');assert.equal(input.style.cssText,original);assert.equal(parent.querySelector('.cp-i18n-value').hidden,true);
+ await I.setLanguage('en');w.document.dispatchEvent(new w.Event('cephepro:locked'));assert.equal(input.style.cssText,original);assert.equal(parent.querySelector('.cp-i18n-value'),null);
+});
+
+test('work grid keeps readable columns and horizontal scrolling after rerenders',async t=>{
+ const {dom,w}=harness('<div id="v32WorkModal"><div id="v32WorkBody"><div style="overflow:auto"><div class="v34-work-grid"></div></div></div></div>');
+ const observers=[],Observer=w.MutationObserver;w.MutationObserver=class extends Observer{constructor(fn){super(fn);observers.push(this);}};
+ t.after(()=>{observers.forEach(o=>o.disconnect());dom.window.close();});
+ w.eval(read('index.html').match(/<script id="v87WorkItemFitGuard">([\s\S]*?)<\/script>/)[1]);
+ w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await delay();
+ const grid=w.document.querySelector('.v34-work-grid'),scroller=grid.parentElement;
+ assert.equal(grid.style.minWidth,'1020px');assert.equal(scroller.style.overflowX,'auto');assert.equal(grid.style.maxWidth,'none');
+ w.document.body.classList.add('v113-member');grid.appendChild(w.document.createElement('div'));await delay();
+ assert.equal(grid.style.minWidth,'780px');assert.equal(scroller.style.overflowX,'auto');
+});
 test('downloads translate only their own strings while unrelated screen requests are blocked',async t=>{
  const {dom,w,I}=harness();t.after(()=>dom.window.close());await I.setLanguage('en');
  let finishScreen;const calls=[];
