@@ -33,6 +33,7 @@
   const numbers=s=>(s.match(/\d+(?:[.,:/-]\d+)*/g)||[]).sort();
   const codes=s=>(s.match(/(?<![\p{L}\d_])[\p{L}_]+[-_]?\d+[\p{L}\d_-]*/gu)||[]).sort();
   const safe=(source,value)=>typeof value==='string'&&!!value.trim()&&JSON.stringify(numbers(source))===JSON.stringify(numbers(value))&&JSON.stringify(codes(source))===JSON.stringify(codes(value));
+  const protectedParts=/((?<![\p{L}\d_])[\p{L}_]+[-_]?\d+[\p{L}\d_-]*|\d+(?:[.,:/-]\d+)*)/gu;
   const call=async source=>{
    try{return await translator.translate(source,{signal});}
    catch(e){check();sessions.delete(language);emit(language,'unavailable');throw error(e?.name==='NotAllowedError'?'TRANSLATION_DOWNLOAD_REQUIRED':'TRANSLATION_LOCAL_UNAVAILABLE');}
@@ -55,6 +56,17 @@
       value=retried;
      }
     }
+   }
+   if(!safe(source,value)){
+    // Last pass translates only prose; model output never controls identifiers or amounts.
+    const parts=source.split(protectedParts);let complete=true;
+    for(let i=0;i<parts.length;i+=2){
+     if(!/[\p{L}]/u.test(parts[i]))continue;
+     const original=parts[i],translated=await call(original.trim());check();
+     if(!safe(original,translated)){complete=false;break;}
+     parts[i]=original.match(/^\s*/)[0]+translated.trim()+original.match(/\s*$/)[0];
+    }
+    if(complete)value=parts.join('');
    }
    result.push(safe(source,value)?value:null);
   }
