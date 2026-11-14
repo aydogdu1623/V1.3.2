@@ -6,21 +6,21 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=235.0">
-<script src="/assets/project-access.js?v=235.0"></script>
-<script src="/assets/session-privacy.js?v=235.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=236.0">
+<script src="/assets/project-access.js?v=236.0"></script>
+<script src="/assets/session-privacy.js?v=236.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/structure-state.js?v=235.0"></script>
-<script src="/assets/performance.js?v=235.0"></script>
-<meta name="cephepro-build" content="V235.0"/>
+<script src="/assets/structure-state.js?v=236.0"></script>
+<script src="/assets/performance.js?v=236.0"></script>
+<meta name="cephepro-build" content="V236.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V235";window.CEPHEPRO_BUILD="V235.0";</script>
+<script>window.CEPHEPRO_VERSION="V236";window.CEPHEPRO_BUILD="V236.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -24941,16 +24941,16 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     if(!modal||!body)return;
 
     modal.querySelectorAll('.v34-work-grid').forEach(el=>{
-      el.style.setProperty('min-width','0','important');
+      el.style.setProperty('min-width',document.body.classList.contains('v113-member')?'780px':'1020px','important');
       el.style.setProperty('width','100%','important');
-      el.style.setProperty('max-width','100%','important');
+      el.style.setProperty('max-width','none','important');
     });
 
     [...body.children].forEach(el=>{
       const st=(el.getAttribute('style')||'').replace(/\s/g,'').toLowerCase();
       if(st.includes('overflow:auto')){
-        el.style.setProperty('overflow-x','hidden','important');
-        el.style.setProperty('overflow-y','visible','important');
+        el.style.setProperty('overflow-x','auto','important');
+        el.style.setProperty('overflow-y','auto','important');
         el.style.setProperty('width','100%','important');
         el.style.setProperty('min-width','0','important');
       }
@@ -31926,55 +31926,55 @@ body.v113-member #v32WorkModal .v34-work-row{
 document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='undefined'&&currentUser){window.__cpFounderEmail=currentUser.isFounder?currentUser.email:null;}});
 </script>
 <script src="/assets/member-v190.js"></script>
-<script src="/assets/personal-layout.js?v=235.0"></script>
+<script src="/assets/personal-layout.js?v=236.0"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=235.0"></script>
-<script src="/assets/firma-template-v208.js?v=235.0"></script>
-<script src="/assets/claims-v182.js?v=235.0"></script>
+<script src="/assets/claims-report-v191.js?v=236.0"></script>
+<script src="/assets/firma-template-v208.js?v=236.0"></script>
+<script src="/assets/claims-v182.js?v=236.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=235.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=236.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=235.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=236.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=235.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=236.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=235.0"></script>
+<script src="/assets/puantaj-model.js?v=236.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
 body:not(.v113-member) #v32WorkModal .v34-work-head.v169-financial-grid,
 body:not(.v113-member) #v32WorkModal .v34-work-row.v169-financial-grid{
-  grid-template-columns:70px minmax(155px,1.5fr) 58px 70px 92px 100px 96px minmax(120px,1fr)!important;
+  grid-template-columns:70px minmax(210px,1.5fr) 110px 80px 100px 110px 100px minmax(120px,1fr)!important;
 }
 body.v113-member #v32WorkModal .v34-work-head,
 body.v113-member #v32WorkModal .v34-work-row{
-  grid-template-columns:70px minmax(155px,1.6fr) 62px 72px 96px 106px!important;
+  grid-template-columns:70px minmax(210px,1.6fr) 110px 80px 100px 110px!important;
 }
 body.v113-member #v32WorkModal .v209-progress-head,
 body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
 #v32WorkModal .v209WiPoz{font-weight:700!important;text-align:left!important}
 @media(max-width:900px){
   #v32WorkModal>.modal>.panel-body{overflow-x:auto!important}
-  #v32WorkBody{min-width:860px!important}
+  #v32WorkBody{min-width:0!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=235.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=235.0">
-<script src="/assets/deficiencies.js?v=235.0"></script>
+<script src="/assets/puantaj.js?v=236.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=236.0">
+<script src="/assets/deficiencies.js?v=236.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
-<link rel="stylesheet" href="/assets/i18n.css?v=235.0">
-<script src="/assets/translations.js?v=235.0"></script>
-<script src="/assets/ai-translations.js?v=235.0"></script>
-<script src="/assets/local-translation.js?v=235.0"></script>
-<script src="/assets/currency.js?v=235.0"></script>
-<script src="/assets/i18n.js?v=235.0"></script>
-<script src="/assets/i18n-fields.js?v=235.0"></script>
-<script src="/assets/i18n-reports.js?v=235.0"></script>
+<link rel="stylesheet" href="/assets/i18n.css?v=236.0">
+<script src="/assets/translations.js?v=236.0"></script>
+<script src="/assets/ai-translations.js?v=236.0"></script>
+<script src="/assets/local-translation.js?v=236.0"></script>
+<script src="/assets/currency.js?v=236.0"></script>
+<script src="/assets/i18n.js?v=236.0"></script>
+<script src="/assets/i18n-fields.js?v=236.0"></script>
+<script src="/assets/i18n-reports.js?v=236.0"></script>
