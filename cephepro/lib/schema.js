@@ -13,6 +13,10 @@ export function ensureSchema(sql) {
 async function initializeSchema(sql) {
   const statements=[];
   statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_migrations(name text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now())`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_user_layouts (
+    user_id text PRIMARY KEY, layout jsonb, revision integer NOT NULL DEFAULT 0,
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`);
   statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_claims (owner_id text PRIMARY KEY, data jsonb NOT NULL DEFAULT '{}'::jsonb, revision integer NOT NULL DEFAULT 0)`);
   statements.push(sql`ALTER TABLE cephepro_claims ADD COLUMN IF NOT EXISTS is_shared boolean NOT NULL DEFAULT false`);
   statements.push(sql`ALTER TABLE cephepro_claims ADD COLUMN IF NOT EXISTS published_at timestamptz`);

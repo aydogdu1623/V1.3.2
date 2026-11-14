@@ -80,3 +80,20 @@ test('browser API failures are classified and a replacement model can recover',a
  await assert.rejects(I.translate(['Özel not'],'en'),/TRANSLATION_LOCAL_UNAVAILABLE/);broken=false;
  assert.equal((await I.translate(['Özel not'],'en'))[0],'Recovered note');assert.equal(creates,2);
 });
+
+test('automatic model preparation uses a page gesture without a separate translation button',async t=>{
+ const w=browser(t);let active=false,created=0;
+ Object.defineProperty(w.navigator,'userActivation',{value:{get isActive(){return active;}}});
+ w.Translator={availability:async()=> 'downloadable',create:async()=>{assert.equal(active,true);created++;return {translate:async s=>s.replace('özgün','original')};}};
+ const I=localize(w);await I.setLanguage('en');await new Promise(r=>setTimeout(r,10));
+ assert.equal(w.document.getElementById('cpLanguageRetry'),null);assert.equal(created,0);
+ active=true;w.document.body.click();active=false;await new Promise(r=>setTimeout(r,30));assert.equal(created,1);
+ const p=w.document.createElement('p');p.textContent='Sonradan açılan özgün açıklama';w.document.body.appendChild(p);
+ await new Promise(r=>setTimeout(r,200));assert.equal(p.textContent,'Sonradan açılan original açıklama');
+});
+test('prose-only AI fallback translates explanations when a model changes both numbers and placeholders',async t=>{
+ const w=browser(t);
+ w.Translator={availability:async()=> 'available',create:async()=>({translate:async s=>/[0-9]|ZXQKEEP/.test(s)?'Broken 999':s.replace('ankraj montajı','anchor installation').replace('tamamlandı','completed')})};
+ const result=await w.CepheProLocalTranslation.translate(['W1 ankraj montajı 150 tamamlandı'],'en');
+ assert.equal(result[0],'W1 anchor installation 150 completed');
+});
