@@ -118,3 +118,17 @@ test('Excel headers, footers, validation prompts and chart series translate with
 test('gateway setup failures distinguish card verification, credit, authentication and limits',async()=>{
  for(const [status,type,code]of [[403,'customer_verification_required','VERIFICATION_REQUIRED'],[402,'insufficient_funds','CREDITS_REQUIRED'],[401,'unauthorized','AUTH_REQUIRED'],[429,'rate_limited','RATE_LIMIT']])await assert.rejects(translateBatch(['açıklama'],'en',{token:'synthetic',fetcher:async()=>({ok:false,status,json:async()=>({error:{type}})})}),new RegExp('TRANSLATION_'+code));
 });
+
+test('photo selection labels stay translated through repeated layout passes and language changes',async t=>{
+ const {dom,w,I}=harness('<section class="report-preview"><b>Cephe Fotoğrafları</b><div class="field"><label>Fotoğraf yükle (Admin ve Üye)</label><input id="photoInput" type="file"></div><div class="v102-photo-bulkbar" data-for="photoGrid"><div class="v102-photo-bulk-left"><input type="checkbox"><span>Çoklu seçim</span><span class="v102-count-badge">0</span></div><div><button class="v102-photo-delete" disabled>Seçilenleri Sil</button></div></div><div id="photoGrid"></div></section>');
+ const observers=[],Observer=w.MutationObserver;w.MutationObserver=class extends Observer{constructor(fn){super(fn);observers.push(this);}};
+ t.after(()=>{observers.forEach(o=>o.disconnect());dom.window.close();});const html=read('index.html');
+ for(const id of ['v105V103RefinementScript','v109GeneralPhotoFixScript'])w.eval(html.match(new RegExp('<script id="'+id+'">([\\s\\S]*?)<\\/script>'))[1]);
+ const label=()=>w.document.querySelector('.v102-photo-bulk-left span').textContent;
+ for(const [language,selection,del,add] of [['en','Multiple selection','Delete selected items','Add photo'],['de','Mehrfachauswahl','Ausgewählte Einträge löschen','Foto hinzufügen'],['tr','Çoklu seçim','Seçilenleri Sil','Fotoğraf Ekle']]){
+  await I.setLanguage(language);await new Promise(r=>setTimeout(r,520));
+  for(let i=0;i<3;i++){const node=w.document.createElement('div');w.document.body.appendChild(node);await delay();node.remove();}
+  assert.equal(label(),selection);assert.equal(w.document.querySelector('.v102-photo-delete').textContent,del);assert.equal(w.document.querySelector('.v105-photo-upload-btn span:last-child').textContent,add);
+  assert.equal(w.document.querySelector('.v102-count-badge').textContent,'0');assert.equal(w.document.querySelector('.v102-photo-delete').disabled,true);
+ }
+});

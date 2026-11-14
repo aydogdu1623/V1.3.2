@@ -6,21 +6,21 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=234.0">
-<script src="/assets/project-access.js?v=234.0"></script>
-<script src="/assets/session-privacy.js?v=234.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=235.0">
+<script src="/assets/project-access.js?v=235.0"></script>
+<script src="/assets/session-privacy.js?v=235.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/structure-state.js?v=234.0"></script>
-<script src="/assets/performance.js?v=234.0"></script>
-<meta name="cephepro-build" content="V234.0"/>
+<script src="/assets/structure-state.js?v=235.0"></script>
+<script src="/assets/performance.js?v=235.0"></script>
+<meta name="cephepro-build" content="V235.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V234";window.CEPHEPRO_BUILD="V234.0";</script>
+<script>window.CEPHEPRO_VERSION="V235";window.CEPHEPRO_BUILD="V235.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -27096,22 +27096,17 @@ button:hover,.btn:hover,.small-btn:hover,.settingsTab:hover,.window-actions butt
     // V103 çoklu seçim barı aynı işlevle başlığın sağ tarafına taşınır.
     const bulk=section.querySelector('.v102-photo-bulkbar[data-for="photoGrid"],.v102-photo-bulkbar');
     if(bulk&&actions&&bulk.parentElement!==actions){actions.appendChild(bulk)}
-    if(bulk){
-      const txt=bulk.querySelector('.v102-photo-bulk-left span:not(.v102-count-badge)');if(txt)txt.textContent='Çoklu seçim';
-      const del=bulk.querySelector('.v102-photo-delete');if(del)del.childNodes[0].nodeValue='Seçilenleri Sil';
-    }
+    // Layout must preserve localized text nodes; labels are created by ensureBulkBar.
 
     // Native input görünmez; yalnız güzel özel buton kalır.
     const field=input.closest('.field');
     if(field){
       field.classList.add('v105-photo-upload-field');
       input.classList.add('v105-native-photo-input');
-      const oldLabel=[...field.children].find(x=>x.tagName==='LABEL'&&!x.classList.contains('v105-photo-upload-btn'));
-      if(oldLabel)oldLabel.textContent='Fotoğraf yükle (Admin ve Üye)';
       let upload=field.querySelector('.v105-photo-upload-btn');
       if(!upload){
         upload=document.createElement('label');upload.className='v105-photo-upload-btn';upload.htmlFor='photoInput';
-        upload.innerHTML='<span class="v105-photo-upload-icon">＋</span><span>Fotoğraf Seç</span>';
+        upload.innerHTML='<span class="v105-photo-upload-icon">＋</span><span>Fotoğraf Ekle</span>';
         field.appendChild(upload);
       }
     }
@@ -28397,7 +28392,7 @@ select,textarea,
       upload.innerHTML='<span class="v105-photo-upload-icon">＋</span><span>Fotoğraf Ekle</span>';
     }
     upload.classList.add('v109-photo-add-btn');
-    const txt=upload.querySelector('span:last-child');if(txt)txt.textContent='Fotoğraf Ekle';
+    // Keep the existing translated caption when moving the upload control.
 
     // Çoklu seçim hemen ardından Fotoğraf Ekle, sonra Seçilenleri Sil.
     if(left){
@@ -31931,25 +31926,25 @@ body.v113-member #v32WorkModal .v34-work-row{
 document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='undefined'&&currentUser){window.__cpFounderEmail=currentUser.isFounder?currentUser.email:null;}});
 </script>
 <script src="/assets/member-v190.js"></script>
-<script src="/assets/personal-layout.js?v=234.0"></script>
+<script src="/assets/personal-layout.js?v=235.0"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=234.0"></script>
-<script src="/assets/firma-template-v208.js?v=234.0"></script>
-<script src="/assets/claims-v182.js?v=234.0"></script>
+<script src="/assets/claims-report-v191.js?v=235.0"></script>
+<script src="/assets/firma-template-v208.js?v=235.0"></script>
+<script src="/assets/claims-v182.js?v=235.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=234.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=235.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=234.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=235.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=234.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=235.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=234.0"></script>
+<script src="/assets/puantaj-model.js?v=235.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -31969,17 +31964,17 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:860px!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=234.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=234.0">
-<script src="/assets/deficiencies.js?v=234.0"></script>
+<script src="/assets/puantaj.js?v=235.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=235.0">
+<script src="/assets/deficiencies.js?v=235.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
-<link rel="stylesheet" href="/assets/i18n.css?v=234.0">
-<script src="/assets/translations.js?v=234.0"></script>
-<script src="/assets/ai-translations.js?v=234.0"></script>
-<script src="/assets/local-translation.js?v=234.0"></script>
-<script src="/assets/currency.js?v=234.0"></script>
-<script src="/assets/i18n.js?v=234.0"></script>
-<script src="/assets/i18n-fields.js?v=234.0"></script>
-<script src="/assets/i18n-reports.js?v=234.0"></script>
+<link rel="stylesheet" href="/assets/i18n.css?v=235.0">
+<script src="/assets/translations.js?v=235.0"></script>
+<script src="/assets/ai-translations.js?v=235.0"></script>
+<script src="/assets/local-translation.js?v=235.0"></script>
+<script src="/assets/currency.js?v=235.0"></script>
+<script src="/assets/i18n.js?v=235.0"></script>
+<script src="/assets/i18n-fields.js?v=235.0"></script>
+<script src="/assets/i18n-reports.js?v=235.0"></script>

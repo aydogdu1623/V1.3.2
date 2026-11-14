@@ -25,3 +25,6 @@ html:not([lang=tr]) .settingsTab{white-space:normal}html:not([lang=tr]) .pt-tabs
 .layout-popover .v39-layout-card :is(b,span){min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important}
 .panel-head :is(h2,h3,.panel-title){min-width:0;overflow-wrap:anywhere;white-space:normal}
 html:not([lang=tr]) :is(.btn,.settingsTab) > span{min-width:0;white-space:normal;overflow-wrap:anywhere}
+.v105-photo-titlebar .v102-photo-bulkbar{flex-wrap:wrap!important;max-width:100%!important}
+.v105-photo-titlebar :is(.v102-photo-bulk-left,.v102-photo-delete,.v109-photo-add-btn){height:auto!important;min-height:26px!important;max-width:100%!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.25!important;box-sizing:border-box!important}
+.v105-photo-titlebar .v102-photo-bulk-left span:not(.v102-count-badge){min-width:0;overflow-wrap:anywhere}
