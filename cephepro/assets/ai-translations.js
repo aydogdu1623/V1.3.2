@@ -89,5 +89,5 @@
  ['Değerlendirme: Seçili rapor kapsamındaki toplam {total} metrajın {done} bölümü tamamlanmıştır.','Assessment: {done} of the total measured quantity of {total} within the selected report scope has been completed.','Bewertung: Von der gesamten Aufmaßmenge von {total} im ausgewählten Berichtsumfang wurden {done} fertiggestellt.'],
  ['Toplam metraj ağırlıklı genel ilerleme %{n} seviyesindedir.','Overall progress weighted by total quantity is {n}%.','Der nach Gesamtmenge gewichtete Gesamtfortschritt beträgt {n}%.']
  ];
- for(const [source,en,de] of rows)window.CepheProDictionary[source]={en,de};
+ for(const [source,en,de] of rows)window.CepheProDictionary[source]={...window.CepheProDictionary[source],en,de};
 })();

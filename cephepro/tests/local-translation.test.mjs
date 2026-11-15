@@ -97,3 +97,15 @@ test('prose-only AI fallback translates explanations when a model changes both n
  const result=await w.CepheProLocalTranslation.translate(['W1 ankraj montajı 150 tamamlandı'],'en');
  assert.equal(result[0],'W1 anchor installation 150 completed');
 });
+
+for(const language of ['fr','ru','ar'])test('new language '+language+' supports offline controls, model notes, persistence and direction',async t=>{
+ const w=browser(t),calls=[];
+ w.Translator={availability:async opts=>{calls.push(opts);return 'available';},create:async opts=>{calls.push(opts);return {translate:async text=>({fr:'Note de chantier',ru:'Запись со стройки',ar:'ملاحظة الموقع'}[opts.targetLanguage]),destroy(){}};}};
+ const I=localize(w);await I.setLanguage(language);
+ assert.equal(w.document.getElementById('cpLanguageSelect').value,language);assert.equal(w.localStorage.getItem('cephepro_language'),language);assert.equal(w.document.documentElement.dir,language==='ar'?'rtl':'ltr');
+ for(const source of ['Çalışma Olmadı','Birim','mtül','adet','İş Kalemi','Hakediş','Para birimi'])assert.notEqual(I.local(source),undefined,source);
+ assert.equal(I.t('W1 - ANKRAJ MONTAJI').startsWith('W1 - '),true);assert.match(I.t('12 gün'),/12/);
+ I.t('Mevcut üretim hızı korunursa tahmini bitiş 25.10.2026; plan bitişine göre yaklaşık 5 gün gecikme riski oluşuyor.');
+ await I.ensure(['Bugün şantiyede ek kontrol yapıldı']);assert.notEqual(I.t('Bugün şantiyede ek kontrol yapıldı'),'Bugün şantiyede ek kontrol yapıldı');assert.ok(calls.some(x=>x.targetLanguage===language));
+ await I.setLanguage('tr');assert.equal(w.document.documentElement.dir,'ltr');assert.equal(I.t('Çalışma Olmadı'),'Çalışma Olmadı');
+});

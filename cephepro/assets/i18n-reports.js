@@ -48,7 +48,7 @@
     for(const node of all(doc,'numFmt')){const format=node.getAttribute('formatCode');if(format){formatAttrs.push({node,format});for(const m of format.matchAll(/"([^"]*)"/g))texts.add(m[1]);}}
    }
    if(path.startsWith('docProps/'))for(const name of ['title','subject','description'])for(const node of all(doc,name))add(node);
-   if(path.startsWith('word/')&&language!=='tr')for(const node of all(doc,'lang'))node.setAttributeNS(node.namespaceURI,'w:val',language==='de'?'de-DE':'en-GB');
+   if(path.startsWith('word/')&&language!=='tr')for(const node of all(doc,'lang'))node.setAttributeNS(node.namespaceURI,'w:val',I.locale());
   }
   await I.ensureReport([...texts]);
   if(I.language()!==language||I.context()!==ctx)throw Error('Dil veya proje değişti. Raporu yeniden oluşturun.');
@@ -65,6 +65,16 @@
   for(const {node,attr} of formulaAttrs)node.setAttribute(attr,formulaText(node.getAttribute(attr),sheets,columns,I.t));
   for(const {node,format} of formatAttrs)node.setAttribute('formatCode',(root.CepheProCurrency?.format(format)||format).replace(/"([^"]*)"/g,(_,text)=>'"'+I.t(text).replace(/"/g,"'")+'"'));
   for(const {node,parts} of headers)node.textContent=parts.map((part,i)=>i%2?part:I.t(part)).join('');
+  if(language==='ar')for(const [path,doc] of docs){
+   if(path.startsWith('xl/worksheets/'))for(const view of all(doc,'sheetView'))view.setAttribute('rightToLeft','1');
+   if(path.startsWith('word/'))for(const paragraph of all(doc,'p')){
+    if(!/[\u0600-\u06ff]/u.test(paragraph.textContent))continue;
+    const ns=paragraph.namespaceURI;if(!ns?.includes('wordprocessingml'))continue;
+    let props=[...paragraph.children].find(n=>n.localName==='pPr');
+    if(!props){props=doc.createElementNS(ns,'w:pPr');paragraph.insertBefore(props,paragraph.firstChild);}
+    if(!all(props,'bidi').length){const bidi=doc.createElementNS(ns,'w:bidi');bidi.setAttributeNS(ns,'w:val','1');props.insertBefore(bidi,[...props.children].find(n=>['spacing','ind','jc','textDirection'].includes(n.localName))||null);}
+   }
+  }
   for(const [path,doc] of docs)zip.file(path,serial(doc));
   return zip.generateAsync({type:'uint8array',compression:'DEFLATE'});
  }
