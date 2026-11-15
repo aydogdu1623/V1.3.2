@@ -35,7 +35,7 @@
    for(const node of all(doc,'t'))add(node);
    if(path.startsWith('xl/')){
     for(const cell of all(doc,'c'))if(cell.getAttribute('t')==='str')for(const n of [...cell.children].filter(n=>n.localName==='v'))add(n);
-    for(const node of all(doc,'pt'))if(node.parentElement?.localName==='strCache'||node.parentElement?.localName==='strLit')for(const n of [...node.children].filter(n=>n.localName==='v'))add(n);
+    for(const node of all(doc,'pt'))if(['strCache','strLit','lvl'].includes(node.parentElement?.localName))for(const n of [...node.children].filter(n=>n.localName==='v'))add(n);
     for(const name of ['f','formula','formula1','formula2','definedName','calculatedColumnFormula','totalsRowFormula'])for(const node of all(doc,name)){formulaNodes.push(node);for(const m of node.textContent.matchAll(/"((?:[^"]|"")*)"/g)){const text=m[1].replace(/""/g,'"');if(!/[!$]/.test(text))texts.add(text);}}
     for(const node of all(doc,'hyperlink'))if(node.hasAttribute('location'))formulaAttrs.push({node,attr:'location'});
     for(const name of ['oddHeader','evenHeader','firstHeader','oddFooter','evenFooter','firstFooter'])for(const node of all(doc,name)){
@@ -78,5 +78,59 @@
  // Only report drawing is localized. UI editors retain their original editable text.
  const proto=root.CanvasRenderingContext2D?.prototype;
  if(proto)for(const method of ['fillText','strokeText','measureText']){const native=proto[method];if(native)proto[method]=function(text,...args){return native.call(this,I.t(String(text)),...args);};}
- I.office=office;I.prepareCharts=prepareCharts;I.formulaText=formulaText;
+ // Size the general report's visible tables using the final language, before
+ // packing XML. Source strings, formulas, filters and chart lookup keys stay intact.
+ async function layoutWorkbook(wb){
+  const tables=[],texts=[];
+  wb.eachSheet(sheet=>{
+   if(sheet.state==='hidden'||sheet.state==='veryHidden')return;
+   const match=typeof sheet.autoFilter==='string'&&sheet.autoFilter.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+   if(!match)return;
+   const first=sheet.getCell(match[1]+match[2]),last=sheet.getCell(match[3]+match[4]);
+   tables.push({sheet,first,last});
+   for(let r=first.row;r<=last.row;r++)for(let c=first.col;c<=last.col;c++){
+    const value=sheet.getCell(r,c).value;if(typeof value==='string')texts.push(value);
+   }
+  });
+  await I.ensureReport(texts);
+  const display=cell=>I.t(cell.text||'');
+  const lineCount=(text,capacity)=>String(text).split('\n').reduce((sum,line)=>{
+   let used=0,lines=1;
+   for(const word of line.split(/\s+/).filter(Boolean)){
+    if(used&&used+1+word.length>capacity){lines++;used=0;}
+    if(used)used++;
+    used+=word.length;
+    while(used>capacity){lines++;used-=capacity;}
+   }
+   return sum+lines;
+  },0);
+  for(const {sheet,first,last} of tables){
+   const main=sheet.name==='Rapor',minimums=[12,16,30,12,14,14,16,20,16,24,24];
+   for(let c=first.col;c<=last.col;c++){
+    const column=sheet.getColumn(c);if(column.hidden)continue;
+    const heading=display(sheet.getCell(first.row,c));
+    const headerWidth=Math.min(28,Math.max(12,heading.length*.75+4));
+    column.width=Math.max(column.width||8,main?(minimums[c-1]||12):12,headerWidth);
+   }
+   for(let r=first.row;r<=last.row;r++){
+    let height=r===first.row?32:28;
+    for(let c=first.col;c<=last.col;c++){
+     const cell=sheet.getCell(r,c);if(sheet.getColumn(c).hidden)continue;
+     cell.font={...cell.font,size:Math.max(9,Number(cell.font?.size)||9)};
+     cell.alignment={...cell.alignment,horizontal:'center',vertical:'middle',wrapText:true,shrinkToFit:false};
+     const capacity=Math.max(4,Math.floor((sheet.getColumn(c).width*7-16)/(cell.font.size*.8)));
+     height=Math.max(height,lineCount(display(cell),capacity)*cell.font.size*1.4+10);
+    }
+    sheet.getRow(r).height=Math.min(409,Math.max(sheet.getRow(r).height||0,height));
+   }
+  }
+ }
+ function chartLayout(labels,levels=[]){
+  const strings=[...labels,...levels.flat()].map(value=>I.t(String(value??'')));
+  const longest=Math.max(0,...strings.flatMap(value=>value.split('\n').map(line=>line.length)));
+  // Keep full category labels horizontal with a separate context line and
+  // reserve enough width per item instead of squeezing them into a fixed image.
+  return {widthPx:Math.max(1000,Math.ceil(200+labels.length*Math.max(144,longest*8+32)*1.25)),heightPx:640,categoryRotation:0};
+ }
+ I.office=office;I.prepareCharts=prepareCharts;I.formulaText=formulaText;I.layoutWorkbook=layoutWorkbook;I.chartLayout=chartLayout;
 })(window);
