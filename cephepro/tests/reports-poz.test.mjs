@@ -53,6 +53,27 @@ test('PDF report HTML includes adjacent Poz No columns in detail, facade and wor
  for(const t of tables){const heads=[...t.querySelectorAll('thead th')].map(x=>x.textContent),i=heads.indexOf('İş Kalemi');const poz=heads.indexOf('Poz No');assert.equal(Math.abs(poz-i),1);const cells=t.querySelector('tbody tr').children;assert.equal(cells[poz].textContent,'W1');assert.equal(cells.length,heads.length);}
  dom.window.close();
 });
+
+for(const language of ['en','de'])test('localized general report centers readable dates and reserves space for every chart category: '+language,async t=>{
+ const {w,rows}=harness();t.after(()=>w.close());w.AbortController=AbortController;
+ w.CepheProProjects={isReady:()=>true,project:()=>({id:'fixture'})};
+ w.CepheProLocalTranslation={prepare:async()=>{},translate:async texts=>texts.map(text=>text)};
+ for(const file of ['assets/translations.js','assets/ai-translations.js','assets/i18n.js','assets/i18n-reports.js'])w.eval(read(file));
+ const sample=[...rows[0]];rows.length=0;
+ for(let i=0;i<18;i++)rows.push([...sample.slice(0,2),'W'+(i+1)+' - ANKRAJ MONTAJI',...sample.slice(3,8),'Plan: 11.11.2026\nReel: -','Plan: 19.04.2027\nReel: -']);
+ await w.CepheProI18n.setLanguage(language);let blob;w.v52DownloadBlob=b=>{blob=b;};await w.testExport();
+ const bytes=await new Promise(resolve=>{const r=new w.FileReader();r.onload=()=>resolve(new w.Uint8Array(r.result));r.readAsArrayBuffer(blob);});
+ const wb=new w.ExcelJS.Workbook();await wb.xlsx.load(bytes);const report=wb.getWorksheet(language==='en'?'Report':'Bericht');assert.ok(report);
+ for(const address of ['A7','C7','J7','A8','C8','G8','J8','K8','J25']){
+  const cell=report.getCell(address);assert.equal(cell.alignment.horizontal,'center');assert.equal(cell.alignment.vertical,'middle');assert.equal(cell.alignment.wrapText,true);assert.ok(cell.font.size>=9);
+ }
+ assert.ok(report.getColumn(3).width>=30);assert.ok(report.getColumn(10).width>=24);assert.ok(report.getRow(8).height>=35);assert.ok(report.getRow(7).height>=32);
+ assert.match(report.getCell('J8').text,/11\.11\.2026/);assert.equal(report.getCell('G8').value,100);assert.equal(report.getCell('I8').formula,'IFERROR(H8/G8*100,0)');assert.equal(report.autoFilter,'A7:K25');assert.equal(report.views[0].ySplit,7);
+ const zip=await JSZip.loadAsync(Buffer.from(bytes));const chart=await zip.file('xl/charts/chart1.xml').async('string');
+ assert.match(chart,language==='en'?/ANCHOR INSTALLATION/i:/ANKERMONTAGE/i);assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="18"/);assert.match(chart,/<a:bodyPr rot="0"/);
+ const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525>=18*144);assert.ok(Number(ext[2])/9525>=640);
+ if(process.env.CP_REPORT_QA_DIR){fs.mkdirSync(process.env.CP_REPORT_QA_DIR,{recursive:true});fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/report-'+language+'.xlsx',Buffer.from(bytes));}
+});
 test('Word and PDF export actions reach download even when the free model is unavailable',async t=>{
  const {w}=harness();t.after(()=>w.close());w.AbortController=AbortController;
  w.CepheProProjects={isReady:()=>true,project:()=>({id:'fixture'})};
@@ -99,7 +120,7 @@ test('real Excel workbook preserves formula targets, filters and native chart af
  const history=wb.getWorksheet('Çalışma Geçmişi');assert.equal(history.getCell('F4').value,'İş Kalemi');assert.equal(history.getCell('G4').value,'Poz No');assert.equal(history.getCell('G5').value,'W1');assert.equal(history.getCell('I5').value,25);assert.equal(history.autoFilter,'A4:L5');
  const daily=wb.getWorksheet('Günlük Çalışma');assert.equal(daily.getCell('E2').value,'W1');assert.equal(daily.getCell('G2').value,25);
  const zip=await JSZip.loadAsync(bytes),chart=await zip.file('xl/charts/chart1.xml').async('string');
- assert.match(chart,/Rapor!\$B\$8:\$E\$9/);assert.match(chart,/Rapor!\$G\$8:\$G\$9/);assert.match(chart,/Rapor!\$H\$8:\$H\$9/);assert.match(chart,/Rapor!\$I\$8:\$I\$9/);assert.match(chart,/>W1</);
+ assert.match(chart,/Grafik Verileri.*!\$L\$2:\$L\$3/);assert.doesNotMatch(chart,/multiLvlStr/);assert.match(chart,/Rapor!\$G\$8:\$G\$9/);assert.match(chart,/Rapor!\$H\$8:\$H\$9/);assert.match(chart,/Rapor!\$I\$8:\$I\$9/);assert.match(chart,/W1 - ANKRAJ MONTAJI/);assert.match(wb.getWorksheet('Grafik Verileri').getCell('L2').formula,/Rapor!C8/);
  for(const sheet of wb.worksheets)sheet.eachRow(row=>row.eachCell(cell=>{if(cell.formula)assert.doesNotMatch(cell.formula,/#REF!/);}));
  dom.window.close();
 });

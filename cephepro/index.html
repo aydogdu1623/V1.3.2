@@ -6,21 +6,21 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=236.0">
-<script src="/assets/project-access.js?v=236.0"></script>
-<script src="/assets/session-privacy.js?v=236.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=237.0">
+<script src="/assets/project-access.js?v=237.0"></script>
+<script src="/assets/session-privacy.js?v=237.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/structure-state.js?v=236.0"></script>
-<script src="/assets/performance.js?v=236.0"></script>
-<meta name="cephepro-build" content="V236.0"/>
+<script src="/assets/structure-state.js?v=237.0"></script>
+<script src="/assets/performance.js?v=237.0"></script>
+<meta name="cephepro-build" content="V237.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V236";window.CEPHEPRO_BUILD="V236.0";</script>
+<script>window.CEPHEPRO_VERSION="V237";window.CEPHEPRO_BUILD="V237.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -21535,7 +21535,7 @@ try{v41RenderOverview()}catch(_){ }
     }
     const horizontal=ch.type==='horizontal';
     const count=Math.max(1,ch.cacheLabels.length);
-    const rot=ch.verticalLabels?'-5400000':count>12?'-3600000':count>10?'-2700000':'0';
+    const rot=Number.isFinite(ch.categoryRotation)?String(ch.categoryRotation):ch.verticalLabels?'-5400000':count>12?'-3600000':count>10?'-2700000':'0';
     const catFlag=ch.showCatName===false?'0':'1';
     const posTag=ch.type==='line'?'<c:dLblPos val="t"/>':(ch.type==='area'?'':'<c:dLblPos val="outEnd"/>');
     const labels=ch.showDataLabels===false?'':`<c:dLbls>
@@ -22332,6 +22332,8 @@ ${displayLabel68(f,16)}`;
       }));
     });
 
+    await window.CepheProI18n?.layoutWorkbook(wb);
+
     // ---------------- V155: V144(2) REFERANSINDAKİ YEREL EXCEL GRAFİĞİ ----------------
     const scopeBlocks145=blocks.map(b=>v33BlockLabel(b)).join(' + ')||'TÜM BLOKLAR';
     const scopeFacades145=[...new Set(facades.map(([,f])=>String(f||'').trim()).filter(Boolean))].join(' + ')||'TÜM CEPHELER';
@@ -22340,12 +22342,20 @@ ${displayLabel68(f,16)}`;
     // 2 cephe BR20, 3 cephe BU20... Sol K1 sabittir; yalnız sağ kenar uzar.
     const extraFacadeCount162=Math.max(0,facades.length-1);
     const chartRightCol158=68+extraFacadeCount162*3;
+    // One complete formula-linked label per item avoids collapsed category levels.
+    gd.getCell('L1').value='İş Kalemi';
+    const chartLabels237=chartRows155.map((item,index)=>{
+      const sourceRow=index+8,code=String(ws.getCell(sourceRow,4).value||''),name=String(rows[index][2]||'');
+      const prefix=code&&!name.startsWith(code)?code+' - ':'';
+      const label=prefix+name+'\n'+item.facade+' / '+item.unit;
+      gd.getCell(index+2,12).value={formula:`IF(AND(Rapor!D${sourceRow}<>"",LEFT(Rapor!C${sourceRow},LEN(Rapor!D${sourceRow}))<>Rapor!D${sourceRow}),Rapor!D${sourceRow}&" - ","")&Rapor!C${sourceRow}&CHAR(10)&Rapor!B${sourceRow}&" / "&Rapor!E${sourceRow}`,result:label};
+      return label;
+    });
     const nativeChart148={
       type:'column',
       title:`${scopeBlocks145} ${scopeFacades145}\nİŞ KALEMLERİ\nMETRAJLAR`,
-      catFormula:`Rapor!$B$8:$E$${dataEnd}`,
-      cacheLabels:chartRows155.map(row=>row.item),
-      categoryLevels:[chartRows155.map(row=>row.unit),rows.map(row=>window.CepheProReportPoz.position(row[2],row[0],row[1])),chartRows155.map(row=>row.item),chartRows155.map(row=>row.facade)],
+      catFormula:`'Grafik Verileri'!$L$2:$L$${chartRows155.length+1}`,
+      cacheLabels:chartLabels237,
       series:[
         {name:'Toplam',valFormula:`Rapor!$G$8:$G$${dataEnd}`,cacheValues:chartRows155.map(row=>row.total),color:'4F81BD',showLabels:true,labelPosition:'inEnd',labelFormat:'0.##',labelColor:'FFFFFF'},
         {name:'Kümülatif',valFormula:`Rapor!$H$8:$H$${dataEnd}`,cacheValues:chartRows155.map(row=>row.done),color:'C0504D',showLabels:true,labelPosition:'inEnd',labelFormat:'0.##',labelColor:'FFFFFF'},
@@ -22357,6 +22367,7 @@ ${displayLabel68(f,16)}`;
       showDataLabels:false,categoryTitle:false,autoValueAxis:true,valueFormat:'General',
       gapWidth:92,seriesOverlap:-12
     };
+    Object.assign(nativeChart148,window.CepheProI18n?.chartLayout(nativeChart148.cacheLabels,nativeChart148.categoryLevels)||{});
     // V170: Yalnız Rapor sayfasında 1-7. satırlar sabittir. Diğer sayfalarda
     // tablo varsa, autoFilter'ın bulunduğu başlık satırına kadar olan bölüm
     // sabitlenir. xSplit kullanılmaz; aynı tablo veya grafik yinelenmez.
@@ -31926,25 +31937,25 @@ body.v113-member #v32WorkModal .v34-work-row{
 document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='undefined'&&currentUser){window.__cpFounderEmail=currentUser.isFounder?currentUser.email:null;}});
 </script>
 <script src="/assets/member-v190.js"></script>
-<script src="/assets/personal-layout.js?v=236.0"></script>
+<script src="/assets/personal-layout.js?v=237.0"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=236.0"></script>
-<script src="/assets/firma-template-v208.js?v=236.0"></script>
-<script src="/assets/claims-v182.js?v=236.0"></script>
+<script src="/assets/claims-report-v191.js?v=237.0"></script>
+<script src="/assets/firma-template-v208.js?v=237.0"></script>
+<script src="/assets/claims-v182.js?v=237.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=236.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=237.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=236.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=237.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=236.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=237.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=236.0"></script>
+<script src="/assets/puantaj-model.js?v=237.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -31964,17 +31975,17 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:0!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=236.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=236.0">
-<script src="/assets/deficiencies.js?v=236.0"></script>
+<script src="/assets/puantaj.js?v=237.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=237.0">
+<script src="/assets/deficiencies.js?v=237.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
-<link rel="stylesheet" href="/assets/i18n.css?v=236.0">
-<script src="/assets/translations.js?v=236.0"></script>
-<script src="/assets/ai-translations.js?v=236.0"></script>
-<script src="/assets/local-translation.js?v=236.0"></script>
-<script src="/assets/currency.js?v=236.0"></script>
-<script src="/assets/i18n.js?v=236.0"></script>
-<script src="/assets/i18n-fields.js?v=236.0"></script>
-<script src="/assets/i18n-reports.js?v=236.0"></script>
+<link rel="stylesheet" href="/assets/i18n.css?v=237.0">
+<script src="/assets/translations.js?v=237.0"></script>
+<script src="/assets/ai-translations.js?v=237.0"></script>
+<script src="/assets/local-translation.js?v=237.0"></script>
+<script src="/assets/currency.js?v=237.0"></script>
+<script src="/assets/i18n.js?v=237.0"></script>
+<script src="/assets/i18n-fields.js?v=237.0"></script>
+<script src="/assets/i18n-reports.js?v=237.0"></script>
