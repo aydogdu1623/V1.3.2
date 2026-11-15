@@ -3716,3 +3716,286 @@ Object.assign(window.CepheProDictionary,{"Yukarı Taşı": {"en": "Move Up", "de
 Object.assign(window.CepheProDictionary,{"Bazı özel metinler güvenli biçimde çevrilemedi ve özgün haliyle korundu. Diğer çeviriler ve rapor indirme kullanılabilir.": {"en": "Some custom text could not be translated safely and was kept in its original language. Other translations and report downloads remain available.", "de": "Einige eigene Texte konnten nicht sicher übersetzt werden und bleiben in der Originalsprache. Andere Übersetzungen und Berichtdownloads sind weiterhin verfügbar."}, "Ücretsiz çeviri tarayıcıda çalışır. Ayarlar bölümünden ücretsiz çeviriyi başlatın.": {"en": "Free translation runs in your browser. Start free translation in Settings.", "de": "Die kostenlose Übersetzung läuft im Browser. Starten Sie sie in den Einstellungen."}, "Özel metin çevirisi kullanılamıyor. Hazır çeviriler ve rapor indirme kullanılabilir.": {"en": "Custom text translation is unavailable. Built-in translations and report downloads remain available.", "de": "Die Übersetzung eigener Texte ist nicht verfügbar. Vorhandene Übersetzungen und Berichtdownloads sind weiterhin verfügbar."}});
 
 Object.assign(window.CepheProDictionary,{"Seçili dilde otomatik çeviri açık.": {"en": "Automatic translation is on for the selected language.", "de": "Die automatische Übersetzung für die ausgewählte Sprache ist aktiv."}, "Otomatik çeviri hazırlanıyor. Dil paketini başlatmak için sayfada herhangi bir alana tıklayın.": {"en": "Preparing automatic translation. Click anywhere on the page to start the language pack.", "de": "Automatische Übersetzung wird vorbereitet. Klicken Sie auf die Seite, um das Sprachpaket zu starten."}, "Otomatik çeviri bu tarayıcıdaki yapay zekâ modeliyle çalışır.": {"en": "Automatic translation uses the AI model in this browser.", "de": "Die automatische Übersetzung verwendet das KI-Modell dieses Browsers."}, "Dosya indirilebilir. Çeviri modeli bu cihazda bazı açıklamaları çeviremedi; bu açıklamalar özgün haliyle korundu.": {"en": "The file can be downloaded. The model on this device could not translate some descriptions; they remain in their original language.", "de": "Die Datei kann heruntergeladen werden. Das Modell auf diesem Gerät konnte einige Beschreibungen nicht übersetzen; sie bleiben in der Originalsprache."}, "Kişisel düzenin buluta kaydedildi. Diğer cihazlarda da kullanılacak.": {"en": "Your personal layout was saved to the cloud and will be available on your other devices.", "de": "Ihr persönliches Layout wurde in der Cloud gespeichert und ist auf Ihren anderen Geräten verfügbar."}, "Kişisel düzen buluttan silindi.": {"en": "Your personal layout was deleted from the cloud.", "de": "Ihr persönliches Layout wurde aus der Cloud gelöscht."}, "Kişisel düzeni eşitlemek için giriş yapın.": {"en": "Sign in to sync your personal layout.", "de": "Melden Sie sich an, um Ihr persönliches Layout zu synchronisieren."}, "Kişisel düzen yüklenemedi.": {"en": "Your personal layout could not be loaded.", "de": "Ihr persönliches Layout konnte nicht geladen werden."}, "Kişisel düzen buluta kaydedilemedi.": {"en": "Your personal layout could not be saved to the cloud.", "de": "Ihr persönliches Layout konnte nicht in der Cloud gespeichert werden."}, "Düzen başka cihazda değişti. Kişisel Düzenim ile yükleyip yeniden kaydedin.": {"en": "The layout changed on another device. Load My Personal Layout before saving again.", "de": "Das Layout wurde auf einem anderen Gerät geändert. Laden Sie Mein persönliches Layout, bevor Sie erneut speichern."}});
+
+/* Core UI/report vocabulary for French, Russian and Arabic; custom prose uses the local model. */
+(function(){
+ const rows=`Genel|Général|Общее|عام
+Dil|Langue|Язык|اللغة
+Site ve rapor dili|Langue du site et des rapports|Язык сайта и отчётов|لغة الموقع والتقارير
+Para birimi|Devise|Валюта|العملة
+Ayarlar|Paramètres|Настройки|الإعدادات
+Ayarlar Merkezi|Centre des paramètres|Центр настроек|مركز الإعدادات
+Genel İlerleme|Avancement global|Общий прогресс|التقدم العام
+Projeler|Projets|Проекты|المشاريع
+Proje|Projet|Проект|المشروع
+Puantaj|Pointage|Табель|سجل الحضور
+Bulut Güncel|Cloud à jour|Облако обновлено|السحابة محدّثة
+Buluta Yükle|Envoyer vers le cloud|Загрузить в облако|رفع إلى السحابة
+Buluttan Yenile|Actualiser depuis le cloud|Обновить из облака|تحديث من السحابة
+Kaydet|Enregistrer|Сохранить|حفظ
+Sil|Supprimer|Удалить|حذف
+Düzenle|Modifier|Изменить|تعديل
+İşlemler|Actions|Действия|الإجراءات
+Kapat|Fermer|Закрыть|إغلاق
+İptal|Annuler|Отмена|إلغاء
+Yenile|Actualiser|Обновить|تحديث
+Ekle|Ajouter|Добавить|إضافة
+Aç|Ouvrir|Открыть|فتح
+Geri|Retour|Назад|رجوع
+Devam|Continuer|Продолжить|متابعة
+Ara|Rechercher|Поиск|بحث
+Seç|Sélectionner|Выбрать|اختيار
+Tümü|Tout|Все|الكل
+Tümünü Seç|Tout sélectionner|Выбрать всё|تحديد الكل
+Seçimi Temizle|Effacer la sélection|Снять выделение|إلغاء التحديد
+Tamam|OK|ОК|موافق
+Evet|Oui|Да|نعم
+Hayır|Non|Нет|لا
+Uygula|Appliquer|Применить|تطبيق
+Sıfırla|Réinitialiser|Сбросить|إعادة تعيين
+Yeni|Nouveau|Новый|جديد
+Rapor|Rapport|Отчёт|التقرير
+Raporlar|Rapports|Отчёты|التقارير
+Rapor Tarihi|Date du rapport|Дата отчёта|تاريخ التقرير
+Rapor Aralığı|Période du rapport|Период отчёта|فترة التقرير
+Rapor Sürümü|Version du rapport|Версия отчёта|إصدار التقرير
+Rapor Kapsamı|Périmètre du rapport|Область отчёта|نطاق التقرير
+Excel İndir|Télécharger Excel|Скачать Excel|تنزيل Excel
+Excel ve Ekleri İndir|Télécharger Excel et les annexes|Скачать Excel и приложения|تنزيل Excel والمرفقات
+Excel ve Ekleri|Excel et annexes|Excel и приложения|Excel والمرفقات
+Word İndir|Télécharger Word|Скачать Word|تنزيل Word
+PDF İndir|Télécharger PDF|Скачать PDF|تنزيل PDF
+Farklı Kaydet|Enregistrer sous|Сохранить как|حفظ باسم
+Yazdır|Imprimer|Печать|طباعة
+Firma|Entreprise|Компания|الشركة
+Firma Adı|Nom de l’entreprise|Название компании|اسم الشركة
+Firma Bilgileri|Informations de l’entreprise|Сведения о компании|بيانات الشركة
+Proje Adı|Nom du projet|Название проекта|اسم المشروع
+Proje Kodu|Code du projet|Код проекта|رمز المشروع
+Firma Kodu|Code de l’entreprise|Код компании|رمز الشركة
+İşveren|Maître d’ouvrage|Заказчик|صاحب العمل
+Yüklenici|Entrepreneur|Подрядчик|المقاول
+Taşeron|Sous-traitant|Субподрядчик|المقاول من الباطن
+Hakediş|Décompte de travaux|Акт выполненных работ|مستخلص الأعمال
+Firma Hakedişi|Décompte de l’entreprise|Акт компании|مستخلص الشركة
+Taşeron Hakedişi|Décompte du sous-traitant|Акт субподрядчика|مستخلص المقاول من الباطن
+Hakediş Dönemi|Période du décompte|Период акта|فترة المستخلص
+Hakediş No|N° du décompte|Номер акта|رقم المستخلص
+Hakediş Raporu|Rapport du décompte|Отчёт по выполненным работам|تقرير المستخلص
+Hakediş Takip|Suivi des décomptes|Учёт выполненных работ|متابعة المستخلصات
+Özet|Synthèse|Сводка|الملخص
+Tutanak ve Ekler|Procès-verbal et annexes|Акт и приложения|المحضر والمرفقات
+Kesintiler|Retenues|Удержания|الاستقطاعات
+Tüm İmalatlar Master|Registre des travaux|Реестр работ|سجل جميع الأعمال
+Birim Fiyat Master|Référentiel des prix unitaires|Реестр единичных расценок|سجل أسعار الوحدات
+Birim Fiyat|Prix unitaire|Цена за единицу|سعر الوحدة
+Miktar|Quantité|Количество|الكمية
+Dönem|Période|Период|الفترة
+Tutar|Montant|Сумма|المبلغ
+Toplam|Total|Всего|الإجمالي
+Kümülatif|Cumulé|Накопительно|التراكمي
+Küm.|Cumul|Накоп.|تراكمي
+Sözleşme Miktarı|Quantité contractuelle|Объём по договору|كمية العقد
+Kümülatif Yapılan|Quantité cumulée réalisée|Выполнено накопительно|المنفذ التراكمي
+Kalan Miktar|Quantité restante|Остаток объёма|الكمية المتبقية
+Kalan|Restant|Остаток|المتبقي
+Verilebilen|Disponible|Доступно|المتاح
+Kontrol|Contrôle|Проверка|التحقق
+Uygun|Conforme|Соответствует|مطابق
+Eksik giriş|Saisie manquante|Неполные данные|بيانات ناقصة
+Birim|Unité|Единица|الوحدة
+Poz No|Code du poste|Код позиции|رمز البند
+İş Kalemi|Poste de travaux|Вид работ|بند العمل
+İş Kalemleri|Postes de travaux|Виды работ|بنود الأعمال
+İş Kalemi Ekle|Ajouter un poste|Добавить вид работ|إضافة بند عمل
+İş Kalemi Adı|Nom du poste|Название вида работ|اسم بند العمل
+Metraj|Métré|Объём|الكمية المقاسة
+Toplam Metraj|Métré total|Общий объём|إجمالي الكميات
+Yapılan|Réalisé|Выполнено|المنفذ
+İmalat|Travaux|Работы|الأعمال
+İlerleme|Avancement|Прогресс|التقدم
+İlerleme %|Avancement %|Прогресс %|التقدم %
+Pursantaj %|Pondération %|Вес %|الوزن النسبي %
+Pursantaj|Pondération|Вес|الوزن النسبي
+Yapı Yönetimi|Gestion de la construction|Управление строительством|إدارة المبنى
+Blok|Bloc|Блок|المبنى
+Blok Adı|Nom du bloc|Название блока|اسم المبنى
+Cephe|Façade|Фасад|الواجهة
+Cephe Adı|Nom de la façade|Название фасада|اسم الواجهة
+Kuzey|Nord|Север|الشمال
+Güney|Sud|Юг|الجنوب
+Doğu|Est|Восток|الشرق
+Batı|Ouest|Запад|الغرب
+Ankraj Çakımı|Pose des ancrages|Установка анкеров|تثبيت المراسي
+Ankraj Montajı|Montage des ancrages|Монтаж анкеров|تركيب المراسي
+Ankraj|Ancrage|Анкер|مرساة
+Cam Montajı|Pose du vitrage|Монтаж стекла|تركيب الزجاج
+Profil Montajı|Pose des profilés|Монтаж профилей|تركيب المقاطع
+Silikon Uygulaması|Application du silicone|Нанесение силикона|تطبيق السيليكون
+İzolasyon|Isolation|Изоляция|العزل
+Boya|Peinture|Окраска|الطلاء
+Çalışma Olmadı|Aucun travail effectué|Работы не проводились|لم تُنفّذ أعمال
+Çalışma Olmadı Kayıtları|Jours sans travaux|Записи о простоях|سجلات عدم تنفيذ الأعمال
+Çalışma Geçmişi|Historique des travaux|История работ|سجل الأعمال
+Yağmur yağdı|Il a plu|Шёл дождь|هطلت الأمطار
+Yağmur yağdı.|Il a plu.|Шёл дождь.|هطلت الأمطار.
+Yağmur nedeniyle çalışma olmadı.|Aucun travail en raison de la pluie.|Работы не проводились из-за дождя.|لم تُنفّذ أعمال بسبب المطر.
+Eksikler|Réserves|Недоделки|النواقص
+Eksik Ekle|Ajouter une réserve|Добавить недоделку|إضافة نقص
+Eksik Sil|Supprimer la réserve|Удалить недоделку|حذف النقص
+Yeni Eksik Listesi|Nouvelle liste de réserves|Новый список недоделок|قائمة نواقص جديدة
+Kayıtlı Eksikler|Réserves enregistrées|Сохранённые недоделки|النواقص المسجلة
+Tüm kayıtları seç|Sélectionner tous les enregistrements|Выбрать все записи|تحديد جميع السجلات
+Daha Fazla Göster|Afficher plus|Показать ещё|عرض المزيد
+Açıklama|Description|Описание|الوصف
+Kaydeden|Enregistré par|Автор записи|سجّله
+Sabitle|Épingler|Закрепить|تثبيت
+Sabitlemeyi Kaldır|Désépingler|Открепить|إلغاء التثبيت
+Tarih|Date|Дата|التاريخ
+Başlangıç|Début|Начало|البداية
+Bitiş|Fin|Окончание|النهاية
+Başlangıç Tarihi|Date de début|Дата начала|تاريخ البدء
+Bitiş Tarihi|Date de fin|Дата окончания|تاريخ الانتهاء
+Ay|Mois|Месяц|الشهر
+Yıl|Année|Год|السنة
+Gün|Jour|День|اليوم
+Ocak|Janvier|Январь|يناير
+Şubat|Février|Февраль|فبراير
+Mart|Mars|Март|مارس
+Nisan|Avril|Апрель|أبريل
+Mayıs|Mai|Май|مايو
+Haziran|Juin|Июнь|يونيو
+Temmuz|Juillet|Июль|يوليو
+Ağustos|Août|Август|أغسطس
+Eylül|Septembre|Сентябрь|سبتمبر
+Ekim|Octobre|Октябрь|أكتوبر
+Kasım|Novembre|Ноябрь|نوفمبر
+Aralık|Décembre|Декабрь|ديسمبر
+Pazartesi|Lundi|Понедельник|الاثنين
+Salı|Mardi|Вторник|الثلاثاء
+Çarşamba|Mercredi|Среда|الأربعاء
+Perşembe|Jeudi|Четверг|الخميس
+Cuma|Vendredi|Пятница|الجمعة
+Cumartesi|Samedi|Суббота|السبت
+Pazar|Dimanche|Воскресенье|الأحد
+Kullanıcı|Utilisateur|Пользователь|المستخدم
+Kullanıcılar|Utilisateurs|Пользователи|المستخدمون
+Kullanıcı Adı|Nom d’utilisateur|Имя пользователя|اسم المستخدم
+Üye|Membre|Участник|عضو
+Admin|Administrateur|Администратор|مسؤول
+Kurucu Admin|Administrateur fondateur|Администратор-основатель|المسؤول المؤسس
+E-posta|E-mail|Эл. почта|البريد الإلكتروني
+Şifre|Mot de passe|Пароль|كلمة المرور
+Şifreyi Göster|Afficher le mot de passe|Показать пароль|إظهار كلمة المرور
+Şifreyi Gizle|Masquer le mot de passe|Скрыть пароль|إخفاء كلمة المرور
+Giriş Yap|Se connecter|Войти|تسجيل الدخول
+Kayıt Ol|S’inscrire|Регистрация|إنشاء حساب
+Çıkış Yap|Se déconnecter|Выйти|تسجيل الخروج
+Şifremi Unuttum|Mot de passe oublié|Забыли пароль|نسيت كلمة المرور
+Şifre Değiştir|Changer le mot de passe|Изменить пароль|تغيير كلمة المرور
+Proje Ekle|Ajouter un projet|Добавить проект|إضافة مشروع
+Proje Sil|Supprimer le projet|Удалить проект|حذف المشروع
+Projeye Gir|Accéder au projet|Открыть проект|دخول المشروع
+Verileri Hatırla|Mémoriser les données|Запомнить данные|تذكر البيانات
+Personel|Personnel|Персонал|الموظفون
+Personel Sicili|Registre du personnel|Реестр сотрудников|سجل الموظفين
+Yönetici Paneli|Panneau d’administration|Панель администратора|لوحة الإدارة
+Aylık Puantaj|Pointage mensuel|Месячный табель|الحضور الشهري
+Banka Transfer|Virement bancaire|Банковский перевод|التحويل البنكي
+Ücret Pusulası|Bulletin de paie|Расчётный листок|قسيمة الراتب
+Resmi Tatiller|Jours fériés|Праздничные дни|العطلات الرسمية
+Bulut Yüklemeleri|Envois vers le cloud|Загрузки в облако|الملفات المرفوعة إلى السحابة
+Admin/Üye Hareket Takibi|Activité des administrateurs et membres|Действия администраторов и участников|سجل نشاط المسؤولين والأعضاء
+Maaş|Salaire|Зарплата|الراتب
+Çalışan|Employé|Сотрудник|عامل
+Çalışan Sayısı|Effectif|Число работников|عدد العمال
+Toplam Çalışan|Effectif total|Всего работников|إجمالي العمال
+Çalışma Günü|Jours travaillés|Рабочие дни|أيام العمل
+Avans|Avance|Аванс|الدفعة المقدمة
+Avans Mahsubu|Déduction de l’avance|Зачёт аванса|خصم الدفعة المقدمة
+Fiyat Farkı|Révision des prix|Разница в цене|فرق السعر
+Brüt|Brut|Брутто|الإجمالي
+Net|Net|Нетто|الصافي
+Teminat|Garantie|Гарантийное удержание|الضمان
+KDV|TVA|НДС|ضريبة القيمة المضافة
+İlave İş|Travaux supplémentaires|Дополнительные работы|أعمال إضافية
+Ekler|Annexes|Приложения|المرفقات
+Dosya|Fichier|Файл|الملف
+İndir|Télécharger|Скачать|تنزيل
+Başlık|Titre|Заголовок|العنوان
+Bilgi|Informations|Сведения|معلومات
+Konum|Emplacement|Местоположение|الموقع
+Açık Adres|Adresse complète|Полный адрес|العنوان الكامل
+İl / İlçe|Province / District|Регион / Район|المحافظة / المنطقة
+Sözleşme Başlangıcı|Début du contrat|Начало договора|بداية العقد
+Sözleşme Bitişi|Fin du contrat|Окончание договора|نهاية العقد
+Sözleşme Süresi|Durée du contrat|Срок договора|مدة العقد
+Personel Verimlilik Raporu|Rapport de productivité du personnel|Отчёт о производительности персонала|تقرير إنتاجية العمال
+Detaylı İmalat Raporu|Rapport détaillé des travaux|Подробный отчёт о работах|تقرير الأعمال التفصيلي
+Planlanan / Reel İş Takvimi|Calendrier prévu / réel|Плановый / фактический график|الجدول الزمني المخطط / الفعلي
+İlerleme Grafikleri|Graphiques d’avancement|Графики прогресса|مخططات التقدم
+Genel Rapor|Rapport général|Общий отчёт|التقرير العام
+Grafik Verileri|Données des graphiques|Данные графиков|بيانات المخططات
+Cephe Fotoğrafları|Photos de la façade|Фото фасада|صور الواجهة
+Cephe İş Kalemleri|Postes de la façade|Работы по фасаду|بنود أعمال الواجهة
+Sayfa|Page|Страница|الصفحة
+Sonuç|Résultat|Результат|النتيجة
+Plan|Prévu|План|المخطط
+Reel|Réel|Факт|الفعلي
+Plan Baş.|Début prévu|Плановое начало|بداية مخططة
+Plan Bitiş|Fin prévue|Плановое окончание|نهاية مخططة
+Plan Gün|Jours prévus|Плановые дни|الأيام المخططة
+Reel Baş.|Début réel|Фактическое начало|البداية الفعلية
+Reel Bitiş|Fin réelle|Фактическое окончание|النهاية الفعلية
+Reel Gün|Jours réels|Фактические дни|الأيام الفعلية
+Başlangıç Plan/Reel|Début prévu/réel|Начало план/факт|البداية المخططة/الفعلية
+Bitiş Plan/Reel|Fin prévue/réelle|Окончание план/факт|النهاية المخططة/الفعلية
+Kişi-Gün|Jours-personnes|Человеко-дни|أيام العمل للفرد
+Ort. Ekip|Équipe moyenne|Средняя бригада|متوسط الفريق
+Ekip İhtiyacı|Effectif requis|Требуемая бригада|الفريق المطلوب
+Kalan Gün|Jours restants|Осталось дней|الأيام المتبقية
+Kalan m²|m² restants|Осталось m²|المتبقي m²
+m² Üretim|Production m²|Выработка m²|إنتاج m²
+m²/Kişi-Gün|m²/jour-personne|m²/человеко-день|m²/يوم للفرد
+Tam Tarih|Date complète|Полная дата|التاريخ الكامل
+Kullanım|Utilisation|Использование|الاستخدام
+Otomatik|Automatique|Автоматически|تلقائي
+adet|Pièces|Штуки|قطعة
+mtül|Mètre linéaire|Погонный метр|متر طولي
+mtul|Mètre linéaire|Погонный метр|متر طولي
+metre|Mètre|Метр|متر
+Takvim|Calendrier|Календарь|التقويم
+Günlük Çalışma|Travaux quotidiens|Ежедневные работы|الأعمال اليومية
+Cephe Günlük Personel|Personnel quotidien par façade|Ежедневный персонал фасада|عمال الواجهة يومياً
+Fotoğraf Ekle|Ajouter une photo|Добавить фото|إضافة صورة
+Çoklu seçim|Sélection multiple|Множественный выбор|تحديد متعدد
+Seçilenleri Sil|Supprimer la sélection|Удалить выбранное|حذف المحدد
+Kişisel Düzenimi Kaydet|Enregistrer ma disposition|Сохранить мою компоновку|حفظ ترتيبي الشخصي
+Kişisel Düzenimi Yükle|Charger ma disposition|Загрузить мою компоновку|تحميل ترتيبي الشخصي
+Planlanan|Prévu|Плановое|المخطط
+Gerçekleşen|Réalisé|Фактическое|الفعلي
+Gerçek başlangıç|Début réel|Фактическое начало|البداية الفعلية
+Gerçek bitiş|Fin réelle|Фактическое окончание|النهاية الفعلية
+Bugün Başladı|Commencé aujourd’hui|Начато сегодня|بدأ اليوم
+Bugün Bitti|Terminé aujourd’hui|Завершено сегодня|انتهى اليوم
+Planlanan bitiş|Fin prévue|Плановое окончание|النهاية المخططة
+İş süresi (takvim günü)|Durée des travaux (jours calendaires)|Срок работ (календарные дни)|مدة العمل (أيام تقويمية)
+Çeviriler hazırlanıyor…|Préparation des traductions…|Подготовка переводов…|جارٍ إعداد الترجمات…
+Çeviriler hazır.|Les traductions sont prêtes.|Переводы готовы.|الترجمات جاهزة.
+Seçili dilde otomatik çeviri açık.|Traduction automatique activée.|Автоматический перевод включён.|الترجمة التلقائية مفعّلة.
+Ücretsiz dil paketi hazırlanıyor…|Préparation du pack linguistique gratuit…|Подготовка бесплатного языкового пакета…|جارٍ إعداد حزمة اللغة المجانية…
+Bu tarayıcı ücretsiz otomatik çeviriyi desteklemiyor. Masaüstü Chrome kullanın. Raporları yine indirebilirsiniz.|Ce navigateur ne prend pas en charge la traduction automatique gratuite. Utilisez Chrome sur ordinateur. Les rapports restent téléchargeables.|Этот браузер не поддерживает бесплатный автоматический перевод. Используйте Chrome на компьютере. Отчёты можно скачать.|هذا المتصفح لا يدعم الترجمة التلقائية المجانية. استخدم Chrome على الكمبيوتر. لا يزال بإمكانك تنزيل التقارير.
+Ücretsiz dil paketi kullanılamıyor. Raporları hazır çevirilerle indirebilirsiniz.|Le pack linguistique gratuit est indisponible. Les rapports restent téléchargeables avec les traductions intégrées.|Бесплатный языковой пакет недоступен. Отчёты можно скачать со встроенными переводами.|حزمة اللغة المجانية غير متاحة. يمكنك تنزيل التقارير بالترجمات المدمجة.
+Otomatik çeviri hazırlanıyor. Dil paketini başlatmak için sayfada herhangi bir alana tıklayın.|Préparation de la traduction automatique. Cliquez sur la page pour lancer le pack linguistique.|Подготовка автоматического перевода. Нажмите на страницу, чтобы запустить языковой пакет.|جارٍ إعداد الترجمة التلقائية. انقر على الصفحة لبدء حزمة اللغة.
+Dosya indirilebilir. Çeviri modeli bu cihazda bazı açıklamaları çeviremedi; bu açıklamalar özgün haliyle korundu.|Le fichier peut être téléchargé. Certains textes n’ont pas pu être traduits sur cet appareil et ont été conservés dans leur langue d’origine.|Файл доступен для скачивания. Некоторые описания не удалось перевести на этом устройстве; они сохранены на исходном языке.|الملف متاح للتنزيل. تعذرت ترجمة بعض الأوصاف على هذا الجهاز، فتم الاحتفاظ بها بلغتها الأصلية.
+{n} gün|{n} jours|{n} дней|{n} أيام
+{n} cephe|{n} façades|{n} фасадов|{n} واجهات
+{n}. Hakediş Dönemi|Période de décompte {n}|Период акта {n}|فترة المستخلص {n}`;
+ for(const line of rows.split('\n')){
+  const [source,fr,ru,ar]=line.split('|');
+  window.CepheProDictionary[source]={...window.CepheProDictionary[source],fr,ru,ar};
+ }
+ for(const [alias,source] of Object.entries({'Firma Hakediş':'Firma Hakedişi','Taşeron Hakediş':'Taşeron Hakedişi','Purs. %':'Pursantaj %','Plan Başlangıç':'Plan Baş.','Plan Bitiş Tarihi':'Plan Bitiş','Sözleşme Başlangıç Tarihi':'Sözleşme Başlangıcı','Sözleşme Bitiş Tarihi':'Sözleşme Bitişi'})){
+  const {fr,ru,ar}=window.CepheProDictionary[source];window.CepheProDictionary[alias]={...window.CepheProDictionary[alias],fr,ru,ar};
+ }
+})();

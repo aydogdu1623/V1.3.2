@@ -14,7 +14,7 @@
   sessions.set(language,promise);return promise;
  }
  async function prepare(language,{interactive=false}={}){
-  if(!['en','de'].includes(language))return null;
+  if(!['en','de','fr','ru','ar'].includes(language))return null;
   if(!root.Translator?.create||!root.Translator?.availability)throw error('TRANSLATION_BROWSER_UNSUPPORTED');
   if(sessions.has(language))return sessions.get(language);
   // Start inside the language/button gesture, before any asynchronous availability check.

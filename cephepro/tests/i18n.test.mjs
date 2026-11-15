@@ -162,3 +162,13 @@ test('photo selection labels stay translated through repeated layout passes and 
   assert.equal(w.document.querySelector('.v102-count-badge').textContent,'0');assert.equal(w.document.querySelector('.v102-photo-delete').disabled,true);
  }
 });
+
+test('no-work controls and unit badges wrap all six languages inside their boxes',async t=>{
+ const {dom,w,I}=harness('<style>.v105-daily-titlebar #v34NoWorkBtn{width:92px!important;height:26px!important;white-space:nowrap!important}#facadePanel .readonly-value{white-space:nowrap!important}</style><div class="v105-daily-titlebar"><div class="v105-section-actions"><button id="v34NoWorkBtn" class="btn">Çalışma Olmadı</button><button id="cpDeficienciesBtn" class="btn">Eksikler</button></div></div><section id="facadePanel"><table class="progress-table"><tbody><tr><td>İş Kalemi</td><td><span class="readonly-value">mtül</span></td></tr></tbody></table></section>');
+ t.after(()=>w.close());const style=w.document.createElement('style');style.textContent=read('assets/i18n.css');w.document.head.appendChild(style);
+ for(const lang of ['tr','en','de','fr','ru','ar']){
+  await I.setLanguage(lang);const button=w.document.getElementById('v34NoWorkBtn'),unit=w.document.querySelector('#facadePanel .readonly-value');
+  assert.equal(button.textContent,I.t('Çalışma Olmadı'));assert.equal(unit.textContent,I.t('mtül'));
+  for(const el of [button,unit]){const css=w.getComputedStyle(el);assert.equal(css.whiteSpace,'normal');assert.equal(css.height,'auto');assert.equal(css.boxSizing,'border-box');assert.equal(css.overflowWrap,'anywhere');}
+ }
+});
