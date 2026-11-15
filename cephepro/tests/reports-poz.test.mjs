@@ -54,7 +54,7 @@ test('PDF report HTML includes adjacent Poz No columns in detail, facade and wor
  dom.window.close();
 });
 
-for(const language of ['en','de'])test('localized general report centers readable dates and reserves space for every chart category: '+language,async t=>{
+for(const language of ['tr','en','de'])test('compact general report centers readable dates and reserves space for every chart category: '+language,async t=>{
  const {w,rows}=harness();t.after(()=>w.close());w.AbortController=AbortController;
  w.CepheProProjects={isReady:()=>true,project:()=>({id:'fixture'})};
  w.CepheProLocalTranslation={prepare:async()=>{},translate:async texts=>texts.map(text=>text)};
@@ -63,14 +63,14 @@ for(const language of ['en','de'])test('localized general report centers readabl
  for(let i=0;i<18;i++)rows.push([...sample.slice(0,2),'W'+(i+1)+' - ANKRAJ MONTAJI',...sample.slice(3,8),'Plan: 11.11.2026\nReel: -','Plan: 19.04.2027\nReel: -']);
  await w.CepheProI18n.setLanguage(language);let blob;w.v52DownloadBlob=b=>{blob=b;};await w.testExport();
  const bytes=await new Promise(resolve=>{const r=new w.FileReader();r.onload=()=>resolve(new w.Uint8Array(r.result));r.readAsArrayBuffer(blob);});
- const wb=new w.ExcelJS.Workbook();await wb.xlsx.load(bytes);const report=wb.getWorksheet(language==='en'?'Report':'Bericht');assert.ok(report);
+ const wb=new w.ExcelJS.Workbook();await wb.xlsx.load(bytes);const report=wb.getWorksheet({tr:'Rapor',en:'Report',de:'Bericht'}[language]);assert.ok(report);
  for(const address of ['A7','C7','J7','A8','C8','G8','J8','K8','J25']){
   const cell=report.getCell(address);assert.equal(cell.alignment.horizontal,'center');assert.equal(cell.alignment.vertical,'middle');assert.equal(cell.alignment.wrapText,true);assert.ok(cell.font.size>=9);
  }
- assert.ok(report.getColumn(3).width>=30);assert.ok(report.getColumn(10).width>=24);assert.ok(report.getRow(8).height>=35);assert.ok(report.getRow(7).height>=32);
+ assert.equal(report.getColumn(3).width,18);assert.equal(report.getColumn(10).width,14);assert.ok(Array.from({length:11},(_,i)=>report.getColumn(i+1).width??9).reduce((a,b)=>a+b,0)<=120,JSON.stringify(Array.from({length:11},(_,i)=>report.getColumn(i+1).width??9)));assert.ok(report.getRow(8).height>=35);assert.ok(report.getRow(7).height>=32);
  assert.match(report.getCell('J8').text,/11\.11\.2026/);assert.equal(report.getCell('G8').value,100);assert.equal(report.getCell('I8').formula,'IFERROR(H8/G8*100,0)');assert.equal(report.autoFilter,'A7:K25');assert.equal(report.views[0].ySplit,7);
  const zip=await JSZip.loadAsync(Buffer.from(bytes));const chart=await zip.file('xl/charts/chart1.xml').async('string');
- assert.match(chart,language==='en'?/ANCHOR INSTALLATION/i:/ANKERMONTAGE/i);assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="18"/);assert.match(chart,/<a:bodyPr rot="0"/);
+ assert.match(chart,language==='tr'?/ANKRAJ MONTAJI/i:language==='en'?/ANCHOR INSTALLATION/i:/ANKERMONTAGE/i);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="18"/);assert.match(chart,/<a:bodyPr rot="0"/);
  const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525>=18*144);assert.ok(Number(ext[2])/9525>=640);
  if(process.env.CP_REPORT_QA_DIR){fs.mkdirSync(process.env.CP_REPORT_QA_DIR,{recursive:true});fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/report-'+language+'.xlsx',Buffer.from(bytes));}
 });

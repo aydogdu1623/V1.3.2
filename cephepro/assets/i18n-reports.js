@@ -93,7 +93,12 @@
    }
   });
   await I.ensureReport(texts);
-  const display=cell=>I.t(cell.text||'');
+  const display=cell=>{
+   if(Object.prototype.toString.call(cell.value)==='[object Date]'){
+    const d=cell.value;return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
+   }
+   return I.t(cell.text||'');
+  };
   const lineCount=(text,capacity)=>String(text).split('\n').reduce((sum,line)=>{
    let used=0,lines=1;
    for(const word of line.split(/\s+/).filter(Boolean)){
@@ -105,12 +110,13 @@
    return sum+lines;
   },0);
   for(const {sheet,first,last} of tables){
-   const main=sheet.name==='Rapor',minimums=[12,16,30,12,14,14,16,20,16,24,24];
+   const main=sheet.name==='Rapor',compactWidths=[8,10,18,7,8,8,10,11,9,14,14];
    for(let c=first.col;c<=last.col;c++){
     const column=sheet.getColumn(c);if(column.hidden)continue;
-    const heading=display(sheet.getCell(first.row,c));
-    const headerWidth=Math.min(28,Math.max(12,heading.length*.75+4));
-    column.width=Math.max(column.width||8,main?(minimums[c-1]||12):12,headerWidth);
+    // Language changes must grow rows, not expand the report horizontally.
+    const heading=String(sheet.getCell(first.row,c).value||'');
+    const limit=/Açıklama|Hesap \/ İfade/i.test(heading)?24:18;
+    column.width=main?(compactWidths[c-1]||10):Math.max(8,Math.min(limit,column.width||10));
    }
    for(let r=first.row;r<=last.row;r++){
     let height=r===first.row?32:28;
