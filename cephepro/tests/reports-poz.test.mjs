@@ -72,11 +72,11 @@ for(const language of ['tr','en','de','fr','ru','ar'])test('compact general repo
  }
  assert.equal(report.getColumn(3).width,16);assert.equal(report.getColumn(10).width,13);assert.ok(Array.from({length:11},(_,i)=>report.getColumn(i+1).width??9).reduce((a,b)=>a+b,0)<=105,JSON.stringify(Array.from({length:11},(_,i)=>report.getColumn(i+1).width??9)));assert.ok(report.getRow(8).height>=35);assert.ok(report.getRow(7).height>=32);
  assert.match(report.getCell('J8').text,/11\.11\.2026/);assert.equal(report.getCell('G8').value,100);assert.equal(report.getCell('I8').formula,'IFERROR(H8/G8*100,0)');assert.equal(report.autoFilter,'A7:K37');assert.equal(report.views[0].ySplit,7);
- assert.equal(report.getRow(20).hidden,false);assert.equal(report.getRow(8).hidden,true);
+ assert.equal(report.getCell('L2').value,'Blok A / Facade 5');assert.equal(report.getCell('L2').dataValidation.type,'list');assert.equal(report.getRow(20).hidden,false);assert.equal(report.getRow(8).hidden,false);
  const zip=await JSZip.loadAsync(Buffer.from(bytes));const chart=await zip.file('xl/charts/chart1.xml').async('string');
  assert.ok(zip.file('xl/vbaProject.bin'));assert.match(await zip.file('[Content_Types].xml').async('string'),/macroEnabled.main/);
- assert.match(chart,{tr:/ANKRAJ MONTAJI/i,en:/ANCHOR\s+INSTALLATION/i,de:/ANKERMONTAGE/i,fr:/MONTAGE\s+DES\s+ANCRAGES/i,ru:/МОНТАЖ АНКЕРОВ/i,ar:/تركيب المراسي/}[language]);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="30"/);assert.match(chart,/<a:bodyPr rot="-2700000"/);
- const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===160+3*64);assert.ok(Number(ext[2])/9525===440);
+ assert.match(chart,{tr:/ANKRAJ MONTAJI/i,en:/ANCHOR\s+INSTALLATION/i,de:/ANKERMONTAGE/i,fr:/MONTAGE\s+DES\s+ANCRAGES/i,ru:/МОНТАЖ АНКЕРОВ/i,ar:/تركيب المراسي/}[language]);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="3"/);assert.match(chart,/<a:bodyPr rot="-2700000"/);
+ const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===120+3*48);assert.ok(Number(ext[2])/9525===440);
  if(process.env.CP_REPORT_QA_DIR){fs.mkdirSync(process.env.CP_REPORT_QA_DIR,{recursive:true});fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/report-'+language+'.xlsm',Buffer.from(bytes));}
 });
 test('Word and PDF export actions reach download even when the free model is unavailable',async t=>{
@@ -125,7 +125,7 @@ test('real Excel workbook preserves formula targets, filters and native chart af
  const history=wb.getWorksheet('Çalışma Geçmişi');assert.equal(history.getCell('F4').value,'İş Kalemi');assert.equal(history.getCell('G4').value,'Poz No');assert.equal(history.getCell('G5').value,'W1');assert.equal(history.getCell('I5').value,25);assert.equal(history.autoFilter,'A4:L5');
  const daily=wb.getWorksheet('Günlük Çalışma');assert.equal(daily.getCell('E2').value,'W1');assert.equal(daily.getCell('G2').value,25);
  const zip=await JSZip.loadAsync(bytes),chart=await zip.file('xl/charts/chart1.xml').async('string');
- assert.match(chart,/Grafik Verileri.*!\$L\$2:\$L\$3/);assert.doesNotMatch(chart,/multiLvlStr/);assert.match(chart,/Rapor!\$G\$8:\$G\$9/);assert.match(chart,/Rapor!\$H\$8:\$H\$9/);assert.match(chart,/Rapor!\$I\$8:\$I\$9/);assert.match(chart,/W1 - ANKRAJ MONTAJI/);assert.match(wb.getWorksheet('Grafik Verileri').getCell('L2').formula,/Rapor!C8/);
+ assert.match(chart,/Grafik Verileri.*!CP_ChartLabels/);assert.doesNotMatch(chart,/multiLvlStr/);assert.match(chart,/CP_ChartTotals/);assert.match(chart,/CP_ChartDone/);assert.match(chart,/CP_ChartProgress/);assert.match(chart,/W1 - ANKRAJ MONTAJI/);assert.match(wb.getWorksheet('Grafik Verileri').getCell('L2').formula,/Rapor!C8/);
  for(const sheet of wb.worksheets)sheet.eachRow(row=>row.eachCell(cell=>{if(cell.formula)assert.doesNotMatch(cell.formula,/#REF!/);}));
  dom.window.close();
 });
