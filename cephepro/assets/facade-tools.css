@@ -20,3 +20,5 @@ body.v113-member #v32WorkModal #v32WorkBody .v34-work-head,body.v113-member #v32
 #v32WorkModal #v32WorkBody .v34-work-grid{width:max-content!important;min-width:0!important}
 #v32WorkModal #v32WorkBody .v169-financial-summary{width:max-content!important;max-width:100%!important;box-sizing:border-box}
 #v32WorkModal #v32WorkBody .v169-financial-table{width:auto!important}
+
+#v32WorkModal #v32WorkBody .v169-financial-table td:first-child{max-width:240px;white-space:normal;overflow-wrap:anywhere}
