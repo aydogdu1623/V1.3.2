@@ -170,6 +170,18 @@ test('financial summary contains only the open facade and updates its totals',as
  h.w.DATA.A.Other={items:[['ANKRAJ',1000,100,10,'','',0,100,'m²']]};
  await h.reopen();
  const rows=h.w.document.querySelectorAll('.v169-financial-table tbody tr');
- assert.equal(rows.length,1);assert.match(rows[0].textContent,/North/);assert.doesNotMatch(rows[0].textContent,/Other/);
+ assert.equal(rows.length,1);assert.match(rows[0].textContent,/ANKRAJ/);assert.doesNotMatch(rows[0].textContent,/Other/);
  h.input('.v34WiTotal',20);await tick();assert.match(h.$('.v169-financial-summary').textContent,/3[.,]000/);
+});
+
+test('each item shows its own contract, completed amount and percentage and refreshes live',async t=>{
+ const h=await harness(t,[['SUBFRAME FOR FIXED',100,47,47,'','',0,50,'m²'],['GLASS',20,5,25,'','',0,50,'m²']]);
+ h.input('.v34-work-row[data-i="0"] .v169-unit-price',10);
+ h.input('.v34-work-row[data-i="1"] .v169-unit-price',20);
+ const values=()=>[...h.w.document.querySelectorAll('.v169-financial-table tbody tr')].map(r=>[...r.cells].map(c=>c.textContent));
+ assert.deepEqual(values(),[['SUBFRAME FOR FIXED','1.000,00 ₺','470,00 ₺','%47.00'],['GLASS','400,00 ₺','100,00 ₺','%25.00']]);
+ h.input('.v34WiDone[data-i="0"]',60);assert.equal(values()[0][2],'600,00 ₺');assert.equal(values()[0][3],'%60.00');
+ h.input('.v34-work-row[data-i="0"] .v169-unit-price',0);assert.equal(values()[0][3],'%0.00');assert.equal(values()[1][2],'100,00 ₺');
+ h.input('.v34WiName[data-i="0"]','<b>NEW</b>');assert.equal(values()[0][0],'<b>NEW</b>');assert.equal(h.$('.v169-financial-table tbody b'),null);
+ h.click('#v53SaveWorkItems');await tick();await h.reopen();assert.equal(values().length,2);assert.equal(values()[1][3],'%25.00');
 });
