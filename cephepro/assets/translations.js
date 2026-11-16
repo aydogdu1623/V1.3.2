@@ -3999,3 +3999,14 @@ Dosya indirilebilir. Çeviri modeli bu cihazda bazı açıklamaları çeviremedi
   const {fr,ru,ar}=window.CepheProDictionary[source];window.CepheProDictionary[alias]={...window.CepheProDictionary[alias],fr,ru,ar};
  }
 })();
+
+// V240: facade grouping and macro-enabled report instructions.
+Object.assign(window.CepheProDictionary, {
+ "Seçilenleri Grupla": {en:"Group selected facades",de:"Ausgewählte Fassaden gruppieren",fr:"Grouper les façades sélectionnées",ru:"Сгруппировать выбранные фасады",ar:"تجميع الواجهات المحددة"},
+ "Gruptan Çıkar": {en:"Remove from group",de:"Aus Gruppe entfernen",fr:"Retirer du groupe",ru:"Убрать из группы",ar:"إزالة من المجموعة"},
+ "Grup adı": {en:"Group name",de:"Gruppenname",fr:"Nom du groupe",ru:"Название группы",ar:"اسم المجموعة"},
+ "Tüm Cepheler": {en:"All facades",de:"Alle Fassaden",fr:"Toutes les façades",ru:"Все фасады",ar:"جميع الواجهات"},
+ "Proje değişti. İşlemi yeniden deneyin.": {en:"The project changed. Please retry.",de:"Das Projekt wurde geändert. Bitte erneut versuchen.",fr:"Le projet a changé. Réessayez.",ru:"Проект изменился. Повторите действие.",ar:"تغير المشروع. يرجى إعادة المحاولة."},
+ "Birim fiyatlar henüz yüklenmedi. Kısa süre sonra tekrar deneyin.": {en:"Unit prices have not loaded yet. Please try again shortly.",de:"Die Einheitspreise sind noch nicht geladen. Bitte gleich erneut versuchen.",fr:"Les prix unitaires ne sont pas encore chargés. Réessayez bientôt.",ru:"Цены за единицу ещё не загружены. Повторите попытку позже.",ar:"لم يتم تحميل أسعار الوحدات بعد. حاول مجدداً بعد قليل."},
+ "Filtreye göre otomatik grafik boyutu için bu raporu masaüstü Excel’de açın ve bu dosyanın makrolarına izin verin.": {en:"For automatic chart resizing when filtering, open this report in desktop Excel and allow this file's macros.",de:"Für die automatische Diagrammgröße beim Filtern öffnen Sie diesen Bericht in Excel Desktop und erlauben Sie die Makros dieser Datei.",fr:"Pour redimensionner automatiquement le graphique lors du filtrage, ouvrez ce rapport dans Excel de bureau et autorisez les macros de ce fichier.",ru:"Для автоматического изменения размера диаграммы при фильтрации откройте отчёт в настольном Excel и разрешите макросы этого файла.",ar:"لتغيير حجم المخطط تلقائياً عند التصفية، افتح التقرير في Excel لسطح المكتب واسمح بوحدات الماكرو لهذا الملف."}
+});

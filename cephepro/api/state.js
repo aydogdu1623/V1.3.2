@@ -1,4 +1,5 @@
 import {mergeDeficiencies,deleteDeficiencies} from '../lib/deficiencies.js';
+import {applyFacadeTransfers} from '../lib/facade-transfers.js';
 import {canDeleteUpload} from '../lib/upload-permissions.js';
 import {requireProject} from '../lib/project-access.js';
 import { getSql,noStore,bearer } from '../lib/db.js';
@@ -210,6 +211,7 @@ export function createStateHandler({getSql,noStore,bearer,ensureSchema,sessionUs
       if(newNotes>oldNotes)logs.push({summary:`${newNotes-oldNotes} adet “Çalışma Olmadı” kaydı ekledi.`,details:{count:newNotes-oldNotes}});
     }
     nextState.cp_deficiencies=mergeDeficiencies(oldState.cp_deficiencies,submitted.cp_deficiencies,me,nextState.cp_dynamic_data);
+    if(applyFacadeTransfers(oldState,nextState,me))corrected=true;
     const newDeficiencies=nextState.cp_deficiencies.length-(oldState.cp_deficiencies||[]).length;
     if(newDeficiencies>0)logs.push({summary:`${newDeficiencies} adet eksik kaydı ekledi.`,details:{count:newDeficiencies}});
     if(!eq(submitted.cp_deficiencies,nextState.cp_deficiencies))corrected=true;
