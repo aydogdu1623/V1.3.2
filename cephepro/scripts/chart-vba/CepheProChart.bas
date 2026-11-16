@@ -16,13 +16,13 @@ Public Sub CPResizeChart()
     count = Application.WorksheetFunction.Subtotal(103, source.Columns(1))
     Set co = report.ChartObjects(1)
     co.Width = CPChartWidth(count)
-    co.Height = 480
+    co.Height = 330
 Finished:
     updating = False
 End Sub
 
-' Points, matching the download's 160 px margin + 144 px per visible item.
+' Compact width, capped at 960 pixels.
 Public Function CPChartWidth(ByVal count As Long) As Double
     If count < 1 Then count = 1
-    CPChartWidth = (160 + 144 * count) * 0.75
+    CPChartWidth = Application.WorksheetFunction.Min(960, 160 + 64 * count) * 0.75
 End Function

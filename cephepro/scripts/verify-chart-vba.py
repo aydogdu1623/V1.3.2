@@ -20,10 +20,10 @@ for lang in ['tr','en','de','fr','ru','ar']:
     assert len(modules)==13
     app=ExcelApplication.open(str(path))
     width=lambda: app.evaluate('ThisWorkbook.Worksheets(2).ChartObjects(1).Width')
-    assert width()==2064, (lang,width())
+    assert width()==264, (lang,width())
     app.add_module('''Sub OneFacade()
  With ThisWorkbook.Worksheets(2)
-  .Range("A7:K25").AutoFilter Field:=2, Criteria1:=.Range("B8").Value
+  .Range("A7:K37").AutoFilter Field:=2, Criteria1:=.Range("B8").Value
  End With
 End Sub
 Sub AllFacades()
@@ -31,20 +31,20 @@ Sub AllFacades()
 End Sub
 Sub OneItem()
  With ThisWorkbook.Worksheets(2)
-  .Range("A7:K25").AutoFilter Field:=7, Criteria1:=.Range("G8").Value
+  .Range("A7:K37").AutoFilter Field:=7, Criteria1:=.Range("G8").Value
  End With
 End Sub
 Sub EmptyResult()
- ThisWorkbook.Worksheets(2).Range("A7:K25").AutoFilter Field:=2, Criteria1:="no-such-facade"
+ ThisWorkbook.Worksheets(2).Range("A7:K37").AutoFilter Field:=2, Criteria1:="no-such-facade"
 End Sub
 ''', name='VerificationOnly')
-    app.run('OneFacade');assert width()==444,(lang,width())
+    app.run('OneFacade');assert width()==264,(lang,width())
     if lang=='en': app.save(str(folder/'filtered-preview.xlsm'))
-    app.run('AllFacades');assert width()==2064
-    app.run('OneItem');assert width()==228
-    app.run('AllFacades');assert width()==2064
-    app.run('EmptyResult');assert width()==228
-    app.run('AllFacades');assert width()==2064
+    app.run('AllFacades');assert width()==720
+    app.run('OneItem');assert width()==168
+    app.run('AllFacades');assert width()==720
+    app.run('EmptyResult');assert width()==168
+    app.run('AllFacades');assert width()==720
     assert app.evaluate('ThisWorkbook.Worksheets(2).Range("G8").Value2')==100
     assert app.evaluate('ThisWorkbook.Worksheets(2).Range("I8").Formula')=='=IFERROR(H8/G8*100,0)'
-    print(lang+': 18 -> 3 -> 18 -> 1 -> 18 -> 0 -> 18 categories; values/formulas preserved')
+    print(lang+': 3 initially -> 3 -> 30 -> 1 -> 30 -> 0 -> 30 categories; values/formulas preserved')
