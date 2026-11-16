@@ -6,21 +6,21 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=241.0">
-<script src="/assets/project-access.js?v=241.0"></script>
-<script src="/assets/session-privacy.js?v=241.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=242.0">
+<script src="/assets/project-access.js?v=242.0"></script>
+<script src="/assets/session-privacy.js?v=242.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/structure-state.js?v=241.0"></script>
-<script src="/assets/performance.js?v=241.0"></script>
-<meta name="cephepro-build" content="V241.0"/>
+<script src="/assets/structure-state.js?v=242.0"></script>
+<script src="/assets/performance.js?v=242.0"></script>
+<meta name="cephepro-build" content="V242.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V241";window.CEPHEPRO_BUILD="V241.0";</script>
+<script>window.CEPHEPRO_VERSION="V242";window.CEPHEPRO_BUILD="V242.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -22158,7 +22158,7 @@ ${displayLabel68(f,16)}`;
     // V152: yüklenen V144(2) şablonundaki gibi yalnız tek yerel Excel grafiği
     // kullanılır. Grafik 67. sütunda ve ilk 21 satırda kalır; tablo kaydırılırken
     // dondurulmuş üst alana bağlı olduğundan dikey konumu değişmez.
-    const endRow=Math.max(grid.lastRow,100);
+    const endRow=Math.max(grid.lastRow,28);
     for(let row=grid.lastRow+1;row<=endRow;row++)ws.getRow(row).height=20;
     // Son satırda görünmez bir işaret, Excel/WPS kullanılan alanını grafiklerin altına
     // kadar uzatır; böylece orta tekerlek ile aşağı/yukarı hareket kesin olarak çalışır.
@@ -22166,7 +22166,7 @@ ${displayLabel68(f,16)}`;
     ws.getCell(endRow,1).font={color:{argb:'FFFFFFFF'}};
     // V135: Sayfanın gerçek kullanılan alanını kalın dış çerçeveyle sınırla.
     v57Border(ws,1,1,endRow,11,'FF243B46','thick');
-    ws.pageSetup.printArea='A1:BO100';
+    ws.pageSetup.printArea=`A1:U${endRow}`;
 
     // ---------------- REFERENCE VISIBLE SHEETS: PERSONEL, TAKVIM ----------------
     const dates=v52ReportDates();
@@ -22374,12 +22374,30 @@ ${displayLabel68(f,16)}`;
     const focusRow=rows.find(row=>typeof currentFacade!=='undefined'&&row[1]===currentFacade&&typeof currentBlock!=='undefined'&&row[0]===v33BlockLabel(currentBlock))||rows[0];
     const focusIndexes=rows.map((row,i)=>row[0]===focusRow[0]&&row[1]===focusRow[1]?i:-1).filter(i=>i>=0);
     Object.assign(nativeChart148,window.CepheProDynamicChart.layout(focusIndexes.length));
-    rows.forEach((row,i)=>{ws.getRow(i+8).hidden=!focusIndexes.includes(i);});
+    nativeChart148.fromRow=3;
+    nativeChart148.cacheLabels=focusIndexes.map(i=>chartLabels237[i]);
+    nativeChart148.catFormula=`'Grafik Verileri'!$L$${focusIndexes[0]+2}:$L$${focusIndexes.at(-1)+2}`;
+    nativeChart148.series.forEach((series,i)=>{series.cacheValues=focusIndexes.map(n=>[chartRows155[n].total,chartRows155[n].done,chartRows155[n].progress][i]);series.valFormula=`Rapor!$${['G','H','I'][i]}$${focusIndexes[0]+8}:$${['G','H','I'][i]}$${focusIndexes.at(-1)+8}`;});
+    const choices=[...new Set(rows.map(row=>row[0]+' / '+row[1]))];
+    choices.forEach((value,i)=>gd.getCell(i+1,17).value=value);
+    wb.definedNames.add(`'Grafik Verileri'!$Q$1:$Q$${choices.length}`,'CP_FacadeChoices');
+    ws.mergeCells('L1:O1');ws.getCell('L1').value='Cephe';
+    ws.mergeCells('L2:O2');ws.getCell('L2').value=focusRow[0]+' / '+focusRow[1];
+    ws.getCell('L2').dataValidation={type:'list',allowBlank:false,formulae:['CP_FacadeChoices'],showErrorMessage:true};
+    for(const address of ['L1','L2']){ws.getCell(address).font={size:10,bold:true};ws.getCell(address).alignment={horizontal:'left',vertical:'middle'};ws.getCell(address).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE4F0F2'}};}
+    wb.definedNames.add('Rapor!$L$2','CP_ChartSelected');
+    focusIndexes.forEach((n,i)=>[chartLabels237[n],chartRows155[n].total,chartRows155[n].done,chartRows155[n].progress].forEach((value,c)=>gd.getCell(i+2,18+c).value=value));
+    gd.getCell('V1').value=focusIndexes.length;
+    wb.definedNames.add(`'Grafik Verileri'!$R$2:$U$${rows.length+1}`,'CP_ChartBuffer');
+    wb.definedNames.add("'Grafik Verileri'!$V$1",'CP_ChartCount');
+    nativeChart148.catFormula="'Grafik Verileri'!CP_ChartLabels";
+    nativeChart148.series[0].showLabels=false;nativeChart148.series[1].showLabels=false;
+    nativeChart148.series.forEach((series,i)=>{series.valFormula="'Grafik Verileri'!"+['CP_ChartTotals','CP_ChartDone','CP_ChartProgress'][i];});
     wb.definedNames.add(`Rapor!$A$8:$K$${dataEnd}`,'CP_ReportData');
     gd.getCell('N1').value='İş Kalemleri';
     wb.definedNames.add("'Grafik Verileri'!$N$1",'CP_ChartTitle');
     const info=wb.getWorksheet('Bilgi');
-    info.mergeCells('B30:H32');info.getCell('B30').value='Filtreye göre otomatik grafik boyutu için bu raporu masaüstü Excel’de açın ve bu dosyanın makrolarına izin verin.';
+    info.mergeCells('B30:H32');info.getCell('B30').value='Grafiğin üstündeki Cephe alanından seçim yapın. Tablo tüm cepheleri korur. Otomatik güncelleme için masaüstü Excel’de bu dosyanın makrolarına izin verin.';
     info.getCell('B30').alignment={horizontal:'center',vertical:'middle',wrapText:true};info.getCell('B30').font={size:10,color:{argb:'FF245B60'}};info.pageSetup.printArea='B2:H32';
     // V170: Yalnız Rapor sayfasında 1-7. satırlar sabittir. Diğer sayfalarda
     // tablo varsa, autoFilter'ın bulunduğu başlık satırına kadar olan bölüm
@@ -22408,7 +22426,7 @@ ${displayLabel68(f,16)}`;
     }
 
     if(window.CepheProI18n)buffer=await window.CepheProI18n.office(buffer,'xlsx');
-    buffer=await window.CepheProDynamicChart.pack(buffer,focusIndexes[0]+8);
+    buffer=await window.CepheProDynamicChart.pack(buffer);
     const safe=(v34ProjectInfo.projectName||'CephePro').replace(/[^\p{L}\p{N}_-]+/gu,'_');
     v52DownloadBlob(
       new Blob([buffer],{type:window.CepheProDynamicChart.mime}),
@@ -31387,8 +31405,8 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
   }
   function updateSummary(b,f){
     const host=document.querySelector('#v32WorkBody .v169-financial-summary');if(!host)return;
-    const own=facadeTotals(b,f,true),rows=comparisonRows().map(r=>r.b===b&&r.f===f?{b,f,...own}:r);
-    host.innerHTML=`<h4>Admin · Parasal İlerleme ve Tüm Cephe Kıyası</h4>
+    const own=facadeTotals(b,f,true),rows=[{b,f,...own}];
+    host.innerHTML=`<h4>Parasal İlerleme</h4>
       <div class="v169-financial-chips"><span class="v169-financial-chip">Toplam Tutar: ${money(own.contract)}</span><span class="v169-financial-chip">Gerçekleşen: ${money(own.earned)}</span><span class="v169-financial-chip">Parasal İlerleme: %${own.progress.toFixed(2)}</span></div>
       <table class="v169-financial-table"><thead><tr><th>Blok / Cephe</th><th>Toplam Tutar</th><th>Gerçekleşen</th><th>Parasal İlerleme</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.b)} / ${esc(r.f)}</td><td>${money(r.contract)}</td><td>${money(r.earned)}</td><td>%${r.progress.toFixed(2)}</td></tr>`).join('')||'<tr><td colspan="4">Cephe verisi yok.</td></tr>'}</tbody></table>`;
   }
@@ -31975,25 +31993,25 @@ body.v113-member #v32WorkModal .v34-work-row{
 document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='undefined'&&currentUser){window.__cpFounderEmail=currentUser.isFounder?currentUser.email:null;}});
 </script>
 <script src="/assets/member-v190.js"></script>
-<script src="/assets/personal-layout.js?v=241.0"></script>
+<script src="/assets/personal-layout.js?v=242.0"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=241.0"></script>
-<script src="/assets/firma-template-v208.js?v=241.0"></script>
-<script src="/assets/claims-v182.js?v=241.0"></script>
+<script src="/assets/claims-report-v191.js?v=242.0"></script>
+<script src="/assets/firma-template-v208.js?v=242.0"></script>
+<script src="/assets/claims-v182.js?v=242.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=241.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=242.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=241.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=242.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=241.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=242.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=241.0"></script>
+<script src="/assets/puantaj-model.js?v=242.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -32013,23 +32031,23 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:0!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=241.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=241.0">
-<script src="/assets/deficiencies.js?v=241.0"></script>
+<script src="/assets/puantaj.js?v=242.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=242.0">
+<script src="/assets/deficiencies.js?v=242.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
-<link rel="stylesheet" href="/assets/i18n.css?v=241.0">
-<script src="/assets/translations.js?v=241.0"></script>
-<script src="/assets/ai-translations.js?v=241.0"></script>
-<script src="/assets/local-translation.js?v=241.0"></script>
-<script src="/assets/currency.js?v=241.0"></script>
-<script src="/assets/i18n.js?v=241.0"></script>
-<script src="/assets/i18n-fields.js?v=241.0"></script>
-<script src="/assets/i18n-reports.js?v=241.0"></script>
+<link rel="stylesheet" href="/assets/i18n.css?v=242.0">
+<script src="/assets/translations.js?v=242.0"></script>
+<script src="/assets/ai-translations.js?v=242.0"></script>
+<script src="/assets/local-translation.js?v=242.0"></script>
+<script src="/assets/currency.js?v=242.0"></script>
+<script src="/assets/i18n.js?v=242.0"></script>
+<script src="/assets/i18n-fields.js?v=242.0"></script>
+<script src="/assets/i18n-reports.js?v=242.0"></script>
 
-<script src="/assets/report-chart-vba.js?v=241.0"></script>
-<script src="/assets/report-dynamic-chart.js?v=241.0"></script>
+<script src="/assets/report-chart-vba.js?v=242.0"></script>
+<script src="/assets/report-dynamic-chart.js?v=242.0"></script>
 
-<link rel="stylesheet" href="/assets/facade-tools.css?v=241.0">
-<script src="/assets/facade-tools.js?v=241.0"></script>
+<link rel="stylesheet" href="/assets/facade-tools.css?v=242.0">
+<script src="/assets/facade-tools.js?v=242.0"></script>

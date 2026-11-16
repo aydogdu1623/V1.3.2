@@ -13,3 +13,10 @@ body.v113-member .cp-facade-group-tools{display:none!important}
 #v32WorkBody .v34-work-grid{width:max-content;min-width:0!important}
 #v32WorkBody .v34-work-head,#v32WorkBody .v34-work-row{grid-template-columns:60px var(--cp-item-width,180px) 100px 76px 92px 100px 100px 110px!important}
 body.v113-member #v32WorkBody .v34-work-head,body.v113-member #v32WorkBody .v34-work-row{grid-template-columns:60px var(--cp-item-width,180px) 100px 76px 92px 100px!important}
+
+/* Two IDs override earlier financial/modal grid rules. No spare fractional columns. */
+#v32WorkModal #v32WorkBody .v34-work-head,#v32WorkModal #v32WorkBody .v34-work-row{grid-template-columns:44px var(--cp-item-width,140px) 70px 66px 78px 84px 78px 92px!important;gap:4px!important;width:max-content!important;min-width:0!important}
+body.v113-member #v32WorkModal #v32WorkBody .v34-work-head,body.v113-member #v32WorkModal #v32WorkBody .v34-work-row{grid-template-columns:44px var(--cp-item-width,140px) 70px 66px 78px 84px!important}
+#v32WorkModal #v32WorkBody .v34-work-grid{width:max-content!important;min-width:0!important}
+#v32WorkModal #v32WorkBody .v169-financial-summary{width:max-content!important;max-width:100%!important;box-sizing:border-box}
+#v32WorkModal #v32WorkBody .v169-financial-table{width:auto!important}

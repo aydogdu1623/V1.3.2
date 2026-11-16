@@ -166,9 +166,10 @@
  };
  function compactWork(){
   const host=document.getElementById('v32WorkBody');if(!host)return;
-  const lengths=[...host.querySelectorAll('.v34WiName')].map(el=>String(root.CepheProI18n?.t(el.value)||el.value).length*7+28);
-  host.style.setProperty('--cp-item-width',Math.min(300,Math.max(100,...lengths))+'px');
+  const lengths=[...host.querySelectorAll('.v34WiName')].map(el=>String(root.CepheProI18n?.t(el.value)||el.value).length*6+18);
+  host.style.setProperty('--cp-item-width',Math.min(240,Math.max(76,...lengths))+'px');
  }
+ if(typeof v32RenderWorkItems==='function'){const before=v32RenderWorkItems;v32RenderWorkItems=function(){const result=before.apply(this,arguments);queueMicrotask(compactWork);return result;};}
  document.addEventListener('input',e=>{if(e.target.matches?.('#v32WorkBody .v34WiName'))compactWork();});
  document.addEventListener('cephepro:language-changed',compactWork);
  document.addEventListener('cephepro:locked',()=>{filter=null;expanded.clear();});

@@ -164,3 +164,12 @@ test('right-click moves complete work items, preserves selected identity and sav
  assert.deepEqual(Array.from(w.saved.A.North.items,x=>x[0]),[rows[1][0],rows[2][0],rows[0][0]]);
  w.menu=null;w.currentUser.role='member';await h.reopen();h.$('.v34-work-row').dispatchEvent(new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true}));assert.equal(w.menu,null);
 });
+
+test('financial summary contains only the open facade and updates its totals',async t=>{
+ const h=await harness(t,[['ANKRAJ',10,2,20,'','',0,100,'m²']]);
+ h.w.DATA.A.Other={items:[['ANKRAJ',1000,100,10,'','',0,100,'m²']]};
+ await h.reopen();
+ const rows=h.w.document.querySelectorAll('.v169-financial-table tbody tr');
+ assert.equal(rows.length,1);assert.match(rows[0].textContent,/North/);assert.doesNotMatch(rows[0].textContent,/Other/);
+ h.input('.v34WiTotal',20);await tick();assert.match(h.$('.v169-financial-summary').textContent,/3[.,]000/);
+});
