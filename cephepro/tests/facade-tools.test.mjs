@@ -71,3 +71,12 @@ test('failed price persistence and member permissions do not create partial faca
  await assert.rejects(()=>api.copyFacades('A',['104 & 434']),/offline/);assert.equal(JSON.stringify(w.DATA),before);
  w.currentUser.role='member';assert.equal((await api.copyFacades('A',['104 & 434'])).length,0);assert.equal(api.assignGroup('A',['104 & 434'],'x'),false);assert.equal(await api.rename('A','104 & 434','new'),'104 & 434');
 });
+
+test('each facade opens only its own work items even with a multi-selection',async t=>{
+ const {w}=await app(t);w.v32OpenWorkItems=()=>{w.opened=[w.selectedManageBlock,w.selectedManageFacade];};
+ w.v58FacadeSelection.selected=new w.Set(Object.keys(w.DATA.A));
+ const row=[...w.document.querySelectorAll('.v32-facade-row')].find(r=>r.dataset.f==='104 & 440');
+ row.querySelector('.cp-open-items').click();
+ assert.deepEqual(w.opened,['A','104 & 440']);assert.equal(w.v58FacadeSelection.selected.size,1);
+ assert.equal(w.document.getElementById('v32ManageItemsBtn'),null);
+});

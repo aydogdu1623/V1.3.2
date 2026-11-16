@@ -96,6 +96,7 @@
  function manager(){
   const host=document.getElementById('v32FacadeContent'),b=selectedManageBlock;if(!host||!DATA[b])return;
   const tools=host.querySelector('.v58-facade-toolbar');
+  host.querySelector('#v32ManageItemsBtn')?.remove();
   if(tools&&admin()&&!tools.querySelector('[data-cp-group-tools]')){
    const box=document.createElement('div');box.dataset.cpGroupTools='1';box.className='cp-facade-group-tools';
    box.append(button('Seçilenleri Grupla',()=>{
@@ -108,6 +109,10 @@
   const active=filter?.block===b?filter.name:null;
   host.querySelectorAll('.v32-facade-row').forEach(row=>{
    row.hidden=!!active&&group(DATA[b][row.dataset.f])!==active;
+   if(!row.querySelector('.cp-open-items')){
+    const open=button('İş Kalemleri',()=>{selectedManageBlock=b;selectedManageFacade=row.dataset.f;currentBlock=b;currentFacade=row.dataset.f;v58ResetFacadeSelection(b,row.dataset.f);v32OpenWorkItems();});
+    open.classList.add('cp-open-items');row.append(open);
+   }
    const input=row.querySelector('.v32FacadeName');
    if(input&&!input.dataset.cpRename){input.dataset.cpRename='1';
     // Editing clicks must not reach the row's selection/mousedown handlers.
@@ -159,6 +164,13 @@
   if(!save||!admin()){input.value=old;return;}
   const final=await run(()=>rename(b,old,typed));input.value=final||old;input.dataset.old=final||old;
  };
+ function compactWork(){
+  const host=document.getElementById('v32WorkBody');if(!host)return;
+  const lengths=[...host.querySelectorAll('.v34WiName')].map(el=>String(root.CepheProI18n?.t(el.value)||el.value).length*7+28);
+  host.style.setProperty('--cp-item-width',Math.min(300,Math.max(100,...lengths))+'px');
+ }
+ document.addEventListener('input',e=>{if(e.target.matches?.('#v32WorkBody .v34WiName'))compactWork();});
+ document.addEventListener('cephepro:language-changed',compactWork);
  document.addEventListener('cephepro:locked',()=>{filter=null;expanded.clear();});
  root.CepheProFacadeTools={assignGroup,groups,visibleNames,copyFacades,rename,manager,managerTree,mainTree};
 })(window);

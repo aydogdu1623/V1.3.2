@@ -120,13 +120,18 @@
    return sum+lines;
   },0);
   for(const {sheet,first,last} of tables){
-   const main=sheet.name==='Rapor',compactWidths=[8,10,18,7,8,8,10,11,9,14,14];
+   const main=sheet.name==='Rapor',compactWidths=[6,9,16,6,7,7,9,9,8,13,13];
    for(let c=first.col;c<=last.col;c++){
     const column=sheet.getColumn(c);if(column.hidden)continue;
     // Language changes must grow rows, not expand the report horizontally.
     const heading=String(sheet.getCell(first.row,c).value||'');
     const limit=/Açıklama|Hesap \/ İfade/i.test(heading)?24:18;
-    column.width=main?(compactWidths[c-1]||10):Math.max(8,Math.min(limit,column.width||10));
+    let fitted=compactWidths[c-1]||10;
+    if(main&&[1,2,3,4,5].includes(c)){
+     let longest=0;for(let r=first.row+1;r<=last.row;r++)longest=Math.max(longest,...display(sheet.getCell(r,c)).split('\n').map(s=>s.length));
+     fitted=Math.max(c===3?8:5,Math.min(fitted,longest+2));
+    }
+    column.width=main?fitted:Math.max(8,Math.min(limit,column.width||10));
    }
    for(let r=first.row;r<=last.row;r++){
     let height=r===first.row?32:28;

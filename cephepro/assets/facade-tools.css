@@ -8,3 +8,8 @@
 #v32FacadeContent .v32-facade-row[hidden]{display:none!important}
 #v32FacadeContent .v32FacadeName:not([readonly]){cursor:text!important;user-select:text!important;pointer-events:auto!important;background:#fff!important;outline:2px solid #2f7477}
 body.v113-member .cp-facade-group-tools{display:none!important}
+
+#v32FacadeContent .cp-open-items{grid-column:1/-1;justify-self:start;padding:3px 8px!important;min-height:24px}
+#v32WorkBody .v34-work-grid{width:max-content;min-width:0!important}
+#v32WorkBody .v34-work-head,#v32WorkBody .v34-work-row{grid-template-columns:60px var(--cp-item-width,180px) 100px 76px 92px 100px 100px 110px!important}
+body.v113-member #v32WorkBody .v34-work-head,body.v113-member #v32WorkBody .v34-work-row{grid-template-columns:60px var(--cp-item-width,180px) 100px 76px 92px 100px!important}
