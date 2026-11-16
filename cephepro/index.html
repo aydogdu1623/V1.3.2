@@ -6,21 +6,21 @@ html[data-cp-auth="locked"] body > :not(#authScreen):not(#cpProjectGate):not(#cp
 html[data-cp-auth="locked"] #authScreen{display:grid!important}
 html[data-cp-auth="locked"] #rememberedProfileArea{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/project-access.css?v=239.0">
-<script src="/assets/project-access.js?v=239.0"></script>
-<script src="/assets/session-privacy.js?v=239.0"></script>
+<link rel="stylesheet" href="/assets/project-access.css?v=240.0">
+<script src="/assets/project-access.js?v=240.0"></script>
+<script src="/assets/session-privacy.js?v=240.0"></script>
 <script>try{const u=JSON.parse(localStorage.getItem('cp_session')||'null');window.__cpFounderEmail=u?.isFounder?u.email:null;}catch(_){}</script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="cephepro-version" content="V214"/>
-<script src="/assets/structure-state.js?v=239.0"></script>
-<script src="/assets/performance.js?v=239.0"></script>
-<meta name="cephepro-build" content="V239.0"/>
+<script src="/assets/structure-state.js?v=240.0"></script>
+<script src="/assets/performance.js?v=240.0"></script>
+<meta name="cephepro-build" content="V240.0"/>
 <meta name="description" content="CephePro günlük imalat, cephe ilerleme, çalışma geçmişi ve ortak raporlama platformu."/>
 <meta name="robots" content="index,follow"/>
 <meta name="theme-color" content="#09111f"/>
 <title>CephePro — Cephe İlerleme & Raporlama</title>
-<script>window.CEPHEPRO_VERSION="V239";window.CEPHEPRO_BUILD="V239.0";</script>
+<script>window.CEPHEPRO_VERSION="V240";window.CEPHEPRO_BUILD="V240.0";</script>
 <style>
 :root{
  --bg:#09111f;--panel:#111c30;--panel2:#16243d;--line:#263a5d;--txt:#f4f7fb;--muted:#9aacbf;
@@ -18034,7 +18034,7 @@ function v58EnsureFacadeSelection(block){
   }
 }
 function v58SelectFacade(block,facade,e){
-  const order=Object.keys(DATA[block]||{});
+  const order=window.CepheProFacadeTools?.visibleNames(block)||Object.keys(DATA[block]||{});
   v58EnsureFacadeSelection(block);
 
   if(e.shiftKey && v58FacadeSelection.anchor && order.includes(v58FacadeSelection.anchor)){
@@ -21602,7 +21602,7 @@ try{v41RenderOverview()}catch(_){ }
         <${p}from><${p}col>${col}</${p}col><${p}colOff>0</${p}colOff><${p}row>${row}</${p}row><${p}rowOff>0</${p}rowOff></${p}from>
         <${p}ext cx="${cx}" cy="${cy}"/>
         <${p}graphicFrame macro="">
-          <${p}nvGraphicFramePr><${p}cNvPr id="${id}" name="${x68(name)}"/><${p}cNvGraphicFramePr><a:graphicFrameLocks noMove="1" noResize="1"/></${p}cNvGraphicFramePr></${p}nvGraphicFramePr>
+          <${p}nvGraphicFramePr><${p}cNvPr id="${id}" name="${x68(name)}"/><${p}cNvGraphicFramePr>${ch.resizable?'':'<a:graphicFrameLocks noMove="1" noResize="1"/>'}</${p}cNvGraphicFramePr></${p}nvGraphicFramePr>
           <${p}xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></${p}xfrm>
           <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${rid}"/></a:graphicData></a:graphic>
         </${p}graphicFrame><${p}clientData fLocksWithSheet="1" fPrintsWithSheet="1"/>
@@ -22347,13 +22347,15 @@ ${displayLabel68(f,16)}`;
     const chartLabels237=chartRows155.map((item,index)=>{
       const sourceRow=index+8,code=String(ws.getCell(sourceRow,4).value||''),name=String(rows[index][2]||'');
       const prefix=code&&!name.startsWith(code)?code+' - ':'';
-      const label=prefix+name+'\n'+item.facade+' / '+item.unit;
+      const rawLabel=prefix+name+'\n'+item.facade+' / '+item.unit;
+      const label=window.CepheProDynamicChart.label(window.CepheProI18n?.t(rawLabel)||rawLabel);
       gd.getCell(index+2,12).value={formula:`IF(AND(Rapor!D${sourceRow}<>"",LEFT(Rapor!C${sourceRow},LEN(Rapor!D${sourceRow}))<>Rapor!D${sourceRow}),Rapor!D${sourceRow}&" - ","")&Rapor!C${sourceRow}&CHAR(10)&Rapor!B${sourceRow}&" / "&Rapor!E${sourceRow}`,result:label};
       return label;
     });
     const nativeChart148={
       type:'column',
-      title:`${scopeBlocks145} ${scopeFacades145}\nİŞ KALEMLERİ\nMETRAJLAR`,
+      title:'İş Kalemleri',
+      resizable:true,
       catFormula:`'Grafik Verileri'!$L$2:$L$${chartRows155.length+1}`,
       cacheLabels:chartLabels237,
       series:[
@@ -22367,7 +22369,13 @@ ${displayLabel68(f,16)}`;
       showDataLabels:false,categoryTitle:false,autoValueAxis:true,valueFormat:'General',
       gapWidth:92,seriesOverlap:-12
     };
-    Object.assign(nativeChart148,window.CepheProI18n?.chartLayout(nativeChart148.cacheLabels,nativeChart148.categoryLevels)||{});
+    Object.assign(nativeChart148,window.CepheProDynamicChart.layout(chartRows155.length));
+    wb.definedNames.add(`Rapor!$A$8:$K$${dataEnd}`,'CP_ReportData');
+    gd.getCell('N1').value='İş Kalemleri';
+    wb.definedNames.add("'Grafik Verileri'!$N$1",'CP_ChartTitle');
+    const info=wb.getWorksheet('Bilgi');
+    info.mergeCells('B30:H32');info.getCell('B30').value='Filtreye göre otomatik grafik boyutu için bu raporu masaüstü Excel’de açın ve bu dosyanın makrolarına izin verin.';
+    info.getCell('B30').alignment={horizontal:'center',vertical:'middle',wrapText:true};info.getCell('B30').font={size:10,color:{argb:'FF245B60'}};info.pageSetup.printArea='B2:H32';
     // V170: Yalnız Rapor sayfasında 1-7. satırlar sabittir. Diğer sayfalarda
     // tablo varsa, autoFilter'ın bulunduğu başlık satırına kadar olan bölüm
     // sabitlenir. xSplit kullanılmaz; aynı tablo veya grafik yinelenmez.
@@ -22395,10 +22403,11 @@ ${displayLabel68(f,16)}`;
     }
 
     if(window.CepheProI18n)buffer=await window.CepheProI18n.office(buffer,'xlsx');
+    buffer=await window.CepheProDynamicChart.pack(buffer);
     const safe=(v34ProjectInfo.projectName||'CephePro').replace(/[^\p{L}\p{N}_-]+/gu,'_');
     v52DownloadBlob(
-      new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),
-      `${safe}_Genel_Rapor_${window.CEPHEPRO_VERSION||'V126'}.xlsx`
+      new Blob([buffer],{type:window.CepheProDynamicChart.mime}),
+      `${safe}_Genel_Rapor_${window.CEPHEPRO_VERSION||'V126'}.xlsm`
     );
     toast('Excel raporu oluşturuldu');
   }
@@ -29680,10 +29689,19 @@ body.v113-member .v113-role-note{display:block}
       const map={};rows.forEach(rw=>{map[rw.facadeKey]=map[rw.facadeKey]||[];const p={...(rw.photo||{}),id:rw.photoId||rw.photo?.id,ownerUserId:rw.ownerUserId,user:rw.ownerUsername||rw.photo?.user};map[rw.facadeKey].push(p)});photoApplying=true;facadePhotos=map;originalStoreSet('cp_photos',map);photoApplying=false;shadowFrom(map);try{renderPhotos()}catch(_){ }
     }catch(e){console.warn('photo pull',e)}finally{photoBusy=false}}
   async function syncPhotoChanges(map){
-    if(!tok()||photoBusy)return;photoBusy=true;try{const now=flattenPhotos(map),old=photoShadow;
-      for(const [id,{key,p}] of now){const o=old.get(id);if(!o||JSON.stringify(o.p)!==JSON.stringify(p)){try{const d=await photoReq({action:'upsert',facadeKey:key,photoId:id,photo:p});if(d.ownerUserId)p.ownerUserId=d.ownerUserId}catch(e){console.warn(e)}}}
-      for(const [id,o] of old)if(!now.has(id)){try{await photoReq({action:'delete',photoId:id,facadeKey:o.key})}catch(e){console.warn(e)}}shadowFrom(map);
-    }finally{photoBusy=false}}
+    if(!tok()||photoBusy)return false;photoBusy=true;let complete=true;try{const now=flattenPhotos(map),old=photoShadow;
+      for(const [id,{key,p}] of now){const o=old.get(id);if(!o||o.key!==key||JSON.stringify(o.p)!==JSON.stringify(p)){try{const d=await photoReq({action:'upsert',facadeKey:key,photoId:id,photo:p});if(d.ownerUserId)p.ownerUserId=d.ownerUserId}catch(e){complete=false;console.warn(e)}}}
+      for(const [id,o] of old)if(!now.has(id)){try{await photoReq({action:'delete',photoId:id,facadeKey:o.key})}catch(e){complete=false;console.warn(e)}}if(complete)shadowFrom(map);
+    }finally{photoBusy=false}return complete;
+  }
+  window.__v240Photos={flush:async()=>{
+    const project=window.CepheProProjects?.project()?.id,deadline=Date.now()+25000;
+    while(photoBusy&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,50));
+    if(project!==window.CepheProProjects?.project()?.id)throw Error('Proje değişti. İşlemi yeniden deneyin.');
+    clearTimeout(photoTimer);
+    if(!await syncPhotoChanges(facadePhotos))throw Error('Fotoğraflar buluta kaydedilemedi. Yeniden deneyin.');
+  }};
+
   store.set=function(k,v){const r=originalStoreSet(k,v);if(k==='cp_photos'&&!photoApplying){clearTimeout(photoTimer);photoTimer=setTimeout(()=>syncPhotoChanges(v),600)}return r};
 
   function afterUserReady(){roleApply();ensureActivityPane();if(tok())pullPhotos(true);clearInterval(activityTimer);activityTimer=setInterval(()=>{if(!document.hidden){roleApply();if(document.getElementById('v113ActivityPane')?.classList.contains('active'))loadActivity();pullPhotos(false)}},20000)}
@@ -31326,6 +31344,21 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
     }catch(error){toast('Birim fiyatlar buluta kaydedilemedi. Aktarma düğmesiyle yeniden deneyin.');}
     finally{if(button)button.disabled=false;}
   }
+  async function remapFacades(block,pairs,move=false){
+    if(!isAdmin())throw Error('Bu işlem için admin yetkisi gerekli.');
+    const project=window.CepheProProjects?.project()?.id,auth=token();
+    if(!loaded)await load();
+    if(!loaded)throw Error('Birim fiyatlar henüz yüklenmedi. Kısa süre sonra tekrar deneyin.');
+    await flushFinance();
+    if(project!==window.CepheProProjects?.project()?.id||auth!==token())throw Error('Proje değişti. İşlemi yeniden deneyin.');
+    const before={...prices},next={...prices};
+    for(const {from,to} of pairs)for(const [key,value] of Object.entries(before))if(key.startsWith(prefix(block,from))){
+      next[prefix(block,to)+key.slice(prefix(block,from).length)]=value;if(move)delete next[key];
+    }
+    prices=next;schedulePush();
+    try{await flushFinance();}
+    catch(error){prices=before;priceEditVersion++;throw error;}
+  }
   function strip(){
     if(!isAdmin())document.querySelectorAll('.v232-transfer-prices').forEach(el=>el.remove());
     document.querySelectorAll('#v32WorkModal .v169-finance-head,#v32WorkModal .v169-finance-cell,#v32WorkModal .v169-financial-summary').forEach(el=>el.remove());
@@ -31402,7 +31435,7 @@ body.v113-member #v32WorkModal :is(.v169-finance-head,.v169-finance-cell,.v169-f
   document.addEventListener('click',event=>{if(event.target?.closest?.('#v53SaveWorkItems,#v53SaveWorkItemsBottom')&&isAdmin()){const b=v53WorkDraft?.b||selectedManageBlock,f=v53WorkDraft?.f||selectedManageFacade;if(b&&f)collectCurrentPrices(b,f)}},true);
   document.addEventListener('cephepro:user-ready',()=>load());
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{if(token())load()},{once:true});else if(token())load();
-  window.__v169Financial={load,decorate,facadeTotals,unitWeight:(b,f,item)=>finite((isAdmin()?prices:progressWeights)[priceKey(b,f,item)]),get data(){return isAdmin()?{...prices}:{}}};
+  window.__v169Financial={load,decorate,facadeTotals,remapFacades,unitWeight:(b,f,item)=>finite((isAdmin()?prices:progressWeights)[priceKey(b,f,item)]),get data(){return isAdmin()?{...prices}:{}}};
 })();
 </script>
 
@@ -31937,25 +31970,25 @@ body.v113-member #v32WorkModal .v34-work-row{
 document.addEventListener('cephepro:user-ready',()=>{if(typeof currentUser!=='undefined'&&currentUser){window.__cpFounderEmail=currentUser.isFounder?currentUser.email:null;}});
 </script>
 <script src="/assets/member-v190.js"></script>
-<script src="/assets/personal-layout.js?v=239.0"></script>
+<script src="/assets/personal-layout.js?v=240.0"></script>
 <link rel="stylesheet" href="/assets/member-v190.css">
 <link rel="stylesheet" href="/assets/claims-v191.css?v=191">
-<script src="/assets/claims-report-v191.js?v=239.0"></script>
-<script src="/assets/firma-template-v208.js?v=239.0"></script>
-<script src="/assets/claims-v182.js?v=239.0"></script>
+<script src="/assets/claims-report-v191.js?v=240.0"></script>
+<script src="/assets/firma-template-v208.js?v=240.0"></script>
+<script src="/assets/claims-v182.js?v=240.0"></script>
 <link rel="stylesheet" href="/assets/claims-v183.css">
 <link rel="stylesheet" href="/assets/settings-v184.css">
 <link rel="stylesheet" href="/assets/claims-v185.css">
 <link rel="stylesheet" href="/assets/claims-v186.css">
 <link rel="stylesheet" href="/assets/claims-v190.css">
-<link rel="stylesheet" href="/assets/claims-v192.css?v=239.0">
+<link rel="stylesheet" href="/assets/claims-v192.css?v=240.0">
 <link rel="stylesheet" href="/assets/claims-v194.css">
-<link rel="stylesheet" href="/assets/activity-v189.css?v=239.0">
+<link rel="stylesheet" href="/assets/activity-v189.css?v=240.0">
 <script src="/assets/report-poz.js?v=210.0"></script>
 <script src="/assets/report-v184.js"></script>
-<link rel="stylesheet" href="/assets/puantaj.css?v=239.0">
+<link rel="stylesheet" href="/assets/puantaj.css?v=240.0">
 <script src="/assets/jszip.min.js"></script>
-<script src="/assets/puantaj-model.js?v=239.0"></script>
+<script src="/assets/puantaj-model.js?v=240.0"></script>
 <script src="/assets/puantaj-formulas.js?v=207"></script>
 <script src="/assets/puantaj-export.js?v=207"></script>
 <style id="v209WorkItemPozStyle">
@@ -31975,17 +32008,23 @@ body.v113-member #v32WorkModal .v209-delete-head{display:none!important}
   #v32WorkBody{min-width:0!important}
 }
 </style>
-<script src="/assets/puantaj.js?v=239.0"></script>
-<link rel="stylesheet" href="/assets/compact-v222.css?v=239.0">
-<script src="/assets/deficiencies.js?v=239.0"></script>
+<script src="/assets/puantaj.js?v=240.0"></script>
+<link rel="stylesheet" href="/assets/compact-v222.css?v=240.0">
+<script src="/assets/deficiencies.js?v=240.0"></script>
 </body></html>
 
 <script src="assets/claims-wheel-v196.js?v=196"></script>
-<link rel="stylesheet" href="/assets/i18n.css?v=239.0">
-<script src="/assets/translations.js?v=239.0"></script>
-<script src="/assets/ai-translations.js?v=239.0"></script>
-<script src="/assets/local-translation.js?v=239.0"></script>
-<script src="/assets/currency.js?v=239.0"></script>
-<script src="/assets/i18n.js?v=239.0"></script>
-<script src="/assets/i18n-fields.js?v=239.0"></script>
-<script src="/assets/i18n-reports.js?v=239.0"></script>
+<link rel="stylesheet" href="/assets/i18n.css?v=240.0">
+<script src="/assets/translations.js?v=240.0"></script>
+<script src="/assets/ai-translations.js?v=240.0"></script>
+<script src="/assets/local-translation.js?v=240.0"></script>
+<script src="/assets/currency.js?v=240.0"></script>
+<script src="/assets/i18n.js?v=240.0"></script>
+<script src="/assets/i18n-fields.js?v=240.0"></script>
+<script src="/assets/i18n-reports.js?v=240.0"></script>
+
+<script src="/assets/report-chart-vba.js?v=240.0"></script>
+<script src="/assets/report-dynamic-chart.js?v=240.0"></script>
+
+<link rel="stylesheet" href="/assets/facade-tools.css?v=240.0">
+<script src="/assets/facade-tools.js?v=240.0"></script>
