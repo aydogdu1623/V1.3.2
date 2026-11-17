@@ -79,7 +79,7 @@ for(const language of ['tr','en','de','fr','ru','ar'])test('compact general repo
  assert.equal(data.getCell('AA3').value,'C ISLAND');assert.equal(data.getCell('AA4').value,'F ISLAND');assert.match(data.getCell('S2').formula,/INDEX\(/);
  assert.ok(zip.file('xl/vbaProject.bin'));assert.match(await zip.file('[Content_Types].xml').async('string'),/macroEnabled.main/);
  assert.match(chart,{tr:/ANKRAJ MONTAJI/i,en:/ANCHOR\s+INSTALLATION/i,de:/ANKERMONTAGE/i,fr:/MONTAGE\s+DES\s+ANCRAGES/i,ru:/МОНТАЖ АНКЕРОВ/i,ar:/تركيب المراسي/}[language]);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="30"/);assert.match(chart,/<a:bodyPr rot="-2700000"/);
- const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===720);assert.ok(Number(ext[2])/9525===440);
+ const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===160+70*30);assert.ok(Number(ext[2])/9525===500);
  if(process.env.CP_REPORT_QA_DIR){fs.mkdirSync(process.env.CP_REPORT_QA_DIR,{recursive:true});fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/report-'+language+'.xlsm',Buffer.from(bytes));}
 });
 test('Word and PDF export actions reach download even when the free model is unavailable',async t=>{
@@ -122,7 +122,7 @@ test('real Excel workbook preserves formula targets, filters and native chart af
  const wb=new w.ExcelJS.Workbook();await wb.xlsx.load(new w.Uint8Array(bytes));const ws=wb.getWorksheet('Rapor');
  assert.equal(ws.getCell('C7').value,'İş Kalemi');assert.equal(ws.getCell('D7').value,'Poz No');assert.equal(ws.getCell('D8').value,'W1');assert.equal(ws.getCell('D9').value,'W2');
  assert.equal(ws.getCell('G8').value,100);assert.equal(ws.getCell('H8').value,25);assert.equal(ws.getCell('I8').formula,'IFERROR(H8/G8*100,0)');assert.equal(ws.getCell('I8').result,25);
- assert.equal(ws.autoFilter,'A7:K9');assert.equal(ws.getColumn(11).hidden,false);assert.equal(ws.getColumn(22).hidden,true);assert.equal(ws.views[0].ySplit,7);
+ assert.equal(ws.autoFilter,'A7:K9');assert.equal(ws.getColumn(11).hidden,false);assert.equal(ws.getColumn(22).hidden,false);assert.equal(ws.views[0].ySplit,7);
  assert.match(wb.getWorksheet('Takvim').getCell('I2').formula,/Rapor!\$H:\$H.*Rapor!\$G:\$G/);
  const deficiencies=wb.getWorksheet('Eksikler');assert.equal(deficiencies.getCell('D4').value,'Poz No');assert.equal(deficiencies.getCell('D5').value,'W1');assert.equal(deficiencies.getCell('F5').value,'Ankraj vidası eksik <test>');assert.equal(deficiencies.views[0].ySplit,4);
  const history=wb.getWorksheet('Çalışma Geçmişi');assert.equal(history.getCell('F4').value,'İş Kalemi');assert.equal(history.getCell('G4').value,'Poz No');assert.equal(history.getCell('G5').value,'W1');assert.equal(history.getCell('I5').value,25);assert.equal(history.autoFilter,'A4:L5');

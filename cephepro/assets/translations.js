@@ -4022,3 +4022,12 @@ Object.assign(window.CepheProDictionary, {
  ru:'Выбор острова и фасада вместе с фильтрами таблицы обновляет диаграмму. Чтобы показать всё, выберите Все в обоих списках и сбросьте фильтры таблицы. Данные обновляются без макросов; макросы могут автоматически менять размер диаграммы.',
  ar:'يعمل اختيار الجزيرة والواجهة مع عوامل تصفية الجدول لتحديث المخطط. لعرض الكل، اختر الكل في القائمتين وأزل عوامل تصفية الجدول. لا تحتاج بيانات المخطط إلى وحدات ماكرو؛ ويمكن استخدامها لتغيير حجم المخطط تلقائياً.'}
 });
+
+Object.assign(window.CepheProDictionary, {
+ 'Seçili Cepheler': {en:'Selected facades',de:'Ausgewählte Fassaden',fr:'Façades sélectionnées',ru:'Выбранные фасады',ar:'الواجهات المحددة'},
+ 'Grafik Seçimi': {en:'Chart Selection',de:'Diagrammauswahl',fr:'Sélection du graphique',ru:'Выбор для диаграммы',ar:'اختيار المخطط'},
+ 'Grafiğe Dahil': {en:'Include in chart',de:'Im Diagramm anzeigen',fr:'Inclure au graphique',ru:'Включить в диаграмму',ar:'تضمين في المخطط'},
+ 'Çoklu Cephe Seçimi': {en:'Select multiple facades',de:'Mehrere Fassaden wählen',fr:'Sélectionner plusieurs façades',ru:'Выбрать несколько фасадов',ar:'اختيار واجهات متعددة'},
+ 'İstediğiniz cephelerde Evet seçin. Rapor sayfasındaki Cephe alanını Seçili Cepheler olarak değiştirin.': {en:'Choose Yes for the facades you want. Set the Facade field on the Report sheet to Selected facades.',de:'Wählen Sie Ja bei den gewünschten Fassaden. Stellen Sie das Feld Fassade im Bericht auf Ausgewählte Fassaden.',fr:'Choisissez Oui pour les façades souhaitées. Réglez le champ Façade de la feuille Rapport sur Façades sélectionnées.',ru:'Выберите Да для нужных фасадов. На листе отчёта установите поле Фасад в значение Выбранные фасады.',ar:'اختر نعم للواجهات المطلوبة. اضبط حقل الواجهة في ورقة التقرير على الواجهات المحددة.'},
+ 'Otomatik grafik boyutu için masaüstü Excel’de bu dosyanın makrolarını etkinleştirin.': {en:'For automatic chart sizing, enable this file’s macros in desktop Excel.',de:'Aktivieren Sie die Makros dieser Datei in Excel Desktop für die automatische Diagrammgröße.',fr:'Pour le redimensionnement automatique, activez les macros de ce fichier dans Excel de bureau.',ru:'Для автоматического изменения размера диаграммы включите макросы этого файла в настольном Excel.',ar:'لتغيير حجم المخطط تلقائياً، فعّل وحدات الماكرو لهذا الملف في Excel لسطح المكتب.'}
+});
