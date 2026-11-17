@@ -16,7 +16,7 @@ from pyopenvba import ExcelFile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'scripts/chart-vba'
-SHEET_COUNT = 11
+SHEET_COUNT = 12
 
 with tempfile.TemporaryDirectory() as folder:
     path = Path(folder) / 'chart.xlsm'
