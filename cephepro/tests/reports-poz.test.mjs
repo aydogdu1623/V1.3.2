@@ -79,7 +79,7 @@ for(const language of ['tr','en','de','fr','ru','ar'])test('compact general repo
  assert.equal(data.getCell('AA3').value,'C ISLAND');assert.equal(data.getCell('AA4').value,'F ISLAND');assert.match(data.getCell('S2').formula,/INDEX\(/);
  assert.ok(zip.file('xl/vbaProject.bin'));assert.match(await zip.file('[Content_Types].xml').async('string'),/macroEnabled.main/);
  assert.match(chart,{tr:/ANKRAJ MONTAJI/i,en:/ANCHOR\s+INSTALLATION/i,de:/ANKERMONTAGE/i,fr:/MONTAGE\s+DES\s+ANCRAGES/i,ru:/МОНТАЖ АНКЕРОВ/i,ar:/تركيب المراسي/}[language]);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="30"/);assert.match(chart,/<a:bodyPr rot="-2700000"/);
- const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===160+70*30);assert.ok(Number(ext[2])/9525===500);
+ const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===120+66*30);assert.ok(Number(ext[2])/9525===480);
  if(process.env.CP_REPORT_QA_DIR){fs.mkdirSync(process.env.CP_REPORT_QA_DIR,{recursive:true});fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/report-'+language+'.xlsm',Buffer.from(bytes));}
 });
 test('Word and PDF export actions reach download even when the free model is unavailable',async t=>{
@@ -151,4 +151,22 @@ test('changed facade dates reach Excel, Word source tables and PDF HTML on every
   const bytes=await new Promise(resolve=>{const r=new w.FileReader();r.onload=()=>resolve(new w.Uint8Array(r.result));r.readAsArrayBuffer(blob)});
   const wb=new w.ExcelJS.Workbook();await wb.xlsx.load(bytes);assert.match(String(wb.getWorksheet('Rapor').getCell('J8').value),new RegExp(date));
  }
+});
+
+for(const count of [1,3])test('fixed plotting pitch in an exported '+count+'-item chart',async t=>{
+ const {w,rows}=harness();t.after(()=>w.close());
+ const row=[...rows[0]];rows.length=0;for(let i=0;i<count;i++)rows.push([...row.slice(0,2),'Item '+(i+1),...row.slice(3)]);
+ let blob;w.v52DownloadBlob=b=>{blob=b;};await w.testExport();
+ const bytes=await new Promise(resolve=>{const r=new w.FileReader();r.onload=()=>resolve(new w.Uint8Array(r.result));r.readAsArrayBuffer(blob);});
+ const zip=await JSZip.loadAsync(Buffer.from(bytes));
+ const chart=new w.DOMParser().parseFromString(await zip.file('xl/charts/chart1.xml').async('string'),'application/xml');
+ const tag=(name)=>chart.getElementsByTagNameNS('*',name)[0];
+ assert.equal(tag('gapWidth').getAttribute('val'),'100');assert.equal(tag('overlap').getAttribute('val'),'-100');
+ const manual=tag('manualLayout');assert.equal(manual.getElementsByTagNameNS('*','layoutTarget')[0].getAttribute('val'),'inner');
+ const drawing=new w.DOMParser().parseFromString(await zip.file('xl/drawings/drawing1.xml').async('string'),'application/xml');
+ const width=Number(drawing.getElementsByTagNameNS('*','ext')[0].getAttribute('cx'))/9525;
+ const insideFraction=Number(manual.getElementsByTagNameNS('*','w')[0].getAttribute('val'));
+ assert.ok(Math.abs(width*insideFraction/count-66)<0.001,'each category retains 66px of plotting width');
+ assert.equal(width,120+66*count,'no minimum width stretches a single item');
+ if(process.env.CP_REPORT_QA_DIR)fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/geometry-'+count+'.xlsm',Buffer.from(bytes));
 });

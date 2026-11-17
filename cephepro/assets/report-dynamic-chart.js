@@ -12,7 +12,8 @@
   return result+rest;
  }
  const label=text=>String(text??'').split('\n').map(wrap).join('\n');
- const layout=count=>({widthPx:Math.max(320,160+70*Math.max(1,count)),heightPx:500,categoryRotation:-2700000,gapWidth:160});
+ // Fixed category pitch, gap and overlap keep bar widths stable under filtering.
+ const layout=count=>({widthPx:120+66*Math.max(1,count),heightPx:480,plotWidthPx:66*Math.max(1,count),categoryRotation:-2700000,gapWidth:100,seriesOverlap:-100});
  function configure(wb,ws,gd,rows,labels,values,chart){
   // Keep the horizontal canvas scrollable without exposing legacy chart helper cells.
   ws.eachRow(row=>row.eachCell((cell,col)=>{if(col>=22&&col<=67){cell.numFmt=';;;';cell.font={...cell.font,color:{argb:'FFFFFFFF'}};cell.border={};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFFFF'}};}}));
@@ -77,6 +78,9 @@
   ws.getCell('L3').alignment={wrapText:true,vertical:'middle'};ws.getCell('L3').font={size:9};
   ws.mergeCells('L4:U4');ws.getCell('L4').value='Otomatik grafik boyutu için masaüstü Excel’de bu dosyanın makrolarını etkinleştirin.';
   ws.getCell('L4').font={size:9,color:{argb:'FF245B60'}};ws.getCell('L4').alignment={wrapText:true,vertical:'middle'};
+  gd.getCell('AB3').value='Sabit sütun genişliği etkin.';
+  wb.definedNames.add('Rapor!$L$4','CP_ChartSizingStatus');
+  wb.definedNames.add("'Grafik Verileri'!$AB$3",'CP_ChartSizingReady');
   Object.assign(chart,layout(rows.length));chart.fromRow=4;
   chart.cacheLabels=labels.map((label,i)=>label+'\n'+rows[i][0]);
   chart.catFormula="'Grafik Verileri'!CP_ChartLabels";
@@ -99,12 +103,14 @@
   calc.setAttribute('calcMode','auto');calc.setAttribute('fullCalcOnLoad','1');calc.setAttribute('forceFullCalc','1');
   const rels=parse(await zip.file('xl/_rels/workbook.xml.rels').async('string'));
   const relationships=all(rels,'Relationship');
+  let chartCount=1;
   for(let i=0;i<sheets.length;i++){
    const id=sheets[i].getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
    const target=relationships.find(r=>r.getAttribute('Id')===id)?.getAttribute('Target');
    if(!target)throw Error('Excel sayfa bağlantısı bulunamadı.');
    const path=target.startsWith('/')?target.slice(1):'xl/'+target;
    const sheet=parse(await zip.file(path).async('string'));let pr=all(sheet,'sheetPr')[0];
+   if(i===10){const cell=all(sheet,'c').find(n=>n.getAttribute('r')==='V1');chartCount=Number(cell&&all(cell,'v')[0]?.textContent)||1;}
    if(!pr){pr=sheet.createElementNS(NS,'sheetPr');sheet.documentElement.insertBefore(pr,sheet.documentElement.firstChild);}
    pr.setAttribute('codeName','Sheet'+(i+1));
    zip.file(path,xml(sheet));
@@ -118,6 +124,12 @@
   for(const path of Object.keys(zip.files).filter(path=>/^xl\/charts\/chart\d+\.xml$/.test(path))){
    const chart=parse(await zip.file(path).async('string'));
    all(chart,'plotVisOnly').forEach(node=>node.setAttribute('val','0'));
+   const area=all(chart,'plotArea')[0],ns=area.namespaceURI,geometry=layout(chartCount);
+   const old=all(area,'layout')[0],box=chart.createElementNS(ns,'c:layout'),manual=chart.createElementNS(ns,'c:manualLayout');
+   for(const [tag,value] of [['layoutTarget','inner'],['xMode','edge'],['yMode','edge'],['wMode','factor'],['hMode','factor'],['x',60/geometry.widthPx],['y',40/geometry.heightPx],['w',geometry.plotWidthPx/geometry.widthPx],['h',280/geometry.heightPx]]){
+    const node=chart.createElementNS(ns,'c:'+tag);node.setAttribute('val',String(value));manual.appendChild(node);
+   }
+   box.appendChild(manual);if(old)area.replaceChild(box,old);else area.insertBefore(box,area.firstChild);
    zip.file(path,xml(chart));
   }
   const rel=rels.createElementNS(rels.documentElement.namespaceURI,'Relationship');
