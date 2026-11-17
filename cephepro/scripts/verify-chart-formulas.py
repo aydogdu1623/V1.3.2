@@ -1,8 +1,7 @@
-"""Verify real exported formulas, selections and AutoFilter in pyOpenVBA.
-This is an interpreter check, not a native Microsoft Excel UI test.
-The interpreter lacks PlotArea and ChartGroups: validate those settings in export XML,
-and do not treat these width checks as native bar-geometry verification.
-Usage: PYTHONPATH=/path/to/pyopenvba python scripts/verify-chart-vba.py /path/to/reports
+"""Verify macro-free report formulas and selections in the spreadsheet interpreter.
+Test-only commands drive cell edits; the downloaded XLSX contains no VBA.
+This is not a native Microsoft Excel UI check.
+Usage: PYTHONPATH=/path/to/pyopenvba python scripts/verify-chart-formulas.py /path/to/reports
 """
 import sys
 from pathlib import Path
@@ -11,7 +10,7 @@ from pyopenvba.apps.excel import ExcelApplication
 
 folder=Path(sys.argv[1])
 for lang in ['tr','en','de','fr','ru','ar']:
-    path=folder/f'report-{lang}.xlsm'
+    path=folder/f'report-{lang}.xlsx'
     app=ExcelApplication.open(str(path))
     read=lambda cell: app.evaluate(f'ThisWorkbook.Worksheets(11).Range("{cell}").Value2')
     width=lambda: app.evaluate('ThisWorkbook.Worksheets(2).ChartObjects(1).Width')
@@ -64,22 +63,22 @@ End Sub
     assert read('V1')==30 and read('S2')==100,(lang,'initial',read('V1'),read('S2'))
     assert width()==1575,(lang,'full chart width',width())
     app.run('ChooseIsland');assert read('V1')==10 and read('S2')==110,(lang,'island')
-    assert width()==585,(lang,'island width',width())
+    assert width()==1575,(lang,'island width',width())
     app.run('ChooseFacade');assert read('V1')==3 and read('S2')==112,(lang,'facade')
-    assert width()==238.5,(lang,'one facade width',width())
-    app.run('OneWorkItem');assert read('V1')==1 and width()==139.5,(lang,'single work item',read('V1'),width())
+    assert width()==1575,(lang,'one facade width',width())
+    app.run('OneWorkItem');assert read('V1')==1 and width()==1575,(lang,'single work item',read('V1'),width())
     app.run('ClearFilters');assert read('V1')==3,(lang,'restore facade after single item')
-    app.run('FilterOtherFacade');assert read('V1')==0 and read('R2')=='' and read('S2')==0,(lang,'empty intersection',read('V1'))
+    app.run('FilterOtherFacade');assert read('V1')==0 and read('R2')=='' and repr(read('S2'))=='Error 2042',(lang,'empty intersection',read('V1'),repr(read('R2')),repr(read('S2')))
     app.run('AllFacades');assert read('V1')==3 and read('S2')==115,(lang,'visible facade')
     app.run('AllIslands');assert read('V1')==3,(lang,'visible across islands')
     app.run('ClearFilters');assert read('V1')==30 and read('S2')==100,(lang,'restore all')
     app.run('ChangeQuantity');assert read('S2')==400 and read('U2')==6.25,(lang,'live quantity')
     app.run('MultiMode');assert read('V1')==0,(lang,'nothing selected')
     app.run('SelectTwoFacades');assert read('V1')==6 and read('S2')==112,(lang,'two facades',read('V1'))
-    assert width()==387,(lang,'two facade width',width())
+    assert width()==1575,(lang,'two facade width',width())
     app.run('AddThirdFacade');assert read('V1')==8,(lang,'third facade')
-    assert width()==486,(lang,'three facade width',width())
-    assert app.evaluate('ThisWorkbook.Worksheets(11).Range("S2").Formula').startswith('=IF('),'VBA must not replace chart formulas'
+    assert width()==1575,(lang,'three facade width',width())
+    assert app.evaluate('ThisWorkbook.Worksheets(11).Range("S2").Formula').startswith('=IF('),'Selection must not replace chart formulas'
     assert app.evaluate('ThisWorkbook.Worksheets(2).Range("G37").Value2')==129
     with ZipFile(path) as z:
         import xml.etree.ElementTree as ET
@@ -88,4 +87,6 @@ End Sub
         for name in ['CP_ChartLabels','CP_ChartTotals','CP_ChartDone','CP_ChartProgress']:
             node=root.find(f'.//s:definedName[@name="{name}"]',ns)
             assert node is not None and node.get('localSheetId')=='10'
-    print(lang+': single/two/three/all facade selections, growing widths, AutoFilter and quantity recalculation passed')
+            assert 'OFFSET(' not in node.text and node.text.endswith('$31'),node.text
+        assert 'xl/vbaProject.bin' not in z.namelist()
+    print(lang+': single/two/three/all facade selections, fixed category capacity, AutoFilter and quantity recalculation passed')

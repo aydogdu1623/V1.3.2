@@ -4034,3 +4034,19 @@ Object.assign(window.CepheProDictionary, {
 Object.assign(window.CepheProDictionary, {
  'Sabit sütun genişliği etkin.': {en:'Fixed column width is active.',de:'Feste Säulenbreite ist aktiv.',fr:'La largeur fixe des colonnes est active.',ru:'Фиксированная ширина столбцов включена.',ar:'عرض الأعمدة الثابت مفعّل.'}
 });
+Object.assign(window.CepheProDictionary, {
+ 'Sütun genişliği ve aralıkları sabittir. Seçilen iş kalemleri solda gösterilir. Makro gerekmez.': {
+  en:'Column widths and gaps stay fixed. Selected work items appear on the left. No macros required.',
+  de:'Säulenbreiten und Abstände bleiben gleich. Ausgewählte Positionen erscheinen links. Keine Makros erforderlich.',
+  fr:'La largeur et l’espacement des colonnes restent fixes. Les postes sélectionnés apparaissent à gauche. Aucune macro nécessaire.',
+  ru:'Ширина столбцов и интервалы постоянны. Выбранные работы отображаются слева. Макросы не требуются.',
+  ar:'عرض الأعمدة والمسافات بينها ثابت. تظهر بنود العمل المحددة على اليسار. لا حاجة إلى وحدات ماكرو.'
+ },
+ 'Ada ve cephe seçimi ile tablo filtreleri grafiği günceller. Sütun genişliği ve aralıkları değişmez; seçilen iş kalemleri solda toplanır. Boş kısım çizilmez. Tümünü görmek için seçimleri ve tablo filtrelerini sıfırlayın. Makro gerekmez.': {
+  en:'Island and facade selections and table filters update the chart. Column widths and gaps stay fixed; selected work items gather on the left. The unused area is not drawn. Reset selections and table filters to show everything. No macros required.',
+  de:'Insel- und Fassadenauswahl sowie Tabellenfilter aktualisieren das Diagramm. Säulenbreiten und Abstände bleiben gleich; ausgewählte Positionen stehen links. Der leere Bereich wird nicht gezeichnet. Setzen Sie die Auswahl und Tabellenfilter zurück, um alles anzuzeigen. Keine Makros erforderlich.',
+  fr:'Les choix d’île et de façade et les filtres du tableau actualisent le graphique. La largeur et l’espacement des colonnes restent fixes ; les postes sélectionnés se regroupent à gauche. La zone vide n’est pas tracée. Réinitialisez les sélections et les filtres pour tout afficher. Aucune macro nécessaire.',
+  ru:'Выбор острова и фасада и фильтры таблицы обновляют диаграмму. Ширина столбцов и интервалы постоянны; выбранные работы располагаются слева. Пустая область не отображается. Сбросьте выбор и фильтры, чтобы показать всё. Макросы не требуются.',
+  ar:'يحدّث اختيار الجزيرة والواجهة وعوامل تصفية الجدول المخطط. يظل عرض الأعمدة والمسافات بينها ثابتاً، وتتجمع بنود العمل المحددة على اليسار. لا تُرسم المساحة الفارغة. أعد ضبط الاختيارات وعوامل التصفية لعرض الكل. لا حاجة إلى وحدات ماكرو.'
+ }
+});
