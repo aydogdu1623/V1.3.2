@@ -45,6 +45,7 @@ async function harness(t,items=[]){
     return {ok:true,json:async()=>({data:{...prices},revision})};
   };
   run(renameSource);run(draftSource);run(financeSource);
+  run(fs.readFileSync(new URL('../assets/facade-tools.js',import.meta.url),'utf8'));
   run('(function(){function enablePan(){}'+section('  /* ---------- İş kalemi çoklu seçim ---------- */','  /* ---------- Fotoğraf çoklu seçim ---------- */')+'})();');
   run('v32RenderWorkItems()');await w.__v169Financial.load();await tick();
   const $=selector=>w.document.querySelector(selector);
@@ -184,4 +185,30 @@ test('each item shows its own contract, completed amount and percentage and refr
  h.input('.v34-work-row[data-i="0"] .v169-unit-price',0);assert.equal(values()[0][3],'%0.00');assert.equal(values()[1][2],'100,00 ₺');
  h.input('.v34WiName[data-i="0"]','<b>NEW</b>');assert.equal(values()[0][0],'<b>NEW</b>');assert.equal(h.$('.v169-financial-table tbody b'),null);
  h.click('#v53SaveWorkItems');await tick();await h.reopen();assert.equal(values().length,2);assert.equal(values()[1][3],'%25.00');
+});
+
+test('compact editor recalculates translated widths for six languages without changing financial data',async t=>{
+ const h=await harness(t,[['SUBFRAME FOR FIXED',100,47,25,'2026-10-01','2026-11-01',30,100,'m²',false]]);
+ const translations={tr:'SABİT ALT ÇERÇEVE',en:'Subframe for Fixed',de:'Unterkonstruktion Festverglasung',fr:'Ossature pour vitrage fixe',ru:'Подконструкция неподвижного остекления',ar:'الإطار الفرعي للزجاج الثابت'};
+ const host=h.$('#v32WorkBody'),original=[...host.querySelectorAll('input')].map(el=>el.value),widths=new Set();
+ for(const [lang,label] of Object.entries(translations)){
+  h.w.document.documentElement.lang=lang;
+  h.w.CepheProI18n={t:value=>value==='SUBFRAME FOR FIXED'?label:value};
+  h.w.document.dispatchEvent(new h.w.CustomEvent('cephepro:language-changed'));
+  assert.equal(h.$('.v34WiName').title,label);
+  assert.equal((host.style.getPropertyValue('--cp-work-columns').match(/minmax/g)||[]).length,8);
+  assert.ok(parseFloat(host.style.getPropertyValue('--cp-work-width'))<800,'ordinary values fit an 800px panel');
+  widths.add(host.style.getPropertyValue('--cp-work-width'));
+  assert.deepEqual([...host.querySelectorAll('input')].map(el=>el.value),original);
+ }
+ assert.ok(widths.size>1,'language lengths produce distinct sizes');
+ h.w.CepheProI18n.t=value=>value==='SUBFRAME FOR FIXED'?'New translated name':value;
+ h.w.document.dispatchEvent(new h.w.CustomEvent('cephepro:translations-updated'));
+ assert.equal(h.$('.v34WiName').title,'New translated name');
+ h.input('.v34WiTotal','123456.789');
+ assert.equal(h.$('.v34WiTotal').title,'123456.789');
+ assert.equal(h.$('.v34WiTotal').value,'123456.789');
+ h.w.document.body.classList.add('v113-member');
+ h.w.document.dispatchEvent(new h.w.CustomEvent('cephepro:language-changed'));
+ assert.equal((host.style.getPropertyValue('--cp-work-columns').match(/minmax/g)||[]).length,6);
 });

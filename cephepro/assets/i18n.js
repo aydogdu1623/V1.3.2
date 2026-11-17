@@ -68,7 +68,7 @@
   renderAttributes(node);const walker=document.createTreeWalker(node,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT);let n;
   while((n=walker.nextNode())){if(n.nodeType===3)renderText(n);else renderAttributes(n);}
  }
- function refreshTracked(){for(const n of tracked){if(!n.isConnected){tracked.delete(n);continue;}n.nodeType===3?renderText(n):renderAttributes(n);}root.CepheProI18n?.refreshValues?.();}
+ function refreshTracked(){for(const n of tracked){if(!n.isConnected){tracked.delete(n);continue;}n.nodeType===3?renderText(n):renderAttributes(n);}root.CepheProI18n?.refreshValues?.();document.dispatchEvent(new CustomEvent('cephepro:translations-updated'));}
  async function fetchBatch(texts,lang,seq,ctx){
   const controller=new AbortController();controllers.add(controller);let timeout,translations;
   try{
