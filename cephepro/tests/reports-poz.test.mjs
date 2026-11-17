@@ -62,7 +62,7 @@ for(const language of ['tr','en','de','fr','ru','ar'])test('compact general repo
  for(const file of ['assets/translations.js','assets/ai-translations.js','assets/i18n.js','assets/i18n-reports.js'])w.eval(read(file));
  const sample=[...rows[0]];rows.length=0;
  for(let i=0;i<30;i++)rows.push([sample[0],'Facade '+(Math.floor(i/3)+1),'W'+(i+1)+' - ANKRAJ MONTAJI',...sample.slice(3,8),'Plan: 11.11.2026\nReel: -','Plan: 19.04.2027\nReel: -']);
- rows.forEach((row,i)=>{row[5]=100+i;});
+ rows.forEach((row,i)=>{row[0]=['Blok A','C ISLAND','F ISLAND'][Math.floor(i/10)];row[5]=100+i;});
  w.currentBlock='A';w.currentFacade='Facade 5';
  await w.CepheProI18n.setLanguage(language);let blob;w.v52DownloadBlob=b=>{blob=b;};await w.testExport();
  const bytes=await new Promise(resolve=>{const r=new w.FileReader();r.onload=()=>resolve(new w.Uint8Array(r.result));r.readAsArrayBuffer(blob);});
@@ -72,11 +72,14 @@ for(const language of ['tr','en','de','fr','ru','ar'])test('compact general repo
  }
  assert.equal(report.getColumn(3).width,16);assert.equal(report.getColumn(10).width,13);assert.ok(Array.from({length:11},(_,i)=>report.getColumn(i+1).width??9).reduce((a,b)=>a+b,0)<=105,JSON.stringify(Array.from({length:11},(_,i)=>report.getColumn(i+1).width??9)));assert.ok(report.getRow(8).height>=35);assert.ok(report.getRow(7).height>=32);
  assert.match(report.getCell('J8').text,/11\.11\.2026/);assert.equal(report.getCell('G8').value,100);assert.equal(report.getCell('I8').formula,'IFERROR(H8/G8*100,0)');assert.equal(report.autoFilter,'A7:K37');assert.equal(report.views[0].ySplit,7);
- assert.equal(report.getCell('L2').value,'Blok A / Facade 5');assert.equal(report.getCell('L2').dataValidation.type,'list');assert.equal(report.getRow(20).hidden,false);assert.equal(report.getRow(8).hidden,false);
+ assert.equal(report.getCell('L2').value,w.CepheProI18n.t('Tüm Adalar'));assert.equal(report.getCell('P2').value,w.CepheProI18n.t('Tüm Cepheler'));assert.equal(report.getCell('P2').dataValidation.type,'list');assert.equal(report.getCell('L2').dataValidation.type,'list');assert.equal(report.getRow(20).hidden,false);assert.equal(report.getRow(8).hidden,false);
  const zip=await JSZip.loadAsync(Buffer.from(bytes));const chart=await zip.file('xl/charts/chart1.xml').async('string');
+ assert.match(chart,/plotVisOnly val="0"/);
+ const data=wb.worksheets[10];assert.equal(data.getCell('V1').formula,'SUM(W2:W31)');assert.match(data.getCell('W2').formula,/SUBTOTAL\(103,/);
+ assert.equal(data.getCell('AA3').value,'C ISLAND');assert.equal(data.getCell('AA4').value,'F ISLAND');assert.match(data.getCell('S2').formula,/INDEX\(/);
  assert.ok(zip.file('xl/vbaProject.bin'));assert.match(await zip.file('[Content_Types].xml').async('string'),/macroEnabled.main/);
- assert.match(chart,{tr:/ANKRAJ MONTAJI/i,en:/ANCHOR\s+INSTALLATION/i,de:/ANKERMONTAGE/i,fr:/MONTAGE\s+DES\s+ANCRAGES/i,ru:/МОНТАЖ АНКЕРОВ/i,ar:/تركيب المراسي/}[language]);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="3"/);assert.match(chart,/<a:bodyPr rot="-2700000"/);
- const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===120+3*48);assert.ok(Number(ext[2])/9525===440);
+ assert.match(chart,{tr:/ANKRAJ MONTAJI/i,en:/ANCHOR\s+INSTALLATION/i,de:/ANKERMONTAGE/i,fr:/MONTAGE\s+DES\s+ANCRAGES/i,ru:/МОНТАЖ АНКЕРОВ/i,ar:/تركيب المراسي/}[language]);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="30"/);assert.match(chart,/<a:bodyPr rot="-2700000"/);
+ const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===720);assert.ok(Number(ext[2])/9525===440);
  if(process.env.CP_REPORT_QA_DIR){fs.mkdirSync(process.env.CP_REPORT_QA_DIR,{recursive:true});fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/report-'+language+'.xlsm',Buffer.from(bytes));}
 });
 test('Word and PDF export actions reach download even when the free model is unavailable',async t=>{
