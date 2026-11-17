@@ -16,7 +16,7 @@ function harness(){
  w.store={get:(key,fallback)=>key==='cp_deficiencies'?[{id:'test-deficiency',date:'2026-01-05',block:'A',facade:'Kuzey',pozNo:'W1',item:rows[0][2],description:'Ankraj vidası eksik <test>',user:'Test Üye'}]:fallback};
  w.eval(read('assets/deficiencies.js'));
  w.eval(read('assets/report-poz.js'));
- w.eval(read('assets/report-chart-vba.js'));w.eval(read('assets/report-dynamic-chart.js'));
+ w.eval(read('assets/report-dynamic-chart.js'));
  w.eval(read('assets/exceljs.min.js'));
  w.JSZip={loadAsync:input=>JSZip.loadAsync(ArrayBuffer.isView(input)?Buffer.from(input.buffer,input.byteOffset,input.byteLength):Object.prototype.toString.call(input)==='[object ArrayBuffer]'?Buffer.from(new Uint8Array(input)):input)};
  const start=html.indexOf('(function(){',html.indexOf('// V68 — Excel 3'));
@@ -77,10 +77,14 @@ for(const language of ['tr','en','de','fr','ru','ar'])test('compact general repo
  assert.match(chart,/plotVisOnly val="0"/);
  const data=wb.worksheets[10];assert.equal(data.getCell('V1').formula,'SUM(W2:W31)');assert.match(data.getCell('W2').formula,/SUBTOTAL\(103,/);
  assert.equal(data.getCell('AA3').value,'C ISLAND');assert.equal(data.getCell('AA4').value,'F ISLAND');assert.match(data.getCell('S2').formula,/INDEX\(/);
- assert.ok(zip.file('xl/vbaProject.bin'));assert.match(await zip.file('[Content_Types].xml').async('string'),/macroEnabled.main/);
- assert.match(chart,{tr:/ANKRAJ MONTAJI/i,en:/ANCHOR\s+INSTALLATION/i,de:/ANKERMONTAGE/i,fr:/MONTAGE\s+DES\s+ANCRAGES/i,ru:/МОНТАЖ АНКЕРОВ/i,ar:/تركيب المراسي/}[language]);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="30"/);assert.match(chart,/<a:bodyPr rot="-2700000"/);
+ assert.equal(zip.file('xl/vbaProject.bin'),null);assert.doesNotMatch(await zip.file('[Content_Types].xml').async('string'),/macroEnabled/);
+ assert.doesNotMatch(await zip.file('xl/_rels/workbook.xml.rels').async('string'),/vbaProject/);
+ const bookXml=await zip.file('xl/workbook.xml').async('string');assert.doesNotMatch(bookXml,/OFFSET\(/);assert.match(bookXml,/\$R\$2:\$R\$31/);
+ assert.doesNotMatch(chart,/majorGridlines/);
+ assert.match(data.getCell('S31').formula,/NA\(\)/);
+ assert.match(chart,{tr:/ANKRAJ MONTAJI/i,en:/ANCHOR\s+INSTALLATION/i,de:/ANKERMONTAGE/i,fr:/MONTAGE\s+DES\s+ANCRAGES/i,ru:/МОНТАЖ АНКЕРОВ/i,ar:/تركيب المراسي/}[language]);if(language!=='tr')assert.doesNotMatch(chart,/ANKRAJ MONTAJI/i);assert.match(chart,/<c:ptCount val="30"/);assert.match(chart,/<a:bodyPr rot="-5400000"/);
  const drawing=await zip.file('xl/drawings/drawing1.xml').async('string');const ext=drawing.match(/<(?:\w+:)?ext cx="(\d+)" cy="(\d+)"/);assert.ok(Number(ext[1])/9525===120+66*30);assert.ok(Number(ext[2])/9525===480);
- if(process.env.CP_REPORT_QA_DIR){fs.mkdirSync(process.env.CP_REPORT_QA_DIR,{recursive:true});fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/report-'+language+'.xlsm',Buffer.from(bytes));}
+ if(process.env.CP_REPORT_QA_DIR){fs.mkdirSync(process.env.CP_REPORT_QA_DIR,{recursive:true});fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/report-'+language+'.xlsx',Buffer.from(bytes));}
 });
 test('Word and PDF export actions reach download even when the free model is unavailable',async t=>{
  const {w}=harness();t.after(()=>w.close());w.AbortController=AbortController;
@@ -168,5 +172,5 @@ for(const count of [1,3])test('fixed plotting pitch in an exported '+count+'-ite
  const insideFraction=Number(manual.getElementsByTagNameNS('*','w')[0].getAttribute('val'));
  assert.ok(Math.abs(width*insideFraction/count-66)<0.001,'each category retains 66px of plotting width');
  assert.equal(width,120+66*count,'no minimum width stretches a single item');
- if(process.env.CP_REPORT_QA_DIR)fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/geometry-'+count+'.xlsm',Buffer.from(bytes));
+ if(process.env.CP_REPORT_QA_DIR)fs.writeFileSync(process.env.CP_REPORT_QA_DIR+'/geometry-'+count+'.xlsx',Buffer.from(bytes));
 });

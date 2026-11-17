@@ -1,8 +1,8 @@
-/* Package the general report with the chart-only VBA source built in scripts/chart-vba. */
+/* Macro-free general-report chart. Keep category slots fixed while formulas compact the selection. */
 (function(root){
  'use strict';
  const NS='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
- const MIME='application/vnd.ms-excel.sheet.macroEnabled.12';
+ const MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
  const parse=text=>{const d=new DOMParser().parseFromString(text,'application/xml');if(d.querySelector('parsererror'))throw Error('Excel XML');return d;};
  const all=(doc,name)=>[...doc.getElementsByTagNameNS('*',name)];
  const xml=doc=>new XMLSerializer().serializeToString(doc);
@@ -13,7 +13,7 @@
  }
  const label=text=>String(text??'').split('\n').map(wrap).join('\n');
  // Fixed category pitch, gap and overlap keep bar widths stable under filtering.
- const layout=count=>({widthPx:120+66*Math.max(1,count),heightPx:480,plotWidthPx:66*Math.max(1,count),categoryRotation:-2700000,gapWidth:100,seriesOverlap:-100});
+ const layout=count=>({widthPx:120+66*Math.max(1,count),heightPx:480,plotWidthPx:66*Math.max(1,count),categoryRotation:-5400000,gapWidth:100,seriesOverlap:-100});
  function configure(wb,ws,gd,rows,labels,values,chart){
   // Keep the horizontal canvas scrollable without exposing legacy chart helper cells.
   ws.eachRow(row=>row.eachCell((cell,col)=>{if(col>=22&&col<=67){cell.numFmt=';;;';cell.font={...cell.font,color:{argb:'FFFFFFFF'}};cell.border={};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFFFF'}};}}));
@@ -71,33 +71,30 @@
    // Include both island and facade so identical facade names remain distinguishable.
    gd.getCell(r,12).value={formula:`Rapor!C${source}&CHAR(10)&Rapor!A${source}&" / "&Rapor!B${source}&" / "&Rapor!E${source}`,result:labels[i]+'\n'+row[0]};
    gd.getCell(r,18).value={formula:`IF(Z${r}=0,"",INDEX($L$2:$L$${last},Z${r}))`,result:labels[i]+'\n'+row[0]};
-   ['G','H','I'].forEach((col,c)=>gd.getCell(r,19+c).value={formula:`IF(Z${r}=0,0,INDEX(Rapor!$${col}$8:$${col}$${end},Z${r}))`,result:[values[i].total,values[i].done,values[i].progress][c]});
+   // #N/A suppresses both the bar and its value label in unused category slots.
+   ['G','H','I'].forEach((col,c)=>gd.getCell(r,19+c).value={formula:`IF(Z${r}=0,NA(),INDEX(Rapor!$${col}$8:$${col}$${end},Z${r}))`,result:[values[i].total,values[i].done,values[i].progress][c]});
   });
   gd.getCell('V1').value={formula:`SUM(W2:W${last})`,result:rows.length};
   ws.mergeCells('L3:S3');ws.getCell('L3').value={formula:'IF(CP_ChartCount=0,"Seçime uygun veri yok",CP_ChartBlock&" / "&CP_ChartSelected)',result:allBlocks+' / '+allFacades};
   ws.getCell('L3').alignment={wrapText:true,vertical:'middle'};ws.getCell('L3').font={size:9};
-  ws.mergeCells('L4:U4');ws.getCell('L4').value='Otomatik grafik boyutu için masaüstü Excel’de bu dosyanın makrolarını etkinleştirin.';
+  ws.mergeCells('L4:U4');ws.getCell('L4').value='Sütun genişliği ve aralıkları sabittir. Seçilen iş kalemleri solda gösterilir. Makro gerekmez.';
+  ws.getRow(4).height=Math.max(ws.getRow(4).height||0,27);
   ws.getCell('L4').font={size:9,color:{argb:'FF245B60'}};ws.getCell('L4').alignment={wrapText:true,vertical:'middle'};
-  gd.getCell('AB3').value='Sabit sütun genişliği etkin.';
-  wb.definedNames.add('Rapor!$L$4','CP_ChartSizingStatus');
-  wb.definedNames.add("'Grafik Verileri'!$AB$3",'CP_ChartSizingReady');
-  Object.assign(chart,layout(rows.length));chart.fromRow=4;
+  for(const [range,address,value,color] of [['L5:N5','L5','Toplam','4F81BD'],['O5:Q5','O5','Kümülatif','C0504D'],['R5:U5','R5','İlerleme %','749337']]){
+   ws.mergeCells(range);const cell=ws.getCell(address);cell.value=value;
+   cell.font={size:10,bold:true,color:{argb:'FF'+color}};cell.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+  }
+  Object.assign(chart,layout(rows.length));chart.fromRow=5;
   chart.cacheLabels=labels.map((label,i)=>label+'\n'+rows[i][0]);
   chart.catFormula="'Grafik Verileri'!CP_ChartLabels";
   chart.series.forEach((series,i)=>{series.valFormula="'Grafik Verileri'!"+['CP_ChartTotals','CP_ChartDone','CP_ChartProgress'][i];series.cacheValues=values.map(v=>[v.total,v.done,v.progress][i]);series.showLabels=i===2;});
   const info=wb.getWorksheet('Bilgi');
-  info.mergeCells('B30:H32');info.getCell('B30').value='Ada ve cephe seçimi ile tablodaki filtreler grafiği birlikte günceller. Tümünü görmek için iki seçimde de Tüm seçeneğini kullanın ve tablo filtrelerini temizleyin. Grafik verisi makro gerektirmez; otomatik grafik boyutu için makrolar kullanılabilir.';
+  info.mergeCells('B30:H32');info.getCell('B30').value='Ada ve cephe seçimi ile tablo filtreleri grafiği günceller. Sütun genişliği ve aralıkları değişmez; seçilen iş kalemleri solda toplanır. Boş kısım çizilmez. Tümünü görmek için seçimleri ve tablo filtrelerini sıfırlayın. Makro gerekmez.';
   info.getCell('B30').alignment={horizontal:'center',vertical:'middle',wrapText:true};info.getCell('B30').font={size:10,color:{argb:'FF245B60'}};info.pageSetup.printArea='B2:H32';
  }
  async function pack(bytes){
-  const data=root.CepheProChartVba;
-  if(!data?.base64)throw Error('Excel grafik bileşeni yüklenemedi. Sayfayı yenileyin.');
   const zip=await root.JSZip.loadAsync(bytes),book=parse(await zip.file('xl/workbook.xml').async('string'));
   const sheets=all(book,'sheet');
-  if(sheets.length!==data.sheetCount)throw Error('Excel sayfa yapısı grafik şablonuyla uyumsuz.');
-  let props=all(book,'workbookPr')[0];
-  if(!props){props=book.createElementNS(NS,'workbookPr');book.documentElement.insertBefore(props,all(book,'bookViews')[0]||all(book,'sheets')[0]);}
-  props.setAttribute('codeName','ThisWorkbook');
   let calc=all(book,'calcPr')[0];
   if(!calc){calc=book.createElementNS(NS,'calcPr');book.documentElement.appendChild(calc);}
   calc.setAttribute('calcMode','auto');calc.setAttribute('fullCalcOnLoad','1');calc.setAttribute('forceFullCalc','1');
@@ -109,16 +106,15 @@
    const target=relationships.find(r=>r.getAttribute('Id')===id)?.getAttribute('Target');
    if(!target)throw Error('Excel sayfa bağlantısı bulunamadı.');
    const path=target.startsWith('/')?target.slice(1):'xl/'+target;
-   const sheet=parse(await zip.file(path).async('string'));let pr=all(sheet,'sheetPr')[0];
+   const sheet=parse(await zip.file(path).async('string'));
    if(i===10){const cell=all(sheet,'c').find(n=>n.getAttribute('r')==='V1');chartCount=Number(cell&&all(cell,'v')[0]?.textContent)||1;}
-   if(!pr){pr=sheet.createElementNS(NS,'sheetPr');sheet.documentElement.insertBefore(pr,sheet.documentElement.firstChild);}
-   pr.setAttribute('codeName','Sheet'+(i+1));
-   zip.file(path,xml(sheet));
   }
   const names=all(book,'definedNames')[0],dataSheet="'"+sheets[10].getAttribute('name').replace(/'/g,"''")+"'";
   ['CP_ChartLabels','CP_ChartTotals','CP_ChartDone','CP_ChartProgress'].forEach((name,i)=>{
    const node=book.createElementNS(NS,'definedName');node.setAttribute('name',name);node.setAttribute('localSheetId','10');
-   node.textContent=`OFFSET(${dataSheet}!$${['R','S','T','U'][i]}$2,0,0,MAX(1,${dataSheet}!$V$1),1)`;names.appendChild(node);
+   // Never shorten these references when filtering: Excel would stretch the remaining bars.
+   const col=['R','S','T','U'][i];
+   node.textContent=`${dataSheet}!$${col}$2:$${col}$${chartCount+1}`;names.appendChild(node);
   });
   // The formula buffer is on a hidden sheet; visibility has already been applied by SUBTOTAL.
   for(const path of Object.keys(zip.files).filter(path=>/^xl\/charts\/chart\d+\.xml$/.test(path))){
@@ -130,14 +126,24 @@
     const node=chart.createElementNS(ns,'c:'+tag);node.setAttribute('val',String(value));manual.appendChild(node);
    }
    box.appendChild(manual);if(old)area.replaceChild(box,old);else area.insertBefore(box,area.firstChild);
+   // Only occupied slots should be visible. The native chart's transparent selection
+   // rectangle retains its capacity, but no frame, grid or background fills the empty tail.
+   all(chart,'majorGridlines').forEach(node=>node.remove());
+   all(chart,'title').forEach(node=>node.remove());
+   all(chart,'autoTitleDeleted').forEach(node=>node.setAttribute('val','1'));
+   for(const parent of [chart.documentElement,area,...all(chart,'catAx')]){
+    let shape=[...parent.children].find(node=>node.localName==='spPr');
+    if(!shape){shape=chart.createElementNS(ns,'c:spPr');parent.appendChild(shape);}
+    while(shape.firstChild)shape.removeChild(shape.firstChild);
+    const ans='http://schemas.openxmlformats.org/drawingml/2006/main';
+    shape.appendChild(chart.createElementNS(ans,'a:noFill'));
+    const line=chart.createElementNS(ans,'a:ln');line.appendChild(chart.createElementNS(ans,'a:noFill'));shape.appendChild(line);
+   }
+   // Category labels stay within their fixed slot instead of overlapping after selection.
+   all(chart,'catAx').forEach(axis=>all(axis,'noMultiLvlLbl').forEach(node=>node.setAttribute('val','1')));
    zip.file(path,xml(chart));
   }
-  const rel=rels.createElementNS(rels.documentElement.namespaceURI,'Relationship');
-  rel.setAttribute('Id','rIdCepheProChartVba');rel.setAttribute('Type','http://schemas.microsoft.com/office/2006/relationships/vbaProject');rel.setAttribute('Target','vbaProject.bin');rels.documentElement.appendChild(rel);
-  const types=parse(await zip.file('[Content_Types].xml').async('string'));
-  all(types,'Override').find(n=>n.getAttribute('PartName')==='/xl/workbook.xml').setAttribute('ContentType','application/vnd.ms-excel.sheet.macroEnabled.main+xml');
-  const type=types.createElementNS(types.documentElement.namespaceURI,'Override');type.setAttribute('PartName','/xl/vbaProject.bin');type.setAttribute('ContentType','application/vnd.ms-office.vbaProject');types.documentElement.appendChild(type);
-  zip.file('xl/vbaProject.bin',data.base64,{base64:true});zip.file('xl/workbook.xml',xml(book));zip.file('xl/_rels/workbook.xml.rels',xml(rels));zip.file('[Content_Types].xml',xml(types));
+  zip.file('xl/workbook.xml',xml(book));
   return zip.generateAsync({type:'uint8array',compression:'DEFLATE'});
  }
  root.CepheProDynamicChart={pack,configure,layout,label,mime:MIME};
