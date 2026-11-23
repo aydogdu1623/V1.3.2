@@ -21,3 +21,29 @@ test('repeated facade schedule edits synchronize all rows without changing quant
  d.C.F.schedule.plannedStart='2026-12-01';d.C.F.schedule.plannedEnd='2027-04-29';S.capture(d);
  assert.deepEqual(row.slice(4,7),['2026-12-01','2027-04-29',150]);assert.deepEqual(row.slice(0,4),['W1',100,25,25]);assert.equal(d.C.F.schedule.actualStart,'2026-11-18');
 });
+
+test('natural insertion recognizes mixed separators, numeric segments and Turkish letters without renaming or undoing manual order',()=>{
+ const data={C:{}};
+ for(const name of ['92 & 405','92 % 403','A10','A2','Ç1','C1']){data.C[name]={items:[]};S.placeNewFacade(data,'C',name);}
+ assert.deepEqual(Object.keys(data.C),['92 % 403','92 & 405','A2','A10','C1','Ç1']);
+ assert.equal(S.compareNames('92 & 403','92 % 403'),0);
+ S.moveFacade(data,'C','A10',-1);const manual=Object.keys(data.C);
+ data.C['A11']={items:[]};S.placeNewFacade(data,'C','A11');
+ assert.deepEqual(Object.keys(data.C).filter(n=>n!=='A11'),manual);
+ S.capture(data);S.restore(data);assert.deepEqual(Object.keys(data.C).filter(n=>n!=='A11'),manual);
+});
+
+test('grouped and ungrouped moves stay among siblings and persist through JSONB',async t=>{
+ const {sql}=await database(t);
+ const names=['F2','U1','F10','G1','F20','U2'];
+ const data={C:Object.fromEntries(names.map(name=>[name,{items:[],groupName:name.startsWith('F')?'F':name==='G1'?'G':''}]))};
+ const original=data.C.F20;
+ assert.equal(S.moveFacade(data,'C','F20',-1),true);assert.equal(data.C.F20,original);
+ assert.deepEqual(Object.keys(data.C),['F2','U1','F20','G1','F10','U2']);
+ assert.equal(S.moveFacade(data,'C','F2',-1),false);assert.equal(S.moveFacade(data,'C','F10',1),false);
+ assert.equal(S.moveFacade(data,'C','U2',-1),true);
+ const expected=['F2','U2','F20','G1','F10','U1'];assert.deepEqual(Object.keys(data.C),expected);
+ S.capture(data);const [row]=await sql`SELECT ${JSON.stringify(data)}::jsonb AS value`;S.restore(row.value);
+ assert.deepEqual(Object.keys(row.value.C),expected);
+ assert.equal(row.value.C.F20.groupName,'F');assert.equal(S.moveFacade(data,'C','missing',-1),false);
+});
