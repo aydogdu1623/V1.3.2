@@ -95,6 +95,9 @@
  function button(text,action){const el=document.createElement('button');el.type='button';el.className='btn cp-facade-group-btn';el.textContent=text;el.onclick=action;return el;}
  function manager(){
   const host=document.getElementById('v32FacadeContent'),b=selectedManageBlock;if(!host||!DATA[b])return;
+  // A newly added/ungrouped facade must not remain hidden behind an old group filter.
+  if(filter?.block===b&&(!groups(b).includes(filter.name)||(selectedManageFacade&&group(DATA[b][selectedManageFacade])!==filter.name)))filter=null;
+  if(!host.dataset.cpManagerSync){host.dataset.cpManagerSync='1';host.addEventListener('click',syncManagerSelection);}
   const tools=host.querySelector('.v58-facade-toolbar');
   host.querySelector('#v32ManageItemsBtn')?.remove();
   if(tools&&admin()&&!tools.querySelector('[data-cp-group-tools]')){
@@ -120,21 +123,73 @@
     input.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();v45StartFacadeRename(input);});
    }
   });
+  host.querySelectorAll('.cp-facade-group-filter').forEach(node=>node.remove());
   if(active){const chip=document.createElement('div');chip.className='cp-facade-group-filter';chip.append(document.createTextNode(active+' · '+visibleNames(b).length),button('Tüm Cepheler',()=>{filter=null;v32RenderFacades();}));tools?.before(chip);}
  }
- function managerTree(){
+ function syncManagerSelection(){
   document.querySelectorAll('#v32Tree .v32-block-card').forEach(card=>{
-   const b=card.querySelector('[data-block]')?.dataset.block;if(!b)return;
+   const b=card.querySelector('[data-block]')?.dataset.block;
+   card.classList.toggle('active',b===selectedManageBlock);
+   card.querySelectorAll('.cp-manager-facade').forEach(node=>{
+    const active=b===selectedManageBlock&&node.dataset.facade===selectedManageFacade;
+    node.classList.toggle('active',active);
+    if(active)node.setAttribute('aria-current','true');else node.removeAttribute('aria-current');
+   });
+   card.querySelectorAll('.cp-manager-group').forEach(node=>node.classList.toggle('active',filter?.block===b&&filter.name===node.dataset.group));
+  });
+ }
+ function managerSelect(b,f){
+  selectedManageBlock=b;selectedManageFacade=f;currentBlock=b;currentFacade=f||'';
+  v58ResetFacadeSelection(b,f);v32RenderFacades();
+  if(typeof renderFacade==='function')renderFacade();
+  if(typeof rebuildTree==='function')rebuildTree();
+  if(typeof v34UpdateHeader==='function')v34UpdateHeader();
+ }
+ function managerTree(){
+  const tree=document.getElementById('v32Tree');if(!tree)return;
+  const scrollTop=tree.scrollTop;
+  document.querySelectorAll('#v32Tree .v32-block-card').forEach(card=>{
+   const head=card.querySelector('[data-block]'),b=head?.dataset.block;if(!b||!DATA[b])return;
+   // Keep the block header DOM intact so its existing double-click rename still works.
+   if(!head.dataset.cpManagerAll){head.dataset.cpManagerAll='1';head.addEventListener('click',()=>{filter=null;},true);}
+   card.querySelectorAll('.cp-manager-groups').forEach(node=>node.remove());
    const list=document.createElement('div');list.className='cp-manager-groups';
-   for(const name of groups(b)){
-    const count=Object.values(DATA[b]).filter(f=>group(f)===name).length;
-    const pick=button(name+' ('+count+')',()=>{
-     filter={block:b,name};selectedManageBlock=b;const names=visibleNames(b);
-     selectedManageFacade=names[0]||null;currentBlock=b;currentFacade=selectedManageFacade;v58ResetFacadeSelection(b,selectedManageFacade);v32RenderFacades();
-    });pick.setAttribute('translate','no');list.append(pick);
+   const names=Object.keys(DATA[b]),members=new Map(),boxes=new Map();
+   for(const f of names){const name=group(DATA[b][f]);if(name){if(!members.has(name))members.set(name,[]);members.get(name).push(f);}}
+   const count=head.querySelector('.tree-count');if(count)count.textContent=names.length+' cephe';
+   for(const f of names){
+    const name=group(DATA[b][f]),key=JSON.stringify(['manager',context(),b,name]);
+    let parent=list;
+    if(name){
+     if(!boxes.has(name)){
+      const box=document.createElement('details');box.className='cp-facade-group cp-manager-group';box.dataset.group=name;
+      box.open=expanded.get(key)??(b===selectedManageBlock&&group(DATA[b][selectedManageFacade])===name);
+      const summary=document.createElement('summary');summary.setAttribute('translate','no');summary.textContent=name+' ('+members.get(name).length+')';
+      summary.addEventListener('click',event=>{
+       event.preventDefault();expanded.set(key,!box.open);filter={block:b,name};
+       const chosen=b===selectedManageBlock&&members.get(name).includes(selectedManageFacade)?selectedManageFacade:members.get(name)[0];
+       managerSelect(b,chosen);
+       [...tree.querySelectorAll('.cp-manager-group')].find(node=>node.dataset.group===name&&node.closest('.v32-block-card')?.querySelector('[data-block]')?.dataset.block===b)?.querySelector('summary')?.focus({preventScroll:true});
+      });
+      box.append(summary);list.append(box);boxes.set(name,box);
+     }
+     parent=boxes.get(name);
+    }
+    const pick=button('',()=>{
+     filter=name?{block:b,name}:null;if(name)expanded.set(key,true);
+     managerSelect(b,f);
+     [...tree.querySelectorAll('.cp-manager-facade')].find(node=>node.dataset.block===b&&node.dataset.facade===f)?.focus({preventScroll:true});
+     const row=[...document.querySelectorAll('#v32FacadeContent .v32-facade-row')].find(node=>node.dataset.f===f);
+     row?.scrollIntoView?.({block:'nearest'});
+    });
+    pick.classList.add('cp-manager-facade');pick.dataset.block=b;pick.dataset.facade=f;pick.setAttribute('translate','no');
+    const label=document.createElement('span');label.className='cp-manager-facade-name';label.textContent=f;
+    const progress=document.createElement('span');progress.className='cp-manager-facade-pct';progress.textContent='%'+calculatedFacadeProgress(b,f);
+    pick.append(label,progress);parent.append(pick);
    }
    card.append(list);
   });
+  syncManagerSelection();tree.scrollTop=scrollTop;
  }
  function mainTree(){
   document.querySelectorAll('.tree .tree-block').forEach(block=>{
@@ -152,7 +207,7 @@
    });
   });
  }
- if(typeof v32RenderFacades==='function'){const before=v32RenderFacades;v32RenderFacades=function(){const result=before.apply(this,arguments);manager();return result;};}
+ if(typeof v32RenderFacades==='function'){const before=v32RenderFacades;v32RenderFacades=function(){const result=before.apply(this,arguments);manager();managerTree();return result;};}
  if(typeof v32RenderTree==='function'){const before=v32RenderTree;v32RenderTree=function(){const result=before.apply(this,arguments);managerTree();return result;};}
  if(typeof rebuildTree==='function'){const before=rebuildTree;rebuildTree=function(){const result=before.apply(this,arguments);mainTree();return result;};}
  if(typeof copyFacade==='function')copyFacade=f=>run(()=>copyFacades(selectedManageBlock,[f]));

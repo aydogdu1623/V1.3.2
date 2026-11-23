@@ -9,7 +9,7 @@ async function app(t){
  const dom=new JSDOM('<div class="tree"></div><div id="v32Tree"></div><h2 id="v32FacadeHeading"></h2><p id="v32FacadeSub"></p><div id="v32FacadeContent"></div>',{url:'https://facades.test',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
  w.eval(`var DATA={A:{}},currentUser={role:'admin'},selectedManageBlock='A',selectedManageFacade='104 & 434',currentBlock='A',currentFacade='104 & 434';
  var dailyEntries={},facadeOverrides={},facadePhotos={},v34NoWorkNotes={},attendanceLogs=[],saved,notices=[];
- var v53WorkDraft=null,v32RenderWorkItems=null;
+ var v53WorkDraft=null,v32RenderWorkItems=null,blockOrder=['A'],v32Tree=document.getElementById('v32Tree');
  var v32FacadeContent=document.getElementById('v32FacadeContent'),v32FacadeHeading=document.getElementById('v32FacadeHeading'),v32FacadeSub=document.getElementById('v32FacadeSub');
  var v58FacadeSelection={block:'A',selected:new Set(['104 & 434']),anchor:'104 & 434'};
  var records={};var store={set(k,v){records[k]=JSON.parse(JSON.stringify(v));},get(k,d){return records[k]===undefined?d:JSON.parse(JSON.stringify(records[k]));}};
@@ -18,11 +18,13 @@ async function app(t){
  function v33BlockLabel(b){return b}function calculatedFacadeProgress(){return 0}
  function v32NormalizeFacadeName(s){return s.trim()}function v45UpdateFacadeSelectionUI(){}
  function copyFacade(){}function v58CopyFacades(){}function v45FinishFacadeRename(){}
+ function v37OpenRenameBlock(b){window.renamingBlock=b;}
  function v58FacadeSelectionLabel(){return String(v58FacadeSelection.selected.size)}
  function v32RenderTree(){document.getElementById('v32Tree').innerHTML='<div class="v32-block-card"><button data-block="A">A</button></div>'}
  function rebuildTree(){const tree=document.querySelector('.tree');tree.innerHTML='<div class="tree-block"><button class="tree-block-head" data-block="A">A</button><div class="tree-facades"></div></div>';for(const f of Object.keys(DATA.A)){const n=document.createElement('div');n.className='tree-facade';const label=document.createElement('span');label.className='tree-facade-name';label.textContent=f;n.append(label);tree.querySelector('.tree-facades').append(n);}}
  `);
  for(let i=0;i<50;i++)w.DATA.A['104 & '+(434+i*2)]={items:[['W1',100,25,25,'2026-01-01','2026-03-01',60,100,'m²',false,'W1']],schedule:{plannedStart:'2026-01-01',plannedEnd:'2026-03-01',plannedDuration:60}};
+ w.eval(part('function v45UpdateBlockSelectionUI(){','// ---------------- CEPHE: çift tık isim düzenleme'));
  w.eval(part('function v58ResetFacadeSelection(', 'function v58CopyFacades('));
  w.eval(part('function v45StartFacadeRename(', 'function v45FinishFacadeRename('));
  w.eval('(function(){const esc=s=>String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;");'+part('  function refreshFacadeSelectionUI(){','  // -----------------------------\n  // 5) Graph label')+'})();');
@@ -38,9 +40,42 @@ test('50 facades form a persistent collapsible sidebar group and can be ungroupe
  api.assignGroup('A',names,'Villas 104');
  assert.equal(w.document.querySelectorAll('.tree details').length,1);assert.equal(w.document.querySelector('.tree summary').textContent,'Villas 104 (50)');
  w.DATA=JSON.parse(JSON.stringify(w.saved));w.rebuildTree();assert.equal(w.document.querySelectorAll('.tree details .tree-facade').length,50);
- w.document.querySelector('.cp-manager-groups button').click();assert.equal(api.visibleNames('A').length,50);
+ w.document.querySelector('.cp-manager-group summary').click();assert.equal(api.visibleNames('A').length,50);
  api.assignGroup('A',[names[0]],'');assert.equal(w.document.querySelectorAll('.tree details .tree-facade').length,49);
  assert.equal(Object.keys(w.DATA.A).length,50);assert.equal(JSON.stringify(w.DATA.A[names[0]].items),before);
+ assert.equal(w.document.querySelector('#v32Tree .cp-manager-groups > .cp-manager-facade').dataset.facade,names[0]);
+});
+test('manager shows ungrouped facades beside expandable groups and switches selection without retaining the group filter',async t=>{
+ const {w,api}=await app(t),names=Object.keys(w.DATA.A);
+ api.assignGroup('A',names.slice(4),'104 NOLU BLOKLAR');
+ const tree=w.document.getElementById('v32Tree'),head=tree.querySelector('.v32-block-main');
+ const leaf=f=>[...tree.querySelectorAll('.cp-manager-facade')].find(node=>node.dataset.facade===f);
+ const visible=()=>[...w.document.querySelectorAll('.v32-facade-row')].filter(row=>!row.hidden);
+ assert.deepEqual([...tree.querySelectorAll('.cp-manager-groups > .cp-manager-facade')].map(node=>node.dataset.facade),names.slice(0,4));
+ assert.equal(tree.querySelectorAll('.cp-manager-group .cp-manager-facade').length,46);
+ assert.equal(tree.querySelector('.cp-manager-group').open,false);
+ tree.querySelector('summary').click();assert.equal(tree.querySelector('.cp-manager-group').open,true);assert.equal(visible().length,46);
+ leaf(names[10]).click();assert.equal(w.selectedManageFacade,names[10]);assert.equal(leaf(names[10]).getAttribute('aria-current'),'true');assert.equal(w.v58FacadeSelection.selected.size,1);
+ leaf(names[3]).click();assert.equal(w.selectedManageFacade,names[3]);assert.equal(visible().length,50);assert.equal(leaf(names[3]).getAttribute('aria-current'),'true');
+ assert.equal(leaf(names[10]).hasAttribute('aria-current'),false);
+ tree.querySelector('summary').click();head.click();assert.equal(visible().length,50);assert.equal(w.document.querySelector('.cp-facade-group-filter'),null);
+ assert.equal(tree.querySelector('.v32-block-main'),head,'leaf renders preserve block double-click target');
+ head.dispatchEvent(new w.MouseEvent('dblclick',{bubbles:true,cancelable:true}));assert.equal(w.renamingBlock,'A');
+ const row=[...w.document.querySelectorAll('.v32-facade-row')].find(row=>row.dataset.f===names[2]);row.click();assert.equal(leaf(names[2]).getAttribute('aria-current'),'true');
+});
+test('manager keeps repeated renders, other blocks and newly added ungrouped facades consistent',async t=>{
+ const {w,api}=await app(t),names=Object.keys(w.DATA.A);
+ api.assignGroup('A',names.slice(4),'104');
+ w.DATA.B={'B1':{items:[],groupName:'104'},'B2':{items:[]}};w.blockOrder.push('B');w.v32RenderTree();
+ for(let i=0;i<3;i++)api.managerTree();
+ assert.equal(w.document.querySelectorAll('#v32Tree .cp-manager-groups').length,2);
+ assert.equal(w.document.querySelectorAll('#v32Tree .cp-manager-facade').length,52);
+ const bCard=[...w.document.querySelectorAll('#v32Tree .v32-block-card')].find(card=>card.querySelector('.v32-block-main').dataset.block==='B');
+ bCard.querySelector('summary').click();assert.equal(w.selectedManageBlock,'B');assert.equal(w.selectedManageFacade,'B1');assert.deepEqual(Array.from(api.visibleNames('B')),['B1']);
+ w.DATA.B.B3={items:[]};w.selectedManageFacade='B3';w.v32RenderFacades();
+ assert.equal(w.document.querySelector('.cp-facade-group-filter'),null);
+ const leaf=w.document.querySelector('#v32Tree .cp-manager-facade[data-facade="B3"]');assert.ok(leaf);assert.equal(leaf.parentElement.className,'cp-manager-groups');
+ assert.equal(leaf.getAttribute('aria-current'),'true');assert.equal(bCard.querySelector('.tree-count').textContent,'3 cephe');
 });
 test('copy includes overrides, unit prices, quantities, schedules, notes and independent photo/deficiency records',async t=>{
  const {w,api,writes}=await app(t),key='A_104 & 434';
