@@ -68,7 +68,7 @@
    if(!pairs.length)return [];
    await flush();await remapPrices(b,pairs,false);
    if(ctx!==context())throw Error('Proje değişti. İşlemi yeniden deneyin.');
-   for(const {from,to} of pairs){DATA[b][to]=clone(DATA[b][from]);DATA[b][to].facadeTransfer={from,mode:'copy'};sidecars(b,from,to,false);}
+   for(const {from,to} of pairs){DATA[b][to]=clone(DATA[b][from]);DATA[b][to].facadeTransfer={from,mode:'copy'};sidecars(b,from,to,false);root.CepheProStructure.placeNewFacade(DATA,b,to);}
    selectedManageBlock=b;selectedManageFacade=pairs.at(-1).to;currentBlock=b;currentFacade=selectedManageFacade;
    v58ResetFacadeSelection(b,selectedManageFacade);v58FacadeSelection.selected=new Set(pairs.map(p=>p.to));
    saveStructureState();await flush();await root.__v240Photos?.flush?.();refresh();say('Cephe kopyalandı');return pairs.map(p=>p.to);

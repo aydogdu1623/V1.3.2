@@ -14,15 +14,19 @@ async function app(t){
  var v58FacadeSelection={block:'A',selected:new Set(['104 & 434']),anchor:'104 & 434'};
  var records={};var store={set(k,v){records[k]=JSON.parse(JSON.stringify(v));},get(k,d){return records[k]===undefined?d:JSON.parse(JSON.stringify(records[k]));}};
  function toast(s){notices.push(s)}function renderFacade(){}function v34UpdateHeader(){}function savedToastOnly(){}
- function saveStructureState(){saved=JSON.parse(JSON.stringify(DATA))}
+ function saveStructureState(){window.CepheProStructure.capture(DATA);saved=JSON.parse(JSON.stringify(DATA))}
  function v33BlockLabel(b){return b}function calculatedFacadeProgress(){return 0}
  function v32NormalizeFacadeName(s){return s.trim()}function v45UpdateFacadeSelectionUI(){}
+ function v34Today(){return '2026-11-23'}function v34AddDays(){return '2027-01-06'}
  function copyFacade(){}function v58CopyFacades(){}function v45FinishFacadeRename(){}
  function v37OpenRenameBlock(b){window.renamingBlock=b;}
  function v58FacadeSelectionLabel(){return String(v58FacadeSelection.selected.size)}
  function v32RenderTree(){document.getElementById('v32Tree').innerHTML='<div class="v32-block-card"><button data-block="A">A</button></div>'}
  function rebuildTree(){const tree=document.querySelector('.tree');tree.innerHTML='<div class="tree-block"><button class="tree-block-head" data-block="A">A</button><div class="tree-facades"></div></div>';for(const f of Object.keys(DATA.A)){const n=document.createElement('div');n.className='tree-facade';const label=document.createElement('span');label.className='tree-facade-name';label.textContent=f;n.append(label);tree.querySelector('.tree-facades').append(n);}}
  `);
+ w.eval(read('assets/structure-state.js'));
+ w.eval(part('function v32UniqueFacadeName(', 'function v32EnsureWorkModal('));
+ w.eval(part('function v25MoveFacade(', 'copyFacade=function(f){'));
  for(let i=0;i<50;i++)w.DATA.A['104 & '+(434+i*2)]={items:[['W1',100,25,25,'2026-01-01','2026-03-01',60,100,'m²',false,'W1']],schedule:{plannedStart:'2026-01-01',plannedEnd:'2026-03-01',plannedDuration:60}};
  w.eval(part('function v45UpdateBlockSelectionUI(){','// ---------------- CEPHE: çift tık isim düzenleme'));
  w.eval(part('function v58ResetFacadeSelection(', 'function v58CopyFacades('));
@@ -114,4 +118,37 @@ test('each facade opens only its own work items even with a multi-selection',asy
  row.querySelector('.cp-open-items').click();
  assert.deepEqual(w.opened,['A','104 & 440']);assert.equal(w.v58FacadeSelection.selected.size,1);
  assert.equal(w.document.getElementById('v32ManageItemsBtn'),null);
+});
+
+test('the actual add button and Enter insert facades in natural name order in both trees and after reload',async t=>{
+ const {w}=await app(t),old=Object.keys(w.DATA.A);
+ const add=(name,enter=false)=>{const input=w.document.getElementById('v32NewFacadeName');input.value=name;if(enter)input.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));else w.document.getElementById('v32AddFacadeBtn').click();};
+ add('92 & 405');add('92 % 403',true);add('A10');add('A2');
+ const expected=['92 % 403','92 & 405',...old,'A2','A10'];
+ assert.deepEqual(Object.keys(w.DATA.A),expected);
+ assert.deepEqual([...w.document.querySelectorAll('#v32Tree .cp-manager-facade')].map(n=>n.dataset.facade),expected);
+ assert.deepEqual([...w.document.querySelectorAll('.tree .tree-facade-name')].map(n=>n.textContent),expected);
+ assert.equal(w.selectedManageFacade,'A2');assert.equal(w.DATA.A['92 % 403'].schedule.plannedDuration,45);
+ // Simulate unordered server object keys, then the production restore hook.
+ w.DATA.A=Object.fromEntries(Object.entries(w.saved.A).reverse());w.CepheProStructure.restore(w.DATA);w.v32RenderFacades();
+ assert.deepEqual(Object.keys(w.DATA.A),expected);
+});
+
+test('grouped up/down moves use visible siblings, refresh both panels and survive save/reload',async t=>{
+ const {w,api}=await app(t),names=Object.keys(w.DATA.A),members=[names[0],names[2],names[4]],other=[names[1],names[3]];
+ api.assignGroup('A',members,'104');api.assignGroup('A',other,'Other');
+ const summary=()=>[...w.document.querySelectorAll('.cp-manager-group')].find(n=>n.dataset.group==='104');
+ summary().querySelector('summary').click();
+ const up=f=>[...w.document.querySelectorAll('.v32-facade-row')].find(n=>n.dataset.f===f).querySelector('.v32UpFacade').click();
+ const visible=()=>[...w.document.querySelectorAll('.v32-facade-row')].filter(n=>!n.hidden).map(n=>n.dataset.f);
+ up(members[2]);const moved=[members[0],members[2],members[1]];
+ assert.deepEqual(visible(),moved);assert.equal(w.currentFacade,members[2]);assert.equal(w.selectedManageFacade,members[2]);
+ assert.deepEqual([...summary().querySelectorAll('.cp-manager-facade')].map(n=>n.dataset.facade),moved);
+ const main=[...w.document.querySelectorAll('.tree details')].find(n=>n.querySelector('summary').textContent==='104 (3)');
+ assert.deepEqual([...main.querySelectorAll('.tree-facade-name')].map(n=>n.textContent),moved);
+ assert.deepEqual(Object.keys(w.DATA.A).filter(n=>w.DATA.A[n].groupName==='Other'),other);
+ assert.equal(w.moveFacadeUp(members[0]),false,'first sibling cannot cross its group boundary');
+ w.DATA.A=Object.fromEntries(Object.entries(w.saved.A).reverse());w.CepheProStructure.restore(w.DATA);w.v32RenderFacades();assert.deepEqual(visible(),moved);
+ assert.equal(w.v25MoveFacadeDown(members[2]),true);assert.deepEqual(visible(),members);
+ w.currentUser.role='member';assert.equal(w.moveFacadeUp(members[2]),false);assert.deepEqual(visible(),members);
 });
