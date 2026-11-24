@@ -1,5 +1,13 @@
-# CephePro V251 — İnteraktif saha haritası ve canlı 3B
+# CephePro V252 — İnteraktif saha haritası ve canlı 3B
 
+## V252 · DXF düzeltmesi
+- **Çizim Yükle → DXF → Planı Kaydet ve 3B Gör**: katman incelemesinde açık çizgiler ile kapalı bina alanları ayrı tutulur. 2B için yalnız **Planı Kaydet** de seçilebilir. Örnek sayfası kayıtları kalıcı değildir.
+- ASCII DXF işçisindeki yerel, denetimli karakter üçlüsü sınıflandırıcısı katman adlarını etiketli örneklerle karşılaştırır. Harici model, sunucu veya ücretli istek gerekmez. Belirsiz isimlerde geometri kuralları kullanılır; sonuçlar önizlemede değiştirilebilir. Yüzde bir benzerlik göstergesidir, doğruluk garantisi değildir. Bu bir üretken mimari model değildir.
+- Aynı katmandaki çizgi/yay dizilerinden küçük uç farklarına toleransla tek anlamlı kapalı çevrimler kurulur. Dallanan çizgiler açık hat olarak korunur. Açık dosyada **Bina sınırı çiz** ile köşeleri işaretleyip kapanışı onaylayabilirsiniz. İkili DXF ayrı CAD servisine gider; servis yoksa ASCII DXF kullanın.
+- Tahmini kütle gerçek plan poligonunu, varsa avlu boşluklarını ve seçili çizim birimini kullanır. Yükseklik verilmezse 6 metre varsayılır; Blok bilgileri bölümünde değiştirilebilir. Temel, duvar, cephe ve çatı şeritleri temsilidir. Bir şeritte birden fazla kalem varsa en düşük ilerleme gösterilir. Planda yeri bilinmeyen havuz/peyzaj tahmini bina kütlesine eklenmez. GLB yüklüyse gerçek model önceliklidir.
+- WebGL olmadan tahmini model aynı plan üzerinden yazılımla çizilir. Sürükleyerek döndürün, tekerlek veya klavye ile yaklaşın. Gerçek GLB görüntüleme WebGL gerektirir.
+- Test dosyası: `examples/v252-outline.dxf`. Kontrol: `node --test tests/site-map*.test.mjs`; Chrome kurulu bir bilgisayarda `node tests/verify-dxf-browser.mjs`.
+  
 ## Hazır olanlar ve bağlantı gerektirenler
 
 | Bileşen | Bu paketteki durum |
@@ -35,7 +43,7 @@ python3 -m http.server 8080
 2. DXF veya GeoJSON yükleyin; katman önizlemesinde ölçü, not, tarama ve eksenlerin ayıklandığını kontrol edin. Belirsiz katmanların kategorisini düzeltin. Birimi seçip **Planı Kaydet** deyin.
 3. Haritadan bina seçin. **Blok bilgileri** altında ad/tip/yükseklik girin. **Proje cephesine bağla** ile ör. `C ISLAND / 92 & 405` seçin. Bir bloğun bütün cephelerini bağlamak için `C ISLAND / Tümü` seçeneğini kullanın.
 4. Bağlanan iş kalemlerinin mevcut metrajları otomatik gelir. Yüzde değişikliği, toplam metraja göre yapılan metrajı günceller. Geçmiş günlük kayıtlar silinmez; kümülatifte çift sayılmaları engellenir. Sıfır toplam metrajlı kalem güncellenemez.
-5. **3B Gör** ile modeli açın. Şematik parçaları Betonarme/Duvar/Çatı/Cephe/Havuz/Peyzaj türlerine atayabilirsiniz.
+5. **3B Gör** ile modeli açın. Tahmini kütle çizimdeki dış hattı kullanır. Blok bilgileri bölümünden bina yüksekliğini değiştirebilirsiniz.
 6. Gerçek GLB yüklediğinizde 3B görünümde **3B parça eşleştirmesi** bölümünden model düğümlerini iş kalemlerine bağlayın. Eşleşmeyen parça soluk gösterilir. Bir parçaya birden çok kalem bağlıysa en düşük ilerleme kullanılır; kalemlerin tümü bitmeden parça bitmiş gösterilmez.
 
 Üyeler bağlı iş kalemlerinin ilerlemesini mevcut proje yetkileriyle güncelleyebilir. Harita/GLB yükleme, eşleştirme ve bağımsız harita kalemleri yöneticiye aittir. Başka proje koduna ait veri veya model okunamaz. Proje kilitlendiğinde harita kapanır; işlem ve WebGL kaynakları temizlenir.

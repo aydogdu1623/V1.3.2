@@ -3,7 +3,7 @@
  let opening=false;
  const open=async()=>{
   if(opening||!window.CepheProProjects?.isReady())return;opening=true;
-  try{const {openSiteMap}=await import('./app.js?v=251.0');await openSiteMap();}
+  try{const {openSiteMap}=await import('./app.js?v=252.0');await openSiteMap();}
   catch(e){console.error(e);window.toast?.('Harita açılamadı. Sayfayı yenileyin.');}finally{opening=false;}
  };
  function button(id){const b=document.createElement('button');b.id=id;b.type='button';b.className='btn cp-map-launch';b.title='Saha haritası';b.innerHTML='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z M9 3v16 M15 5v16"/></svg><span>Harita</span>';b.onclick=open;return b;}
