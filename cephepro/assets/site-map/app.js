@@ -1,3 +1,4 @@
+import {simpleOutline} from './contours.js';
 import {emptyMap,demoMap,validateMap,resolveFeature,bindFacade,bounds,COLORS,KINDS,PARTS,status,clamp,defaultComponents} from './model.js';
 import {t,language} from './i18n.js';
 const NS='http://www.w3.org/2000/svg';let active;
@@ -8,7 +9,7 @@ function svgEl(tag,attrs={}){const el=document.createElementNS(NS,tag);for(const
 export async function openSiteMap(options={}){
  if(active?.dialog.open){active.dialog.focus();return active;}
  const demoOnly=!!options.demo,controller=new AbortController();let demo=demoOnly,snapshot={map:emptyMap(),catalog:[],revision:0,projectRevision:0,canManage:demoOnly,cadReady:false},selected=null,view='2d',viewer=null,viewerVersion=0,busy=false,closed=false,draft=null,worker=null;
- let readSequence=0;
+ let readSequence=0,trace=null;
  let viewport={x:0,y:0,w:100,h:80},initial,search='',filter='all',lastFocus=document.activeElement;
  const dialog=document.createElement('dialog');dialog.id='cpSiteMap';dialog.setAttribute('translate','no');dialog.setAttribute('aria-label',t('map'));dialog.dir=language()==='ar'?'rtl':'ltr';
  dialog.innerHTML=`<header class="sm-header"><div class="sm-brand">⌖</div><div><h1>${t('map')}</h1><p class="sm-sub" id="smProject"></p></div><div class="sm-header-actions"><button id="smBack" hidden>${t('back')}</button><button id="smUpload" class="sm-primary">＋ ${t('upload')}</button><button id="smRefresh" aria-label="${t('refresh')}" title="${t('refresh')}">↻</button><button id="smClose" aria-label="${t('close')}">✕</button></div></header><div class="sm-shell sm-no-selection"><main class="sm-stage"><div class="sm-toolbar"><input id="smSearch" placeholder="${t('search')}" aria-label="${t('search')}"><select id="smFilter" aria-label="${t('progress')}">${['all','not_started','in_progress','completed'].map(x=>`<option value="${x}">${t(x)}</option>`).join('')}</select></div><svg class="sm-canvas" aria-label="${t('map')}" tabindex="0"></svg><div class="sm-viewer" hidden></div><div class="sm-model-note" hidden></div><div class="sm-zoom"><button id="smPlus" aria-label="Zoom in">+</button><button id="smMinus" aria-label="Zoom out">−</button><button id="smFit" title="${t('fit')}" aria-label="${t('fit')}">⌗</button></div><div class="sm-legend">${Object.entries(COLORS).map(([s,c])=>`<span><i class="sm-dot" style="background:${c}"></i>${t(s)}</span>`).join('')}</div><div class="sm-empty" hidden></div></main><aside class="sm-card"></aside></div><footer class="sm-footer"><span id="smSource"></span><span class="sm-status" role="status" aria-live="polite"></span></footer>`;
@@ -24,10 +25,11 @@ export async function openSiteMap(options={}){
   if(suffix.startsWith('?model=')&&response.ok)return response.arrayBuffer();
   const data=await response.json();if(!response.ok)throw Object.assign(Error(data.error||'Harita yüklenemedi.'),{status:response.status});return data;
  }
+ const modeLabel=m=>t(m==='local-classifier'?'localAI':m==='ai'?'ai':'rules');
  const feature=()=>snapshot.map.features.find(f=>f.id===selected);
  const resolved=f=>resolveFeature(f,snapshot.catalog);
  const managed=()=>demo||snapshot.canManage;
- function setBusy(value){busy=value;$('#smUpload').disabled=value;$('#smRefresh').disabled=value;card.querySelectorAll('input,select,button').forEach(el=>{el.disabled=value||!!draft||el.dataset.locked==='true';});}
+ function setBusy(value){busy=value;$('#smUpload').disabled=value||!!draft;$('#smRefresh').disabled=value||!!draft;card.querySelectorAll('input,select,button').forEach(el=>{el.disabled=value||!!draft||el.dataset.locked==='true';});}
  async function reload({fit=false,silent=false}={}){
   if(closed)return;
   try{
@@ -52,7 +54,7 @@ export async function openSiteMap(options={}){
    }canvas.append(g);
   }
   applyView();$('.sm-shell').classList.toggle('sm-no-selection',!selected);
-  $('#smSource').textContent=demo?t('demoNote'):`${count} ${t('building')} · ${snapshot.map.units} · ${snapshot.map.source?.mode==='ai'?t('ai'):t('rules')}`;
+  $('#smSource').textContent=demo?t('demoNote'):`${count} ${t('building')} · ${snapshot.map.units} · ${modeLabel(snapshot.map.source?.mode)}`;
   empty.hidden=(draft||snapshot.map).features.length>0;
   if(!empty.hidden){empty.innerHTML=`<span style="font-size:50px;color:#46766b">⌖</span><h2>${t('empty')}</h2><p>${t('emptyHint')}</p><button class="sm-primary" id="smTryDemo">${t('demo')}</button>`;$('#smTryDemo').onclick=()=>startDemo();}
  }
@@ -114,12 +116,12 @@ export async function openSiteMap(options={}){
    const clean=validateMap(map);if(demo)snapshot.map=clean;else await api('PUT',{map:clean,revision:snapshot.revision});
    if(view==='3d'&&!keepViewer)await show2d();
    if(keepViewer&&!demo){const next=await api();snapshot=next;draw();viewer?.update(resolved(feature()));renderCard();}
-   else await reload();message(demo?t('demoNote'):t('saved'));return true;
+   else{if(!demo)snapshot={...snapshot,map:clean};await reload();}message(demo?t('demoNote'):t('saved'));return true;
   }catch(e){if(e.status===409)await reload({silent:true});fail(e);return false;}finally{setBusy(false);}
  }
- async function show2d(){viewerVersion++;viewer?.dispose();viewer=null;view='2d';canvas.hidden=false;$('.sm-viewer').hidden=true;$('.sm-toolbar').hidden=false;$('.sm-zoom').hidden=false;$('.sm-model-note').hidden=true;$('#smBack').hidden=true;renderCard();}
+ async function show2d(){viewerVersion++;viewer?.dispose();viewer=null;view='2d';canvas.removeAttribute('hidden');$('.sm-viewer').hidden=true;$('.sm-toolbar').hidden=false;$('.sm-zoom').hidden=false;$('.sm-model-note').hidden=true;$('#smBack').hidden=true;renderCard();}
  async function show3d(){
-  const f=feature();if(!f)return;view='3d';const version=++viewerVersion;canvas.hidden=true;$('.sm-viewer').hidden=false;$('.sm-toolbar').hidden=true;$('.sm-zoom').hidden=true;$('#smBack').hidden=false;$('.sm-model-note').hidden=false;$('.sm-model-note').textContent=t(f.modelId?'model':'schematic');renderCard();message(t('loading'));
+  const f=feature();if(!f)return;view='3d';const version=++viewerVersion;canvas.setAttribute('hidden','');$('.sm-viewer').hidden=false;$('.sm-toolbar').hidden=true;$('.sm-zoom').hidden=true;$('#smBack').hidden=false;$('.sm-model-note').hidden=false;$('.sm-model-note').textContent=t(f.modelId?'model':'schematic');renderCard();message(t('loading'));
   try{const {createViewer}=await import('./viewer.js');const instance=await createViewer($('.sm-viewer'),resolved(f),{units:snapshot.map.units,loadModel:id=>api('GET',null,'?model='+encodeURIComponent(id)),onPick:id=>{const row=[...card.querySelectorAll('[data-component]')].find(n=>n.dataset.component===id);row?.scrollIntoView({block:'nearest',behavior:'smooth'});row?.querySelector('input')?.focus();}});
    if(closed||version!==viewerVersion){instance.dispose();return;}viewer=instance;renderCard();message(demo?t('demoNote'):t('linked'));
   }catch(e){if(!closed&&version===viewerVersion){await show2d();message('3B görünüm açılamadı. WebGL desteğini ve model dosyasını kontrol edin.',true);console.error(e);}}
@@ -139,7 +141,10 @@ export async function openSiteMap(options={}){
   setBusy(true);message(t('loading'));
   try{
    let map;
-   if(/\.dwg$/i.test(file.name)){
+   if(demo&&!demoOnly){demo=false;selected=null;snapshot=await api();draw();renderCard();if(!snapshot.canManage)throw Error(t('readonly'));}
+   const binary=/\.dxf$/i.test(file.name)&&(await file.slice(0,22).text()).startsWith('AutoCAD Binary DXF');
+   if(binary&&(demo||!snapshot.cadReady))throw Error(t('binaryDXF'));
+   if(/\.dwg$/i.test(file.name)||binary){
     if(demo)throw Error('DWG dönüşümü proje oturumu ve CAD servisi gerektirir. Örnekte DXF / GeoJSON kullanın.');
     const job=await api('POST',{action:'upload-start',name:file.name,size:file.size});
     for(let offset=0;offset<file.size;offset+=900000){const data=base64(new Uint8Array(await file.slice(offset,offset+900000).arrayBuffer()));await api('POST',{action:'upload-chunk',id:job.id,index:Math.floor(offset/900000),data});message(`${t('upload')} · ${Math.round(Math.min(file.size,offset+900000)/file.size*100)}%`);}
@@ -147,23 +152,53 @@ export async function openSiteMap(options={}){
     for(let i=0;i<160;i++){const result=await api('GET',null,'?job='+job.id);if(result.status==='ready'){map=validateMap(result.map);break;}if(result.status==='failed')throw Error(result.error||'CAD dönüşümü başarısız.');message(result.message||t('loading'));await wait(2000,controller.signal);}
     if(!map)throw Error('CAD işleme zaman aşımı. DXF olarak tekrar deneyin.');
    }else{
-    const text=await file.text();map=await new Promise((resolve,reject)=>{worker=new Worker(new URL('./import-worker.js',import.meta.url),{type:'module'});worker.onmessage=e=>{worker.terminate();worker=null;e.data.error?reject(Error(e.data.error)):resolve(e.data.map);};worker.onerror=()=>{worker?.terminate();worker=null;reject(Error('Çizim okunamadı.'));};worker.postMessage({name:file.name,text});});
+    const bytes=await file.arrayBuffer();if(closed)return;
+    let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{const header=new TextDecoder('latin1').decode(bytes.slice(0,32768));const cp=/ANSI_(125[0-8])/.exec(header)?.[1];text=new TextDecoder('windows-'+(cp||'1252')).decode(bytes);}
+    map=await new Promise((resolve,reject)=>{
+     const w=new Worker(new URL('./import-worker.js?v=252',import.meta.url),{type:'module'});worker=w;
+     const finish=(error,value)=>{clearTimeout(timer);controller.signal.removeEventListener('abort',abort);w.terminate();if(worker===w)worker=null;error?reject(error):resolve(value);};
+     const abort=()=>finish(new DOMException('Aborted','AbortError'));
+     const timer=setTimeout(()=>finish(Error(t('timedOut'))),75000);controller.signal.addEventListener('abort',abort,{once:true});
+     w.onmessage=e=>e.data.error?finish(Error(e.data.error)):finish(null,e.data.map);w.onerror=()=>finish(Error(t('readError')));w.postMessage({name:file.name,text});
+    });
    }
    if(!closed){if(!map.features.length)throw Error('Görünür dış hat bulunamadı. Kapalı poligonları ve katmanları kontrol edin.');review(map);}
   }catch(e){fail(e);}finally{setBusy(false);}
  }
  function review(map){
-  draft=map;fitPlan();draw();$('.sm-review')?.remove();const panel=document.createElement('section');panel.className='sm-review';panel.setAttribute('aria-label',t('review'));
-  panel.innerHTML=`<div class="sm-kicker">${t('draft')}</div><h2>${t('review')}</h2><p class="sm-note">${map.source.mode==='ai'?t('ai'):t('rules')} · ${map.features.length} ${t('building')}<br>${map.source.warnings.map(esc).join('<br>')}</p><label>${t('units')}<select id="smUnits">${['m','mm','cm','ft','unitless'].map(u=>`<option ${u===map.units?'selected':''}>${u}</option>`).join('')}</select></label><div id="smLayers"></div><div class="sm-review-actions"><button id="smCancelImport">${t('cancel')}</button><button id="smPublish" class="sm-primary">${t('publish')}</button></div>`;
-  stage.append(panel);const layers=[...new Set(map.features.map(f=>f.layer||'Default'))],choices=new Map();
-  layers.forEach((name,i)=>{const items=map.features.filter(f=>(f.layer||'Default')===name),kind=items[0].kind,row=document.createElement('div');row.className='sm-layer';row.innerHTML=`<input type="checkbox" checked id="smLayer${i}"><label for="smLayer${i}">${esc(name)} <small>(${items.length}) · ${Math.round(Math.min(...items.map(f=>f.confidence))*100)}%</small></label><select aria-label="${esc(name)}">${KINDS.map(k=>`<option value="${k}" ${k===kind?'selected':''}>${t(k)}</option>`).join('')}</select>`;$('#smLayers').append(row);choices.set(name,row);});
-  $('#smCancelImport').onclick=()=>{draft=null;panel.remove();fitPlan();draw();setBusy(false);};
-  $('#smPublish').onclick=async()=>{
-   const next=structuredClone(draft);next.units=$('#smUnits').value;next.features=next.features.filter(f=>choices.get(f.layer||'Default').querySelector('input').checked).map(f=>{const kind=choices.get(f.layer||'Default').querySelector('select').value;return {...f,kind,components:kind==='building'?(f.components.length?f.components:defaultComponents()):[]};});
+  draft=map;search='';filter='all';$('#smSearch').value='';$('#smFilter').value='all';fitPlan();draw();$('.sm-review')?.remove();const panel=document.createElement('section');panel.className='sm-review';panel.setAttribute('aria-label',t('review'));
+  panel.innerHTML=`<div class="sm-kicker">${t('draft')}</div><h2>${t('review')}</h2><p class="sm-note">${modeLabel(map.source.mode)} · ${map.features.filter(f=>f.kind==='building').length} ${t('building')} / ${map.features.length} ${t('shapes')}<br>${map.source.warnings.map(esc).join('<br>')}</p><label>${t('units')}<select id="smUnits">${['m','mm','cm','ft','unitless'].map(u=>`<option ${u===map.units?'selected':''}>${u}</option>`).join('')}</select></label><div id="smLayers"></div><div class="sm-review-actions"><button id="smTrace">${t('trace')}</button><button id="smCancelImport">${t('cancel')}</button><button id="smPublish3D" class="sm-primary">${t('save3D')}</button><button id="smPublish">${t('publish')}</button></div>`;
+  stage.append(panel);const layerKey=f=>JSON.stringify([f.layer||'Default',f.geometry.type,f.kind]),groups=new Map(),choices=new Map();
+  for(const f of map.features){const k=layerKey(f);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(f);}const layers=[...groups.keys()];
+  layers.forEach((key,i)=>{const items=groups.get(key),name=items[0].layer||'Default',polygon=items[0].geometry.type==='Polygon',kind=items[0].kind,row=document.createElement('div');row.className='sm-layer';row.innerHTML=`<input type="checkbox" checked id="smLayer${i}"><label for="smLayer${i}">${esc(name)} <small>(${items.length} · ${t(polygon?'polygon':'line')}) · ${Math.round(Math.min(...items.map(f=>f.confidence))*100)}%</small></label><select aria-label="${esc(name)}">${KINDS.filter(k=>polygon||k!=='building').map(k=>`<option value="${k}" ${k===kind?'selected':''}>${t(k)}</option>`).join('')}</select>`;$('#smLayers').append(row);choices.set(key,row);});
+  $('#smTrace').onclick=()=>{
+   if(busy||trace)return;
+   // Apply review choices before rebuilding the page with the traced footprint.
+   const units=$('#smUnits').value,prior=new Map(layers.map(k=>{const r=choices.get(k);return [k,[r.querySelector('input').checked,r.querySelector('select').value]];}));
+   const bar=document.createElement('div');bar.className='sm-trace';panel.hidden=true;
+   const label=document.createElement('span'),finish=document.createElement('button'),cancel=document.createElement('button');
+   label.textContent=t('traceHint');finish.textContent=t('finish');finish.disabled=true;cancel.textContent=t('cancel');bar.append(label,finish,cancel);stage.append(bar);
+   const line=svgEl('polyline',{fill:'#dba43144',stroke:'#ab5500','stroke-width':3,'vector-effect':'non-scaling-stroke','pointer-events':'none'});
+   canvas.append(line);const pts=[];$('.sm-toolbar').hidden=true;
+   const stop=()=>{trace=null;bar.remove();line.remove();panel.hidden=false;$('.sm-toolbar').hidden=false;};
+   trace=p=>{if(pts.length>=128)return;const q=[p.x,-p.y];if(pts.length&&q.every((v,i)=>v===pts.at(-1)[i]))return;pts.push(q);line.setAttribute('points',pts.map(([x,y])=>x+','+-y).join(' '));finish.disabled=pts.length<3;};
+   cancel.onclick=stop;finish.onclick=()=>{
+    if(!simpleOutline(pts)){message(t('traceInvalid'),true);return;}
+    stop();if(map.features.length>=2000){message(t('limit'),true);return;}
+    const next={...map,units,features:map.features.filter(f=>prior.get(layerKey(f))[0]).map(f=>{const kind=prior.get(layerKey(f))[1];return {...f,kind,components:kind==='building'?(f.components.length?f.components:defaultComponents()):[]};})};
+    next.features.push({id:'manual-'+uid(),layer:t('trace'),kind:'building',name:t('building')+' '+(next.features.filter(f=>f.kind==='building').length+1),height:6,confidence:1,components:defaultComponents(),geometry:{type:'Polygon',coordinates:[[...pts,pts[0]]]}});
+    try{review(validateMap(next));}catch(e){fail(e);}
+   };
+  };
+  $('#smCancelImport').onclick=()=>{if(busy)return;draft=null;panel.remove();fitPlan();draw();setBusy(false);};
+  const hasBuilding=()=>layers.some(key=>{const row=choices.get(key);return row.querySelector('input').checked&&row.querySelector('select').value==='building';});
+  const syncButtons=()=>{$('#smPublish3D').disabled=!hasBuilding();};panel.onchange=syncButtons;syncButtons();
+  const publish=async(open3D)=>{if(busy)return;
+   const next=structuredClone(draft);next.units=$('#smUnits').value;next.features=next.features.filter(f=>choices.get(layerKey(f)).querySelector('input').checked).map(f=>{const kind=choices.get(layerKey(f)).querySelector('select').value;return {...f,kind,components:kind==='building'?(f.components.length?f.components:defaultComponents()):[]};});
    if(!next.features.length){message('En az bir katman seçin.',true);return;}
    if(snapshot.map.features.length&&!demo&&!confirm('Mevcut saha planı bu planla değiştirilsin mi? İş kalemi metrajları korunur.'))return;
-   try{validateMap(next);}catch(e){fail(e);return;}selected=null;const saved=await saveMap(next);if(saved){draft=null;panel.remove();fitPlan();draw();}
-  };
+   try{validateMap(next);}catch(e){fail(e);return;}const saved=await saveMap(next);if(saved){draft=null;panel.remove();setBusy(false);selected=next.features.find(f=>f.kind==='building')?.id||null;fitPlan();draw();renderCard();if(open3D&&feature())await show3d();}
+  };$('#smPublish').onclick=()=>publish(false);$('#smPublish3D').onclick=()=>publish(true);
  }
  async function startDemo(){await show2d();demo=true;snapshot={map:demoMap(),catalog:[],revision:0,projectRevision:0,canManage:true,cadReady:false};selected='villa-412';await reload({fit:true});}
  function zoom(scale,cx=canvas.clientWidth/2,cy=canvas.clientHeight/2){const rect=canvas.getBoundingClientRect(),p=screenPoint(cx+rect.left,cy+rect.top),w=viewport.w/scale;if(initial&&(w<initial.w/100||w>initial.w*5))return;viewport={x:p.x-(p.x-viewport.x)/scale,y:p.y-(p.y-viewport.y)/scale,w,h:viewport.h/scale};applyView();}
@@ -171,7 +206,7 @@ export async function openSiteMap(options={}){
  const pointers=new Map();let drag=null,pinch=null,moved=false;
  canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,[e.clientX,e.clientY]);drag={x:e.clientX,y:e.clientY,view:{...viewport}};moved=false;if(pointers.size===2){const p=[...pointers.values()];pinch=Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]);}});
  canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const p=[...pointers.values()],dist=Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]),r=canvas.getBoundingClientRect();if(pinch>0)zoom(dist/pinch,(p[0][0]+p[1][0])/2-r.left,(p[0][1]+p[1][1])/2-r.top);pinch=dist;moved=true;return;}if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>3)moved=true;const scale=canvas.getScreenCTM()?.a||canvas.clientWidth/viewport.w;viewport={...drag.view,x:drag.view.x-dx/scale,y:drag.view.y-dy/scale};applyView();});
- const end=e=>{pointers.delete(e.pointerId);drag=null;pinch=null;};canvas.addEventListener('pointerup',e=>{if(!moved&&pointers.size===1){const node=document.elementFromPoint(e.clientX,e.clientY);const id=node?.closest('[data-id]')?.dataset.id;if(id&&canvas.contains(node))choose(id);}end(e);});canvas.addEventListener('pointercancel',end);
+ const end=e=>{pointers.delete(e.pointerId);drag=null;pinch=null;};canvas.addEventListener('pointerup',e=>{if(!moved&&pointers.size===1){if(trace){trace(screenPoint(e.clientX,e.clientY));end(e);return;}const node=document.elementFromPoint(e.clientX,e.clientY);const id=node?.closest('[data-id]')?.dataset.id;if(id&&canvas.contains(node))choose(id);}end(e);});canvas.addEventListener('pointercancel',end);
  canvas.addEventListener('wheel',e=>{e.preventDefault();const rect=canvas.getBoundingClientRect();zoom(Math.exp(-e.deltaY*.0015),e.clientX-rect.left,e.clientY-rect.top);},{passive:false});
  canvas.addEventListener('keydown',e=>{const id=e.target.closest('[data-id]')?.dataset.id;if(id&&['Enter',' '].includes(e.key)){e.preventDefault();choose(id);}else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();e.key==='Home'?fitPlan():zoom(e.key==='-'?.8:1.25);}});
  $('#smSearch').oninput=e=>{search=e.target.value;draw();};$('#smFilter').onchange=e=>{filter=e.target.value;draw();fitPlan();};$('#smPlus').onclick=()=>zoom(1.3);$('#smMinus').onclick=()=>zoom(1/1.3);$('#smFit').onclick=fitPlan;$('#smBack').onclick=show2d;$('#smUpload').onclick=loadDrawing;
