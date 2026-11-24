@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "units": "m",
+  "source": {
+    "format": "dxf",
+    "mode": "rules",
+    "name": "site-plan.dxf",
+    "warnings": []
+  },
+  "features": [
+    {
+      "id": "villa-411",
+      "kind": "building",
+      "name": "Villa 411",
+      "blockType": "Tip 103",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              100,
+              200
+            ],
+            [
+              120,
+              200
+            ],
+            [
+              120,
+              215
+            ],
+            [
+              100,
+              215
+            ],
+            [
+              100,
+              200
+            ]
+          ]
+        ]
+      },
+      "height": 6,
+      "layer": "BUILDINGS",
+      "confidence": 0.92,
+      "binding": {
+        "block": "C ISLAND",
+        "facade": "92 & 405"
+      },
+      "modelId": null,
+      "components": [
+        {
+          "id": "concrete",
+          "label": "Betonarme",
+          "part": "foundation",
+          "weight": 30,
+          "progress": 0,
+          "source": {
+            "block": "C ISLAND",
+            "facade": "92 & 405",
+            "item": "Betonarme"
+          },
+          "meshNodes": [
+            "0/Scene/0/Concrete"
+          ]
+        },
+        {
+          "id": "pool",
+          "label": "Havuz",
+          "part": "pool",
+          "weight": 10,
+          "progress": 47,
+          "source": null,
+          "meshNodes": []
+        }
+      ]
+    }
+  ]
+}

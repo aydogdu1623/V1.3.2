@@ -1,0 +1,330 @@
+{
+  "type": "FeatureCollection",
+  "units": "m",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ana yol",
+        "blockType": "",
+        "kind": "road",
+        "layer": "road"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -5,
+              23
+            ],
+            [
+              133,
+              23
+            ],
+            [
+              133,
+              33
+            ],
+            [
+              -5,
+              33
+            ],
+            [
+              -5,
+              23
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Yeşil alan",
+        "blockType": "",
+        "kind": "landscape",
+        "layer": "landscape"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              104,
+              0
+            ],
+            [
+              132,
+              0
+            ],
+            [
+              132,
+              20
+            ],
+            [
+              104,
+              20
+            ],
+            [
+              104,
+              0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Su alanı",
+        "blockType": "",
+        "kind": "water",
+        "layer": "water"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              104,
+              37
+            ],
+            [
+              132,
+              37
+            ],
+            [
+              132,
+              55
+            ],
+            [
+              104,
+              55
+            ],
+            [
+              104,
+              37
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Villa 411",
+        "blockType": "Tip 103",
+        "kind": "building",
+        "layer": "building"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              0,
+              0
+            ],
+            [
+              22,
+              0
+            ],
+            [
+              22,
+              17
+            ],
+            [
+              0,
+              17
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Villa 412",
+        "blockType": "Tip 104",
+        "kind": "building",
+        "layer": "building"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              34,
+              0
+            ],
+            [
+              56,
+              0
+            ],
+            [
+              56,
+              17
+            ],
+            [
+              34,
+              17
+            ],
+            [
+              34,
+              0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Villa 413",
+        "blockType": "Tip 103",
+        "kind": "building",
+        "layer": "building"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              68,
+              0
+            ],
+            [
+              90,
+              0
+            ],
+            [
+              90,
+              17
+            ],
+            [
+              68,
+              17
+            ],
+            [
+              68,
+              0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Villa 414",
+        "blockType": "Tip 104",
+        "kind": "building",
+        "layer": "building"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              0,
+              39
+            ],
+            [
+              22,
+              39
+            ],
+            [
+              22,
+              56
+            ],
+            [
+              0,
+              56
+            ],
+            [
+              0,
+              39
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Villa 415",
+        "blockType": "Tip 103",
+        "kind": "building",
+        "layer": "building"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              34,
+              39
+            ],
+            [
+              56,
+              39
+            ],
+            [
+              56,
+              56
+            ],
+            [
+              34,
+              56
+            ],
+            [
+              34,
+              39
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Villa 416",
+        "blockType": "Tip 104",
+        "kind": "building",
+        "layer": "building"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              68,
+              39
+            ],
+            [
+              90,
+              39
+            ],
+            [
+              90,
+              56
+            ],
+            [
+              68,
+              56
+            ],
+            [
+              68,
+              39
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

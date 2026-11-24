@@ -202,5 +202,15 @@ END $$`);
       AND l.details->>'year'=p.work_year::text
       AND CASE WHEN l.details->>'revision' ~ '^[0-9]{1,10}$'
         THEN (l.details->>'revision')::bigint < p.revision::bigint-1 ELSE false END`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_site_maps (
+    project_key text PRIMARY KEY REFERENCES cephepro_projects(project_key) ON DELETE CASCADE,
+    data jsonb NOT NULL DEFAULT '{}'::jsonb, revision integer NOT NULL DEFAULT 0,
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_site_models (
+    project_key text NOT NULL REFERENCES cephepro_projects(project_key) ON DELETE CASCADE,
+    id text NOT NULL, data text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY(project_key,id)
+  )`);
   await sql.transaction(statements);
 }

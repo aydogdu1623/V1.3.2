@@ -1,0 +1,19 @@
+services:
+  cad:
+    build: .
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      CAD_SERVICE_KEY: ${CAD_SERVICE_KEY:?Set CAD_SERVICE_KEY}
+      CAD_DATA_DIR: /data
+      OLLAMA_URL: ${OLLAMA_URL:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      ODA_EXECUTABLE: ${ODA_EXECUTABLE:-}
+    volumes: ["cad-data:/data"]
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 128
+    read_only: true
+    tmpfs: ["/tmp:size=256m"]
+    restart: unless-stopped
+volumes:
+  cad-data:
