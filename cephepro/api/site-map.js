@@ -1,3 +1,4 @@
+import {CAD_MAX_BYTES,CAD_CHUNK_BYTES,CAD_MAX_CHUNKS} from '../assets/site-map/cad-limits.js';
 import crypto from 'node:crypto';
 import {getSql,noStore,bearer} from '../lib/db.js';
 import {ensureSchema} from '../lib/schema.js';
@@ -31,9 +32,10 @@ export function createSiteMapHandler(deps){
     if(me.role!=='admin')throw error(403,'Çizim yüklemek için yönetici yetkisi gerekli.');
     const paths={'upload-start':'/uploads','upload-chunk':'/uploads/chunk','upload-finish':'/uploads/finish'};
     if(!paths[b.action])throw error(400,'Yükleme işlemi geçersiz.');
-    if(b.action==='upload-start'&&(!/\.(dwg|dxf)$/i.test(b.name||'')||!Number.isInteger(b.size)||b.size<1||b.size>40_000_000))throw error(400,'DWG/DXF dosyası en fazla 40 MB olabilir.');
+    if(b.action==='upload-start'&&(!/\.(dwg|dxf)$/i.test(b.name||'')||!Number.isInteger(b.size)||b.size<1))throw error(400,'Geçerli DWG/DXF dosyası gerekli.');
+    if(b.action==='upload-start'&&b.size>CAD_MAX_BYTES)throw error(413,`DWG/DXF dosyası en fazla ${CAD_MAX_BYTES/1e6} MB olabilir.`);
     if(b.action!=='upload-start'&&!/^[a-f0-9]{32}$/.test(b.id||''))throw error(400,'Yükleme kimliği geçersiz.');
-    if(b.action==='upload-chunk'&&(typeof b.data!=='string'||b.data.length>1_400_000))throw error(413,'Yükleme parçası çok büyük.');
+    if(b.action==='upload-chunk'&&(!Number.isInteger(b.index)||b.index<0||b.index>=CAD_MAX_CHUNKS||typeof b.data!=='string'||b.data.length>4*Math.ceil(CAD_CHUNK_BYTES/3)))throw error(413,'Yükleme parçası çok büyük.');
     return res.status(200).json(await proxy(paths[b.action],b));
    }
    if(req.method==='POST'&&b.action==='model'){

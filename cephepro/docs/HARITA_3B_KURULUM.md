@@ -1,4 +1,6 @@
-# CephePro V252 — İnteraktif saha haritası ve canlı 3B
+# CephePro V253 — İnteraktif saha haritası ve canlı 3B
+
+250 MB sınırı dosya başınadır. Büyük ASCII DXF tarayıcı işçisinde 1 MiB dilimlerle okunur; planla ilgisiz bölümler erken elenir. Geometri karmaşıklık limitleri geçerlidir. DWG ve ikili DXF için güncel CAD servisini yeniden yayımlayın. Parçalar 900.000 bayt, en fazla 278 parçadır. Serviste proje başına saatlik 800 MB / 20 başlatma sınırı uygulanır; büyük işler için yeterli kalıcı disk ve dönüştürücü geçici alanı gerekir.
 
 ## V252 · DXF düzeltmesi
 - **Çizim Yükle → DXF → Planı Kaydet ve 3B Gör**: katman incelemesinde açık çizgiler ile kapalı bina alanları ayrı tutulur. 2B için yalnız **Planı Kaydet** de seçilebilir. Örnek sayfası kayıtları kalıcı değildir.
@@ -66,7 +68,7 @@ flowchart TD
 - **2B:** yerel CAD XY koordinatları, SVG ve pointer olayları. WGS84 enlem/boylam verileri metre gibi yorumlanmamalı; bilinen CRS ile önce yerel projeksiyona çevrilmeli.
 - **3B:** yerelde paketlenmiş Three.js 0.180.0, OrbitControls, GLTFLoader. Yalnız kullanıcı 3B açınca yüklenir. CDN bağımlılığı yok. Örnek şematik model BIM modeli değildir.
 - **Tarayıcı DXF:** Web Worker içinde dxf-parser; çizgi/polyline, bulge, yay/daire, döndürülmüş/ölçekli INSERT desteklenir. Desteklenmeyen varlık sayısı kullanıcıya gösterilir. Karmaşık spline veya nested CAD için Python servisi tercih edilir.
-- **CAD servisi:** FastAPI + SQLite kalıcı kuyruk + tek ağır iş çalışanı; dönüştürme ayrı süreçte, 150 saniye sınırında. 40 MB dosya, 2000 şekil ve 100000 nokta sınırı. Büyük çizimler bölünmeli. Docker örneği CPU/RAM/PID sınırları içerir.
+- **CAD servisi:** FastAPI + SQLite kalıcı kuyruk + tek ağır iş çalışanı; dönüştürme ayrı süreçte, normal dosyalarda 150, 40 MB üzerindekilerde 600 saniye sınırında. DWG/DXF için 250 MB (250.000.000 bayt), GeoJSON için 40 MB dosya, 2000 şekil ve 100000 nokta sınırı. Büyük çizimler bölünmeli. Docker örneği CPU/RAM/PID sınırları içerir.
 - **AI:** yalnız katman adı/tür/adet gibi özetleri sınıflandırır; geometri/koordinat üretmez. Yüksek güvenli sınıflar uygulanır, belirsizler kontrol ekranına gider. Ollama dışarıya açık bir servise işaret etmediği sürece CAD özeti özel altyapıda kalır. Yerel model API kullanım ücreti gerektirmez; sunucu ve hesaplama maliyeti vardır.
 - **Canlı güncelleme:** aynı ekranda anlık yerel 3B önizleme, kayıttan sonra yetkili sunucu sonucu; açık haritada 4 saniyelik sorgu. WebSocket değil. Ağ hataları ve eşzamanlı değişiklikler görünür; başarı gibi gösterilmez.
 - **Veri tutarlılığı:** map revision + proje revision denetimi. Bağlı kalemlerde tek SQL karşılaştırmalı güncelleme; diğer cihazın yeni metrajı sessizce ezilmez. Harita kaydı mevcut rapor verisini taşımaz/kopyalamaz.

@@ -1,3 +1,4 @@
+import {drawingLimit,CAD_CHUNK_BYTES,CAD_MAX_BYTES} from './cad-limits.js';
 import {simpleOutline} from './contours.js';
 import {emptyMap,demoMap,validateMap,resolveFeature,bindFacade,bounds,COLORS,KINDS,PARTS,status,clamp,defaultComponents} from './model.js';
 import {t,language} from './i18n.js';
@@ -12,7 +13,7 @@ export async function openSiteMap(options={}){
  let readSequence=0,trace=null;
  let viewport={x:0,y:0,w:100,h:80},initial,search='',filter='all',lastFocus=document.activeElement;
  const dialog=document.createElement('dialog');dialog.id='cpSiteMap';dialog.setAttribute('translate','no');dialog.setAttribute('aria-label',t('map'));dialog.dir=language()==='ar'?'rtl':'ltr';
- dialog.innerHTML=`<header class="sm-header"><div class="sm-brand">⌖</div><div><h1>${t('map')}</h1><p class="sm-sub" id="smProject"></p></div><div class="sm-header-actions"><button id="smBack" hidden>${t('back')}</button><button id="smUpload" class="sm-primary">＋ ${t('upload')}</button><button id="smRefresh" aria-label="${t('refresh')}" title="${t('refresh')}">↻</button><button id="smClose" aria-label="${t('close')}">✕</button></div></header><div class="sm-shell sm-no-selection"><main class="sm-stage"><div class="sm-toolbar"><input id="smSearch" placeholder="${t('search')}" aria-label="${t('search')}"><select id="smFilter" aria-label="${t('progress')}">${['all','not_started','in_progress','completed'].map(x=>`<option value="${x}">${t(x)}</option>`).join('')}</select></div><svg class="sm-canvas" aria-label="${t('map')}" tabindex="0"></svg><div class="sm-viewer" hidden></div><div class="sm-model-note" hidden></div><div class="sm-zoom"><button id="smPlus" aria-label="Zoom in">+</button><button id="smMinus" aria-label="Zoom out">−</button><button id="smFit" title="${t('fit')}" aria-label="${t('fit')}">⌗</button></div><div class="sm-legend">${Object.entries(COLORS).map(([s,c])=>`<span><i class="sm-dot" style="background:${c}"></i>${t(s)}</span>`).join('')}</div><div class="sm-empty" hidden></div></main><aside class="sm-card"></aside></div><footer class="sm-footer"><span id="smSource"></span><span class="sm-status" role="status" aria-live="polite"></span></footer>`;
+ dialog.innerHTML=`<header class="sm-header"><div class="sm-brand">⌖</div><div><h1>${t('map')}</h1><p class="sm-sub" id="smProject"></p></div><div class="sm-header-actions"><button id="smBack" hidden>${t('back')}</button><button id="smUpload" class="sm-primary" title="DWG / DXF · ${CAD_MAX_BYTES/1e6} MB">＋ ${t('upload')}</button><button id="smRefresh" aria-label="${t('refresh')}" title="${t('refresh')}">↻</button><button id="smClose" aria-label="${t('close')}">✕</button></div></header><div class="sm-shell sm-no-selection"><main class="sm-stage"><div class="sm-toolbar"><input id="smSearch" placeholder="${t('search')}" aria-label="${t('search')}"><select id="smFilter" aria-label="${t('progress')}">${['all','not_started','in_progress','completed'].map(x=>`<option value="${x}">${t(x)}</option>`).join('')}</select></div><svg class="sm-canvas" aria-label="${t('map')}" tabindex="0"></svg><div class="sm-viewer" hidden></div><div class="sm-model-note" hidden></div><div class="sm-zoom"><button id="smPlus" aria-label="Zoom in">+</button><button id="smMinus" aria-label="Zoom out">−</button><button id="smFit" title="${t('fit')}" aria-label="${t('fit')}">⌗</button></div><div class="sm-legend">${Object.entries(COLORS).map(([s,c])=>`<span><i class="sm-dot" style="background:${c}"></i>${t(s)}</span>`).join('')}</div><div class="sm-empty" hidden></div></main><aside class="sm-card"></aside></div><footer class="sm-footer"><span id="smSource"></span><span class="sm-status" role="status" aria-live="polite"></span></footer>`;
  document.body.append(dialog);dialog.showModal();const $=s=>dialog.querySelector(s),canvas=$('.sm-canvas'),stage=$('.sm-stage'),card=$('.sm-card'),empty=$('.sm-empty');
  const projectId=()=>globalThis.CepheProProjects?.project()?.id;const openedProject=projectId();
  const message=(s,error=false)=>{$('.sm-status').textContent=s;$('.sm-status').dataset.error=String(error);};
@@ -23,7 +24,7 @@ export async function openSiteMap(options={}){
   const response=await fetch('/api/site-map'+suffix,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:controller.signal,cache:'no-store'});
   if(!demoOnly&&projectId()!==openedProject)throw new DOMException('Project changed','AbortError');
   if(suffix.startsWith('?model=')&&response.ok)return response.arrayBuffer();
-  const data=await response.json();if(!response.ok)throw Object.assign(Error(data.error||'Harita yüklenemedi.'),{status:response.status});return data;
+  const data=await response.json().catch(e=>{if(response.ok)throw e;return {};});if(!response.ok)throw Object.assign(Error(data.error||'Harita yüklenemedi.'),{status:response.status});return data;
  }
  const modeLabel=m=>t(m==='local-classifier'?'localAI':m==='ai'?'ai':'rules');
  const feature=()=>snapshot.map.features.find(f=>f.id===selected);
@@ -137,7 +138,7 @@ export async function openSiteMap(options={}){
  async function loadDrawing(){
   if(view==='3d')await show2d();
   const file=await filePicker('.dwg,.dxf,.geojson,.json');if(!file||closed)return;
-  if(file.size>40_000_000){message('Çizim en fazla 40 MB olabilir.',true);return;}
+  const max=drawingLimit(file.name);if(!file.size||file.size>max){message(t('drawingSize').replace('{max}',max/1e6),true);return;}
   setBusy(true);message(t('loading'));
   try{
    let map;
@@ -147,19 +148,25 @@ export async function openSiteMap(options={}){
    if(/\.dwg$/i.test(file.name)||binary){
     if(demo)throw Error('DWG dönüşümü proje oturumu ve CAD servisi gerektirir. Örnekte DXF / GeoJSON kullanın.');
     const job=await api('POST',{action:'upload-start',name:file.name,size:file.size});
-    for(let offset=0;offset<file.size;offset+=900000){const data=base64(new Uint8Array(await file.slice(offset,offset+900000).arrayBuffer()));await api('POST',{action:'upload-chunk',id:job.id,index:Math.floor(offset/900000),data});message(`${t('upload')} · ${Math.round(Math.min(file.size,offset+900000)/file.size*100)}%`);}
+    for(let offset=0;offset<file.size;offset+=CAD_CHUNK_BYTES){
+     const end=Math.min(file.size,offset+CAD_CHUNK_BYTES),part={action:'upload-chunk',id:job.id,index:offset/CAD_CHUNK_BYTES,data:base64(new Uint8Array(await file.slice(offset,end).arrayBuffer()))};
+     // Repeating only this indexed chunk is safe if the acknowledgement was lost.
+     for(let attempt=0;;attempt++)try{await api('POST',part);break;}catch(e){
+      if(closed||attempt>=2||!(e instanceof TypeError||[502,503,504].includes(e.status)))throw e;
+      await wait(500*2**attempt,controller.signal);
+     }
+     message(t('upload')+' · '+Math.round(end/file.size*100)+'%');
+    }
     await api('POST',{action:'upload-finish',id:job.id});
-    for(let i=0;i<160;i++){const result=await api('GET',null,'?job='+job.id);if(result.status==='ready'){map=validateMap(result.map);break;}if(result.status==='failed')throw Error(result.error||'CAD dönüşümü başarısız.');message(result.message||t('loading'));await wait(2000,controller.signal);}
+    for(let i=0;i<450;i++){const result=await api('GET',null,'?job='+job.id);if(result.status==='ready'){map=validateMap(result.map);break;}if(result.status==='failed')throw Error(result.error||'CAD dönüşümü başarısız.');message(result.message||t('loading'));await wait(2000,controller.signal);}
     if(!map)throw Error('CAD işleme zaman aşımı. DXF olarak tekrar deneyin.');
    }else{
-    const bytes=await file.arrayBuffer();if(closed)return;
-    let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{const header=new TextDecoder('latin1').decode(bytes.slice(0,32768));const cp=/ANSI_(125[0-8])/.exec(header)?.[1];text=new TextDecoder('windows-'+(cp||'1252')).decode(bytes);}
     map=await new Promise((resolve,reject)=>{
-     const w=new Worker(new URL('./import-worker.js?v=252',import.meta.url),{type:'module'});worker=w;
+     const w=new Worker(new URL('./import-worker.js?v=253',import.meta.url),{type:'module'});worker=w;
      const finish=(error,value)=>{clearTimeout(timer);controller.signal.removeEventListener('abort',abort);w.terminate();if(worker===w)worker=null;error?reject(error):resolve(value);};
      const abort=()=>finish(new DOMException('Aborted','AbortError'));
-     const timer=setTimeout(()=>finish(Error(t('timedOut'))),75000);controller.signal.addEventListener('abort',abort,{once:true});
-     w.onmessage=e=>e.data.error?finish(Error(e.data.error)):finish(null,e.data.map);w.onerror=()=>finish(Error(t('readError')));w.postMessage({name:file.name,text});
+     const timer=setTimeout(()=>finish(Error(t('timedOut'))),file.size>16_000_000?300000:75000);controller.signal.addEventListener('abort',abort,{once:true});
+     w.onmessage=e=>Number.isFinite(e.data.percent)?message(t('drawingRead')+' · '+e.data.percent+'%'):e.data.error?finish(Error(e.data.error)):finish(null,e.data.map);w.onerror=()=>finish(Error(t('readError')));w.postMessage({file});
     });
    }
    if(!closed){if(!map.features.length)throw Error('Görünür dış hat bulunamadı. Kapalı poligonları ve katmanları kontrol edin.');review(map);}

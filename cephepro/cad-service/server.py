@@ -32,11 +32,16 @@ def run(identifier):
         conn.execute('UPDATE jobs SET status=? WHERE id=?',('processing',identifier))
     folder=ROOT/identifier;source=folder/('drawing'+Path(row['name']).suffix.lower())
     try:
-        result=subprocess.run([sys.executable,str(Path(__file__).with_name('convert.py')),str(source),str(folder/'result.json')],capture_output=True,text=True,timeout=150,env={**os.environ,'OPENBLAS_NUM_THREADS':'1','QT_QPA_PLATFORM':'offscreen'},check=False)
+        scratch=folder/'scratch';scratch.mkdir(exist_ok=True)
+        result=subprocess.run([sys.executable,str(Path(__file__).with_name('convert.py')),str(source),str(folder/'result.json')],capture_output=True,text=True,timeout=600 if row["size"]>40_000_000 else 150,env={**os.environ,'OPENBLAS_NUM_THREADS':'1','QT_QPA_PLATFORM':'offscreen','TMPDIR':str(scratch.resolve())},check=False)
         if result.returncode: raise ValueError(result.stderr[-500:] or 'CAD dönüşümü başarısız.')
         with db() as conn: conn.execute('UPDATE jobs SET status=? WHERE id=?',('ready',identifier))
     except Exception as exc:
         with db() as conn: conn.execute('UPDATE jobs SET status=?,error=? WHERE id=?',('failed',str(exc)[:500],identifier))
+    finally:
+        # No download-original endpoint: release the potentially large input after conversion.
+        source.unlink(missing_ok=True)
+        shutil.rmtree(folder/'scratch',ignore_errors=True)
 def recover_jobs():
     with db() as conn:
         expired=conn.execute('SELECT id FROM jobs WHERE created<?',(time.time()-7*86400,)).fetchall()
@@ -45,17 +50,24 @@ def recover_jobs():
         conn.execute('DELETE FROM jobs WHERE created<?',(time.time()-7*86400,))
     with db() as conn: rows=conn.execute("SELECT id FROM jobs WHERE status IN ('queued','processing')").fetchall()
     for row in rows: pool.submit(run,row['id'])
+MAX_BYTES=250_000_000
+CHUNK_BYTES=900_000
+MAX_CHUNKS=(MAX_BYTES+CHUNK_BYTES-1)//CHUNK_BYTES
 class Start(BaseModel):
-    name:str=Field(max_length=200);size:int=Field(gt=0,le=40_000_000)
+    name:str=Field(max_length=200);size:int=Field(gt=0,le=MAX_BYTES)
 class Chunk(BaseModel):
-    id:str;index:int=Field(ge=0,lt=45);data:str=Field(max_length=1_400_000)
+    id:str;index:int=Field(ge=0,lt=MAX_CHUNKS);data:str=Field(max_length=1_400_000)
 class Finish(BaseModel): id:str
 @app.post('/uploads')
 def start(body:Start,authorization:str=Header(''),x_project_id:str=Header('')):
     auth(authorization,x_project_id)
     if Path(body.name).suffix.lower() not in ('.dwg','.dxf'): raise HTTPException(400,'DWG/DXF gerekli.')
     with db() as conn:
+        conn.execute('BEGIN IMMEDIATE')
         n=conn.execute("SELECT count(*) FROM jobs WHERE project=? AND created>?",(x_project_id,time.time()-3600)).fetchone()[0]
+        reserved=conn.execute("SELECT coalesce(sum(size),0) FROM jobs WHERE project=? AND created>?",(x_project_id,time.time()-3600)).fetchone()[0]
+        if reserved+body.size>800_000_000: raise HTTPException(429,'Saatlik proje çizim kotası dolu. Daha sonra tekrar deneyin.')
+        if shutil.disk_usage(ROOT).free < 2*body.size+128_000_000: raise HTTPException(503,'CAD depolama alanı yetersiz.')
         if n>=20: raise HTTPException(429,'Saatlik çizim sınırına ulaşıldı.')
         identifier=secrets.token_hex(16);conn.execute('INSERT INTO jobs VALUES(?,?,?,?,?,?,?)',(identifier,x_project_id,Path(body.name).name,body.size,'uploading','',time.time()))
     (ROOT/identifier).mkdir(mode=0o700);return {'id':identifier}
@@ -65,7 +77,7 @@ def chunk(body:Chunk,authorization:str=Header(''),x_project_id:str=Header('')):
     if row['status']!='uploading': raise HTTPException(409,'Yükleme tamamlandı.')
     try: data=base64.b64decode(body.data,validate=True)
     except Exception: raise HTTPException(400,'Parça kodlaması geçersiz.')
-    expected=min(900000,row['size']-body.index*900000)
+    expected=min(CHUNK_BYTES,row['size']-body.index*CHUNK_BYTES)
     if expected<=0 or len(data)!=expected: raise HTTPException(400,'Parça boyutu/sırası geçersiz.')
     path=ROOT/body.id/('part-'+str(body.index))
     with lock:
@@ -77,11 +89,11 @@ def chunk(body:Chunk,authorization:str=Header(''),x_project_id:str=Header('')):
 def finish(body:Finish,authorization:str=Header(''),x_project_id:str=Header('')):
     auth(authorization,x_project_id);row=job(body.id,x_project_id)
     if row['status']!='uploading': return {'id':body.id,'status':row['status']}
-    folder=ROOT/body.id;parts=[folder/('part-'+str(i)) for i in range((row['size']+899999)//900000)]
-    if any(not p.exists() for p in parts) or sum(p.stat().st_size for p in parts)!=row['size']: raise HTTPException(400,'Dosya parçaları eksik.')
+    folder=ROOT/body.id;parts=[folder/('part-'+str(i)) for i in range((row['size']+CHUNK_BYTES-1)//CHUNK_BYTES)]
     with lock:
         current=job(body.id,x_project_id)
         if current['status']!='uploading': return {'id':body.id,'status':current['status']}
+        if any(not p.exists() for p in parts) or sum(p.stat().st_size for p in parts)!=row['size']: raise HTTPException(400,'Dosya parçaları eksik.')
         target=folder/('drawing'+Path(row['name']).suffix.lower())
         with target.open('wb') as output:
             for p in parts: output.write(p.read_bytes())
