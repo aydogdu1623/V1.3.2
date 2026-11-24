@@ -44,4 +44,16 @@ class CadTests(unittest.TestCase):
      if result['status'] in ('ready','failed'):break
      time.sleep(.1)
     self.assertEqual(result['status'],'ready',result);self.assertEqual(len(result['map']['features']),1)
+    # Transport test only: arbitrary bytes, no licensed DWG converter or real site data.
+    import hashlib
+    size=250_000_000
+    self.assertEqual(client.post('/uploads',headers=headers,json={'name':'large.dwg','size':size+1}).status_code,422)
+    res=client.post('/uploads',headers=headers,json={'name':'large.dwg','size':size});self.assertEqual(res.status_code,200)
+    big=res.json()['id'];digest=hashlib.sha256()
+    for i,offset in enumerate(range(0,size,900_000)):
+     raw=bytes([i%251])*min(900_000,size-offset);digest.update(raw);payload={'id':big,'index':i,'data':base64.b64encode(raw).decode()}
+     self.assertEqual(client.post('/uploads/chunk',json=payload,headers=headers).status_code,200,i)
+    with patch.object(server.pool,'submit') as submit:
+     self.assertEqual(client.post('/uploads/finish',json={'id':big},headers=headers).status_code,200);submit.assert_called_once()
+     with (Path(directory)/big/'drawing.dwg').open('rb') as joined:self.assertEqual(hashlib.file_digest(joined,'sha256').digest(),digest.digest())
 if __name__=='__main__':unittest.main()

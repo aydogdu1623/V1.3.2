@@ -1,6 +1,6 @@
 // Exercises actual file input, ESM Worker, parser, dialog, save and 3D in headless Chrome.
 import http from 'node:http';
-import {readFile,mkdtemp,rm} from 'node:fs/promises';
+import {readFile,mkdtemp,rm,open as openFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
@@ -21,11 +21,22 @@ try{
  ws.onmessage=e=>{const m=JSON.parse(e.data),cb=pending.get(m.id);if(cb){pending.delete(m.id);cb(m);}};
  const cmd=(method,params={})=>new Promise((r,j)=>{const id=++seq;pending.set(id,m=>m.error?j(Error(m.error.message)):r(m.result));ws.send(JSON.stringify({id,method,params}));});
  const evaluate=async expression=>{const v=await cmd('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(v.exceptionDetails)throw Error(v.exceptionDetails.exception?.description||v.exceptionDetails.text);return v.result.value;};
- const waitFor=async exp=>{for(let i=0;i<220;i++){if(await evaluate(exp))return;await delay(100);}throw Error('UI timeout: '+exp+' / '+await evaluate('document.body.innerText.slice(-650)'));};
+ const waitFor=async exp=>{for(let i=0;i<800;i++){if(await evaluate(exp))return;await delay(100);}throw Error('UI timeout: '+exp+' / '+await evaluate('document.body.innerText.slice(-650)'));};
  await cmd('Page.navigate',{url:base+'/map-demo.html'});await waitFor("!!document.querySelector('#smUpload')");
  await evaluate("document.querySelector('#smUpload').click()");
  const dom=await cmd('DOM.getDocument');const target=await cmd('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'input[type=file]'});
- await cmd('DOM.setFileInputFiles',{nodeId:target.nodeId,files:[path.join(root,'examples/v252-outline.dxf')]});
+ // Real 250 MB ASCII DXF. Non-plan comments are discarded by the streaming reader.
+ const fixture=await readFile(path.join(root,'examples/v252-outline.dxf'),'utf8'),marker=fixture.lastIndexOf('0\nEOF'),before=fixture.slice(0,marker),after=fixture.slice(marker);
+ const large=path.join(temp,'large.dxf'),fp=await openFile(large,'w');
+ try{
+  const pad='999\r\n'+'x'.repeat(220)+'\r\n',page=pad.repeat(4096);
+  await fp.writeFile(before);let left=250_000_000-Buffer.byteLength(before+after);
+  while(left>=page.length){await fp.writeFile(page);left-=page.length;}
+  // Last valid DXF comment accounts for the exact remainder, even when under 7 bytes.
+  const n=Math.max(0,Math.floor((left-7)/pad.length));await fp.writeFile(pad.repeat(n));left-=n*pad.length;
+  await fp.writeFile('999\r\n'+'y'.repeat(left-7)+'\r\n'+after);assert.equal((await fp.stat()).size,250_000_000);
+ }finally{await fp.close();}
+ await cmd('DOM.setFileInputFiles',{nodeId:target.nodeId,files:[large]});
  await waitFor("!!document.querySelector('#smPublish3D')");assert.match(await evaluate("document.querySelector('.sm-review').textContent"),/Yerel yapay zekâ/);
  await evaluate("document.querySelector('#smPublish3D').click()");
  await waitFor("!!document.querySelector('.sm-viewer svg g[data-part=roof] path') && !document.querySelector('.sm-viewer').hidden");
@@ -36,5 +47,5 @@ try{
  await waitFor("document.querySelector('[data-part=roof] path').getAttribute('fill')==='#e8ae47'");
  await evaluate("document.querySelector('#smBack').click()");await waitFor("!document.querySelector('.sm-canvas').hasAttribute('hidden')");
  assert.equal(await evaluate("document.querySelectorAll('.sm-canvas [data-id]').length"),1);
- console.log('PASS: upload real DXF, review mixed geometry, save, render and rotate L footprint without WebGL, update roof at 47%, return to plan.');
+ console.log('PASS: upload 250 MB DXF, review mixed geometry, save, render and rotate L footprint without WebGL, update roof at 47%, return to plan.');
 }finally{ws?.close();const exited=once(proc,'exit').catch(()=>{});proc.kill();if(proc.exitCode===null)await Promise.race([exited,delay(2500)]);await rm(temp,{recursive:true,force:true,maxRetries:3,retryDelay:120});server.closeAllConnections();server.close();}
