@@ -3,8 +3,7 @@
   "trailingSlash": false,
   "functions": {
     "api/site-map.js": {
-      "maxDuration": 300,
-      "includeFiles": "lib/cad-assets/runtime.gz"
+      "maxDuration": 300
     },
     "api/!(site-map).js": {
       "maxDuration": 30
@@ -48,6 +47,5 @@
         }
       ]
     }
-  ],
-  "installCommand": "npm ci --no-audit --no-fund && node lib/package-cad.mjs"
+  ]
 }

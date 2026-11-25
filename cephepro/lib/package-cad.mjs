@@ -8,4 +8,9 @@ async function put(name,src){entries[name]=(await readFile(new URL(src,root))).t
 for(const file of ['dist/libredwg-web.js','wasm/libredwg-web.js','wasm/libredwg-web.wasm'])await put(file,pkg+file);
 for(const file of ['dxf-reader.js','cad-limits.js','importer.js','model.js','layer-model.js','contours.js','vendor/dxf.js'])await put('plan/'+file,'assets/site-map/'+file);
 await put('decoder.mjs','lib/dwg-decode.mjs');await put('example.dwg','examples/verification-polygon.dwg');
-const out=new URL('lib/cad-assets/',root);await mkdir(out,{recursive:true});await writeFile(new URL('runtime.gz',out),gzipSync(JSON.stringify(entries),{level:9}));
+// Version these modules: a static ES import is traced even when a host overrides installCommand.
+const data=gzipSync(JSON.stringify(entries),{level:9}).toString('base64'),out=new URL('lib/cad-bundle/',root);
+await mkdir(out,{recursive:true});
+const size=800000,count=Math.ceil(data.length/size);
+for(let i=0;i<count;i++)await writeFile(new URL('part'+i+'.js',out),"export default '"+data.slice(i*size,(i+1)*size)+"';\n");
+await writeFile(new URL('index.js',out),Array.from({length:count},(_,i)=>"import p"+i+" from './part"+i+".js';").join('\n')+"\nexport const runtimeArchive=()=>Buffer.from(["+Array.from({length:count},(_,i)=>'p'+i).join(',')+"].join(''),'base64');\n");

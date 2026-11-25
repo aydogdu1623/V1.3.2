@@ -1,0 +1,12 @@
+The generated cad-bundle contains the JavaScript and WebAssembly artifacts of
+@mlightcad/libredwg-web 0.9.3 (GPL-3.0), dxf-parser 1.1.2 (MIT), and the
+GNU LibreDWG Polygon.dwg 0.14 public regression fixture (GPL-3.0-or-later).
+It contains no user or project drawings. Rebuild the same bundle with
+npm ci --ignore-scripts and node lib/package-cad.mjs, from the cephepro directory.
+Package, upstream sources, build instructions and licenses:
+https://registry.npmjs.org/@mlightcad/libredwg-web/-/libredwg-web-0.9.3.tgz
+https://github.com/mlightcad/libredwg-web
+https://github.com/LibreDWG/libredwg
+https://github.com/gdsestimating/dxf-parser
+Local license files: examples/DWG-GPL-3.txt and assets/site-map/vendor/DXF-LICENSE.txt.
+Fixture origin: examples/verification-polygon.SOURCE.txt.
