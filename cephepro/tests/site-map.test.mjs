@@ -44,7 +44,7 @@ test('project map API persists live updates, enforces project access/roles and r
  assert.equal((await d.call(handler,'PATCH','member-b',change)).code,409);
  const loaded=(await d.call(handler,'GET','member-a')).body;assert.equal(loaded.catalog[0].items[0].progress,47);assert.equal(loaded.projectRevision,6);assert.equal(loaded.cadReady,false);
  assert.equal((await d.call(handler,'PATCH','member-a',{featureId:'villa-412',componentId:'part-0',progress:100,revision:1})).code,403);
- assert.equal((await d.call(handler,'POST','founder',{action:'upload-start',name:'site.dwg',size:10})).code,503);
+ assert.equal((await d.call(handler,'POST','founder',{action:'upload-start',name:'site.dwg',size:10})).code,200);
  const proxied=[];const uploader=createSiteMapHandler({...d.deps,config:()=>({url:'https://worker.test',key:'fixture'}),fetch:async(url,opts)=>{proxied.push(JSON.parse(opts.body));return Response.json({ok:true});}});
  for(const size of [40_000_001,250_000_000,250_000_001]){
   const result=await d.call(uploader,'POST','founder',{action:'upload-start',name:'file.DWG',size});

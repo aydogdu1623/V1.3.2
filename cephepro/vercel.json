@@ -2,7 +2,11 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
-    "api/*.js": {
+    "api/site-map.js": {
+      "maxDuration": 300,
+      "includeFiles": "{lib/dwg-decode.mjs,assets/site-map/*.js,assets/site-map/vendor/dxf.js,examples/verification-polygon.dwg,node_modules/@mlightcad/libredwg-web/**}"
+    },
+    "api/!(site-map).js": {
       "maxDuration": 30
     }
   },

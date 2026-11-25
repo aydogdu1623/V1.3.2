@@ -212,5 +212,16 @@ END $$`);
     id text NOT NULL, data text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY(project_key,id)
   )`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_cad_jobs (
+    id text PRIMARY KEY,project_key text NOT NULL REFERENCES cephepro_projects(project_key) ON DELETE CASCADE,owner_id text NOT NULL,
+    name text NOT NULL,size integer NOT NULL CHECK(size BETWEEN 6 AND 250000000),slot smallint UNIQUE,
+    status text NOT NULL DEFAULT 'uploading',reason text,result jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),expires_at timestamptz NOT NULL DEFAULT now()+interval '1 hour'
+  )`);
+  statements.push(sql`CREATE TABLE IF NOT EXISTS cephepro_cad_parts (
+    job_id text NOT NULL REFERENCES cephepro_cad_jobs(id) ON DELETE CASCADE,idx integer NOT NULL CHECK(idx BETWEEN 0 AND 277),
+    data bytea NOT NULL CHECK(octet_length(data) BETWEEN 1 AND 900000),PRIMARY KEY(job_id,idx)
+  )`);
+  statements.push(sql`CREATE INDEX IF NOT EXISTS cephepro_cad_jobs_expiry ON cephepro_cad_jobs(expires_at)`);
   await sql.transaction(statements);
 }
