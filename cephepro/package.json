@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "verify:puantaj": "node --test tests/puantaj.test.mjs && node tests/puantaj-export.cjs",
-    "build:site-map": "node scripts/build-site-map.mjs"
+    "build:site-map": "node scripts/build-site-map.mjs",
+    "pretest": "node lib/package-cad.mjs"
   },
   "dependencies": {
     "@mlightcad/libredwg-web": "0.9.3",

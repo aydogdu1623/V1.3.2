@@ -2,3 +2,5 @@ node_modules/
 .env*
 .vercel/
 *.url
+
+lib/cad-assets/

@@ -139,6 +139,7 @@ Paket içindeki vendor dosyaları hazırdır. Yeniden üretmek için Node 22+ il
 
 ```bash
 npm ci
+node lib/package-cad.mjs
 npm run build:site-map
 node --test tests/site-map*.test.mjs tests/project-ui.test.mjs
 python3 -m unittest discover -s cad-service -p test_cad.py
