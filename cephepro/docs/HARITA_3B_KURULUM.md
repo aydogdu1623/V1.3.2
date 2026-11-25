@@ -1,6 +1,8 @@
-# CephePro V253 — İnteraktif saha haritası ve canlı 3B
+# CephePro V254 — İnteraktif saha haritası ve canlı 3B
 
-250 MB sınırı dosya başınadır. Büyük ASCII DXF tarayıcı işçisinde 1 MiB dilimlerle okunur; planla ilgisiz bölümler erken elenir. Geometri karmaşıklık limitleri geçerlidir. DWG ve ikili DXF için güncel CAD servisini yeniden yayımlayın. Parçalar 900.000 bayt, en fazla 278 parçadır. Serviste proje başına saatlik 800 MB / 20 başlatma sınırı uygulanır; büyük işler için yeterli kalıcı disk ve dönüştürücü geçici alanı gerekir.
+**DWG artık doğrudan yüklenir.** Projede yönetici olarak **Harita → Çizim Yükle** içinden .dwg seçin; bilgisayara CAD programı kurmak veya DXF üretmek gerekmez. Varsayılan sunucu dönüştürücüsü LibreDWG kullanır. Katman önizlemesini kontrol edin, ardından **Planı Kaydet** veya **Planı Kaydet ve 3B Gör** seçin. Canlı örnek: `/map-demo?dwg=1`. Sabit örnek dosya üretimle aynı çözücüden geçer; örnek için proje hesabı gerekmez.
+
+DWG ve DXF dosya başına 250.000.000 bayt ile sınırlıdır. DWG proje ve kullanıcıya özel olarak 900.000 baytlık parçalarla aktarılır. İşlem bitince ham parçalar silinir. Yarım yüklemeler 15 dakika hareketsizlikte, sonuçlar bir saat sonra erişilemez; süresi dolan kayıtlar sonraki harita isteğinde temizlenir. Aynı anda bir büyük (>8 MB) ve dört küçük çizim işlenebilir. Saatlik kullanıcı başına 20 iş sınırı vardır. Karmaşık çizimler desteklenmeyen nesne, bellek, zaman veya geometri sınırına takılabilir; dosya boyutu sınırı tek başına dönüşüm garantisi değildir. Büyük ASCII DXF tarayıcıda okunur.
 
 ## V252 · DXF düzeltmesi
 - **Çizim Yükle → DXF → Planı Kaydet ve 3B Gör**: katman incelemesinde açık çizgiler ile kapalı bina alanları ayrı tutulur. 2B için yalnız **Planı Kaydet** de seçilebilir. Örnek sayfası kayıtları kalıcı değildir.
@@ -21,8 +23,8 @@
 | Three.js döndürme/zoom; tel kafes, sarı dolgu, tamamlanmış katı malzeme | Uygulandı |
 | Metraj ↔ yüzde ↔ model rengi | Mevcut proje kaydından çift yönlü; diğer cihazlar yaklaşık 4 saniyede yenilenir |
 | DXF / GeoJSON | Tarayıcı işçisinde çalışır; katman kontrolü sonrası kaydedilir |
-| DWG | Ayrı CAD servisi + uygun DWG dönüştürücüsü kurulmalı. Bu paket bunları canlı altyapıda kurmuş değildir. |
-| AI katman sınıflandırma | Yerel/özel Ollama servisi bağlanınca çalışır. Bağlı değilse açıkça “Kurallı sadeleştirme” gösterilir. |
+| DWG | Vercel işlevinde yerleşik LibreDWG; özel CAD servisi isteğe bağlı. |
+| AI katman sınıflandırma | Yerleşik DWG ve ASCII DXF aynı yerel sınıflandırıcıyı kullanır; özel serviste Ollama isteğe bağlıdır. |
 | Gerçek 3B model | Gömülü kaynaklı GLB 2.0 yüklenebilir; en fazla 2 MB/model ve 100 model/proje. Model parçaları iş kalemlerine elle bağlanır. |
 | 3B model olmayan blok | Açıkça işaretlenmiş şematik model. 2B plandan gerçek mimari model üretildiği iddia edilmez. |
 
@@ -42,7 +44,7 @@ python3 -m http.server 8080
 ## 2. Mevcut uygulamadaki kullanım
 
 1. Projeye giriş yapın; **Harita → Çizim Yükle** seçin.
-2. DXF veya GeoJSON yükleyin; katman önizlemesinde ölçü, not, tarama ve eksenlerin ayıklandığını kontrol edin. Belirsiz katmanların kategorisini düzeltin. Birimi seçip **Planı Kaydet** deyin.
+2. DWG, ASCII DXF veya GeoJSON yükleyin; katman önizlemesinde ölçü, not, tarama ve eksenlerin ayıklandığını kontrol edin. Belirsiz katmanların kategorisini düzeltin. Birimi seçip **Planı Kaydet** deyin.
 3. Haritadan bina seçin. **Blok bilgileri** altında ad/tip/yükseklik girin. **Proje cephesine bağla** ile ör. `C ISLAND / 92 & 405` seçin. Bir bloğun bütün cephelerini bağlamak için `C ISLAND / Tümü` seçeneğini kullanın.
 4. Bağlanan iş kalemlerinin mevcut metrajları otomatik gelir. Yüzde değişikliği, toplam metraja göre yapılan metrajı günceller. Geçmiş günlük kayıtlar silinmez; kümülatifte çift sayılmaları engellenir. Sıfır toplam metrajlı kalem güncellenemez.
 5. **3B Gör** ile modeli açın. Tahmini kütle çizimdeki dış hattı kullanır. Blok bilgileri bölümünden bina yüksekliğini değiştirebilirsiniz.
@@ -56,7 +58,7 @@ python3 -m http.server 8080
 flowchart TD
   A["DWG / DXF yükleme"] --> B["Proje yetkisi · 900 KB parçalar"]
   B --> C["Kalıcı CAD iş kuyruğu"]
-  C --> D["DWG → DXF · ezdxf geometri"]
+  C --> D["DWG → DXF · plan geometrisi"]
   D --> E["Kurallar + isteğe bağlı AI katman sınıflandırma"]
   E --> F["Birim ve katman önizlemesi"]
   F --> G["Proje harita kaydı · Neon"]
@@ -68,14 +70,14 @@ flowchart TD
 - **2B:** yerel CAD XY koordinatları, SVG ve pointer olayları. WGS84 enlem/boylam verileri metre gibi yorumlanmamalı; bilinen CRS ile önce yerel projeksiyona çevrilmeli.
 - **3B:** yerelde paketlenmiş Three.js 0.180.0, OrbitControls, GLTFLoader. Yalnız kullanıcı 3B açınca yüklenir. CDN bağımlılığı yok. Örnek şematik model BIM modeli değildir.
 - **Tarayıcı DXF:** Web Worker içinde dxf-parser; çizgi/polyline, bulge, yay/daire, döndürülmüş/ölçekli INSERT desteklenir. Desteklenmeyen varlık sayısı kullanıcıya gösterilir. Karmaşık spline veya nested CAD için Python servisi tercih edilir.
-- **CAD servisi:** FastAPI + SQLite kalıcı kuyruk + tek ağır iş çalışanı; dönüştürme ayrı süreçte, normal dosyalarda 150, 40 MB üzerindekilerde 600 saniye sınırında. DWG/DXF için 250 MB (250.000.000 bayt), GeoJSON için 40 MB dosya, 2000 şekil ve 100000 nokta sınırı. Büyük çizimler bölünmeli. Docker örneği CPU/RAM/PID sınırları içerir.
+- **Özel CAD servisi (isteğe bağlı):** FastAPI + SQLite kalıcı kuyruk + tek ağır iş çalışanı; dönüştürme ayrı süreçte, normal dosyalarda 150, 40 MB üzerindekilerde 600 saniye sınırında. DWG/DXF için 250 MB (250.000.000 bayt), GeoJSON için 40 MB dosya, 2000 şekil ve 100000 nokta sınırı. Büyük çizimler bölünmeli. Docker örneği CPU/RAM/PID sınırları içerir.
 - **AI:** yalnız katman adı/tür/adet gibi özetleri sınıflandırır; geometri/koordinat üretmez. Yüksek güvenli sınıflar uygulanır, belirsizler kontrol ekranına gider. Ollama dışarıya açık bir servise işaret etmediği sürece CAD özeti özel altyapıda kalır. Yerel model API kullanım ücreti gerektirmez; sunucu ve hesaplama maliyeti vardır.
 - **Canlı güncelleme:** aynı ekranda anlık yerel 3B önizleme, kayıttan sonra yetkili sunucu sonucu; açık haritada 4 saniyelik sorgu. WebSocket değil. Ağ hataları ve eşzamanlı değişiklikler görünür; başarı gibi gösterilmez.
 - **Veri tutarlılığı:** map revision + proje revision denetimi. Bağlı kalemlerde tek SQL karşılaştırmalı güncelleme; diğer cihazın yeni metrajı sessizce ezilmez. Harita kaydı mevcut rapor verisini taşımaz/kopyalamaz.
 
 Çok büyük projelerde önerilen sonraki ölçekleme: kaynak DWG ve büyük GLB için imzalı object-storage yüklemeleri; Redis/SQS tabanlı iş kuyruğu; ayrı CAD worker havuzu; GLB optimizasyonu ve LOD; PostgreSQL outbox/SSE. Bu servis örneğinde çoklu Uvicorn worker açmayın; SQLite iş kuyruğu tek çalışan içindir.
 
-## 4. DWG ve AI servisini bağlama
+## 4. İsteğe bağlı özel CAD ve AI servisini bağlama
 
 ```bash
 cd cad-service
@@ -99,7 +101,7 @@ CAD_SERVICE_URL=https://cad.sizin-alaniniz.example
 CAD_SERVICE_KEY=worker-ile-ayni-sir
 ```
 
-Bunları `NEXT_PUBLIC_*` veya istemci JavaScript'ine koymayın. Tarayıcı Vercel'in korumalı `/api/site-map` uç noktasına konuşur; worker sırrını alamaz. Her iş proje kimliğine bağlıdır. Önizleme kaydedilmeden proje haritası değişmez. Servis bağlı değilse DWG yüklemesi anlaşılır bir hata verir, DXF/GeoJSON akışı kullanılmaya devam eder.
+Bunları `NEXT_PUBLIC_*` veya istemci JavaScript'ine koymayın. Tarayıcı Vercel'in korumalı `/api/site-map` uç noktasına konuşur; worker sırrını alamaz. Her iş proje kimliğine bağlıdır. Önizleme kaydedilmeden proje haritası değişmez. Bu değişkenleri tanımlamazsanız DWG yerleşik sunucuda çalışır. İkili DXF için özel servis gerekir; ASCII DXF ve GeoJSON tarayıcıda açılır.
 
 ## 5. Veri sözleşmesi ve API
 
@@ -138,10 +140,10 @@ Paket içindeki vendor dosyaları hazırdır. Yeniden üretmek için Node 22+ il
 ```bash
 npm ci
 npm run build:site-map
-node --test tests/site-map.test.mjs tests/site-map-ui.test.mjs tests/project-ui.test.mjs
+node --test tests/site-map*.test.mjs tests/project-ui.test.mjs
 python3 -m unittest discover -s cad-service -p test_cad.py
 ```
 
-Testler sentetik proje/DXF verisi kullanır; gerçek şantiye verilerine dokunmaz. Gerçek DWG dönüştürücü ve kullanıcının gerçek mimari GLB dosyası olmadan onların çıktısı doğrulanmış sayılmaz.
+DWG testi, examples/verification-polygon.dwg dosyasını gerçekten dönüştürür, kaynak parçaların temizlendiğini ve onaysız plan kaydı yapılmadığını doğrular. Gerçek kullanıcı projelerine dokunmaz. Örnek kaynağı ve lisansı examples/verification-polygon.SOURCE.txt içindedir.
 
 Kaynaklar: https://threejs.org/docs/pages/GLTFLoader.html · https://threejs.org/docs/pages/OrbitControls · https://ezdxf.readthedocs.io/en/stable/addons/odafc.html · https://www.opendesign.com/guestfiles/oda_file_converter · https://www.opendesign.com/faq/question/what-are-oda-viewer-and-oda-file-converter

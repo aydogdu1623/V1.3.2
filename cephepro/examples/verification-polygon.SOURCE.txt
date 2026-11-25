@@ -1,0 +1,4 @@
+verification-polygon.dwg is the public Polygon.dwg regression drawing from GNU LibreDWG, release 0.14, test/test-data/2018/Polygon.dwg.
+https://github.com/LibreDWG/libredwg/tree/0.14/test/test-data/2018
+Upstream license: GPL v3 or later; see DWG-GPL-3.txt. Not a user/project drawing.
+The decoder uses @mlightcad/libredwg-web 0.9.3 on the server.

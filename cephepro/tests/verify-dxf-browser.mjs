@@ -1,5 +1,6 @@
 // Exercises actual file input, ESM Worker, parser, dialog, save and 3D in headless Chrome.
 import http from 'node:http';
+import {dwgExample} from '../lib/dwg-service.js';
 import {readFile,mkdtemp,rm,open as openFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import path from 'node:path';
@@ -9,6 +10,7 @@ import {once} from 'node:events';
 import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost'),file=path.resolve(root,'.'+u.pathname);
+ if(u.pathname==='/api/site-map'&&u.searchParams.get('sample')==='dwg'){res.setHeader('content-type','application/json');return res.end(JSON.stringify({map:await dwgExample()}));}
  if(!file.startsWith(root))throw Error();const b=await readFile(file);res.setHeader('content-type',({'js':'text/javascript','html':'text/html','css':'text/css','dxf':'text/plain'})[file.split('.').at(-1)]||'application/octet-stream');res.end(b);}catch{res.writeHead(404).end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const temp=await mkdtemp(path.join(os.tmpdir(),'cp-cad-')),delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -48,4 +50,9 @@ try{
  await evaluate("document.querySelector('#smBack').click()");await waitFor("!document.querySelector('.sm-canvas').hasAttribute('hidden')");
  assert.equal(await evaluate("document.querySelectorAll('.sm-canvas [data-id]').length"),1);
  console.log('PASS: upload 250 MB DXF, review mixed geometry, save, render and rotate L footprint without WebGL, update roof at 47%, return to plan.');
+ await cmd('Page.navigate',{url:base+'/map-demo.html?dwg=1'});
+ await waitFor("document.querySelectorAll('.sm-canvas [data-id]').length===1 && !!document.querySelector('#sm3D')");
+ await evaluate("document.querySelector('#sm3D').click()");
+ await waitFor("!!document.querySelector('.sm-viewer svg g[data-part=roof] path') && !document.querySelector('.sm-viewer').hidden");
+ console.log('PASS: real DWG decoder → selected building → 3D roof in browser.');
 }finally{ws?.close();const exited=once(proc,'exit').catch(()=>{});proc.kill();if(proc.exitCode===null)await Promise.race([exited,delay(2500)]);await rm(temp,{recursive:true,force:true,maxRetries:3,retryDelay:120});server.closeAllConnections();server.close();}

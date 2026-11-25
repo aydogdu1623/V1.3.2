@@ -10,7 +10,7 @@ function svgEl(tag,attrs={}){const el=document.createElementNS(NS,tag);for(const
 export async function openSiteMap(options={}){
  if(active?.dialog.open){active.dialog.focus();return active;}
  const demoOnly=!!options.demo,controller=new AbortController();let demo=demoOnly,snapshot={map:emptyMap(),catalog:[],revision:0,projectRevision:0,canManage:demoOnly,cadReady:false},selected=null,view='2d',viewer=null,viewerVersion=0,busy=false,closed=false,draft=null,worker=null;
- let readSequence=0,trace=null;
+ let readSequence=0,trace=null,pendingUpload=null;
  let viewport={x:0,y:0,w:100,h:80},initial,search='',filter='all',lastFocus=document.activeElement;
  const dialog=document.createElement('dialog');dialog.id='cpSiteMap';dialog.setAttribute('translate','no');dialog.setAttribute('aria-label',t('map'));dialog.dir=language()==='ar'?'rtl':'ltr';
  dialog.innerHTML=`<header class="sm-header"><div class="sm-brand">⌖</div><div><h1>${t('map')}</h1><p class="sm-sub" id="smProject"></p></div><div class="sm-header-actions"><button id="smBack" hidden>${t('back')}</button><button id="smUpload" class="sm-primary" title="DWG / DXF · ${CAD_MAX_BYTES/1e6} MB">＋ ${t('upload')}</button><button id="smRefresh" aria-label="${t('refresh')}" title="${t('refresh')}">↻</button><button id="smClose" aria-label="${t('close')}">✕</button></div></header><div class="sm-shell sm-no-selection"><main class="sm-stage"><div class="sm-toolbar"><input id="smSearch" placeholder="${t('search')}" aria-label="${t('search')}"><select id="smFilter" aria-label="${t('progress')}">${['all','not_started','in_progress','completed'].map(x=>`<option value="${x}">${t(x)}</option>`).join('')}</select></div><svg class="sm-canvas" aria-label="${t('map')}" tabindex="0"></svg><div class="sm-viewer" hidden></div><div class="sm-model-note" hidden></div><div class="sm-zoom"><button id="smPlus" aria-label="Zoom in">+</button><button id="smMinus" aria-label="Zoom out">−</button><button id="smFit" title="${t('fit')}" aria-label="${t('fit')}">⌗</button></div><div class="sm-legend">${Object.entries(COLORS).map(([s,c])=>`<span><i class="sm-dot" style="background:${c}"></i>${t(s)}</span>`).join('')}</div><div class="sm-empty" hidden></div></main><aside class="sm-card"></aside></div><footer class="sm-footer"><span id="smSource"></span><span class="sm-status" role="status" aria-live="polite"></span></footer>`;
@@ -18,10 +18,10 @@ export async function openSiteMap(options={}){
  const projectId=()=>globalThis.CepheProProjects?.project()?.id;const openedProject=projectId();
  const message=(s,error=false)=>{$('.sm-status').textContent=s;$('.sm-status').dataset.error=String(error);};
  const fail=e=>{if(e.name==='AbortError'||closed)return;console.error('[map]',e);message(globalThis.CepheProI18n?.t(e.message)||e.message,true);};
- async function api(method='GET',body,suffix=''){
+ async function api(method='GET',body,suffix='',detached=false){
   if(!demoOnly&&(!globalThis.CepheProProjects?.isReady()||projectId()!==openedProject))throw Error('Proje erişimi sona erdi.');
   const token=localStorage.getItem('cp_cloud_token')||localStorage.getItem('cp_remembered_cloud_token')||'';
-  const response=await fetch('/api/site-map'+suffix,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:controller.signal,cache:'no-store'});
+  const response=await fetch('/api/site-map'+suffix,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:detached?undefined:controller.signal,keepalive:detached,cache:'no-store'});
   if(!demoOnly&&projectId()!==openedProject)throw new DOMException('Project changed','AbortError');
   if(suffix.startsWith('?model=')&&response.ok)return response.arrayBuffer();
   const data=await response.json().catch(e=>{if(response.ok)throw e;return {};});if(!response.ok)throw Object.assign(Error(data.error||'Harita yüklenemedi.'),{status:response.status});return data;
@@ -139,15 +139,16 @@ export async function openSiteMap(options={}){
   if(view==='3d')await show2d();
   const file=await filePicker('.dwg,.dxf,.geojson,.json');if(!file||closed)return;
   const max=drawingLimit(file.name);if(!file.size||file.size>max){message(t('drawingSize').replace('{max}',max/1e6),true);return;}
-  setBusy(true);message(t('loading'));
+  setBusy(true);message(t('loading'));let uploadId=null;
   try{
    let map;
    if(demo&&!demoOnly){demo=false;selected=null;snapshot=await api();draw();renderCard();if(!snapshot.canManage)throw Error(t('readonly'));}
    const binary=/\.dxf$/i.test(file.name)&&(await file.slice(0,22).text()).startsWith('AutoCAD Binary DXF');
    if(binary&&(demo||!snapshot.cadReady))throw Error(t('binaryDXF'));
    if(/\.dwg$/i.test(file.name)||binary){
-    if(demo)throw Error('DWG dönüşümü proje oturumu ve CAD servisi gerektirir. Örnekte DXF / GeoJSON kullanın.');
+    if(demo)throw Error(t('dwgSignIn'));
     const job=await api('POST',{action:'upload-start',name:file.name,size:file.size});
+    if(job.engine==='libredwg')pendingUpload=uploadId=job.id;
     for(let offset=0;offset<file.size;offset+=CAD_CHUNK_BYTES){
      const end=Math.min(file.size,offset+CAD_CHUNK_BYTES),part={action:'upload-chunk',id:job.id,index:offset/CAD_CHUNK_BYTES,data:base64(new Uint8Array(await file.slice(offset,end).arrayBuffer()))};
      // Repeating only this indexed chunk is safe if the acknowledgement was lost.
@@ -157,8 +158,13 @@ export async function openSiteMap(options={}){
      }
      message(t('upload')+' · '+Math.round(end/file.size*100)+'%');
     }
-    await api('POST',{action:'upload-finish',id:job.id});
-    for(let i=0;i<450;i++){const result=await api('GET',null,'?job='+job.id);if(result.status==='ready'){map=validateMap(result.map);break;}if(result.status==='failed')throw Error(result.error||'CAD dönüşümü başarısız.');message(result.message||t('loading'));await wait(2000,controller.signal);}
+    message(t('dwgConverting'));
+    let finished;
+    try{finished=await api('POST',{action:'upload-finish',id:job.id});}
+    catch(e){if(closed||!(e instanceof TypeError||[502,504].includes(e.status)))throw e;
+     finished=await api('GET',null,'?job='+job.id);if(finished.status==='uploading')throw e;}
+    if(finished.status==='ready'&&finished.map)map=validateMap(finished.map);
+    for(let i=0;!map&&i<450;i++){const result=await api('GET',null,'?job='+job.id);if(result.status==='ready'){map=validateMap(result.map);break;}if(result.status==='failed')throw Error(result.error||'CAD dönüşümü başarısız.');message(result.message||t('loading'));await wait(2000,controller.signal);}
     if(!map)throw Error('CAD işleme zaman aşımı. DXF olarak tekrar deneyin.');
    }else{
     map=await new Promise((resolve,reject)=>{
@@ -170,7 +176,7 @@ export async function openSiteMap(options={}){
     });
    }
    if(!closed){if(!map.features.length)throw Error('Görünür dış hat bulunamadı. Kapalı poligonları ve katmanları kontrol edin.');review(map);}
-  }catch(e){fail(e);}finally{setBusy(false);}
+  }catch(e){if(uploadId&&!closed){try{await api('POST',{action:'upload-cancel',id:uploadId});}catch{}}fail(e);}finally{pendingUpload=null;setBusy(false);}
  }
  function review(map){
   draft=map;search='';filter='all';$('#smSearch').value='';$('#smFilter').value='all';fitPlan();draw();$('.sm-review')?.remove();const panel=document.createElement('section');panel.className='sm-review';panel.setAttribute('aria-label',t('review'));
@@ -218,11 +224,14 @@ export async function openSiteMap(options={}){
  canvas.addEventListener('keydown',e=>{const id=e.target.closest('[data-id]')?.dataset.id;if(id&&['Enter',' '].includes(e.key)){e.preventDefault();choose(id);}else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();e.key==='Home'?fitPlan():zoom(e.key==='-'?.8:1.25);}});
  $('#smSearch').oninput=e=>{search=e.target.value;draw();};$('#smFilter').onchange=e=>{filter=e.target.value;draw();fitPlan();};$('#smPlus').onclick=()=>zoom(1.3);$('#smMinus').onclick=()=>zoom(1/1.3);$('#smFit').onclick=fitPlan;$('#smBack').onclick=show2d;$('#smUpload').onclick=loadDrawing;
  $('#smRefresh').onclick=async()=>{if(demo&&!demoOnly){demo=false;selected=null;await show2d();}await reload({fit:true});};$('#smClose').onclick=()=>dialog.close();
- function cleanup(){if(closed)return;closed=true;controller.abort();worker?.terminate();viewerVersion++;viewer?.dispose();clearInterval(timer);document.removeEventListener('cephepro:locked',lock);document.removeEventListener('cephepro:state-updated',stateUpdated);dialog.remove();active=null;lastFocus?.focus?.();}
+ function cleanup(){if(closed)return;if(pendingUpload)api('POST',{action:'upload-cancel',id:pendingUpload},'',true).catch(()=>{});closed=true;controller.abort();worker?.terminate();viewerVersion++;viewer?.dispose();clearInterval(timer);document.removeEventListener('cephepro:locked',lock);document.removeEventListener('cephepro:state-updated',stateUpdated);dialog.remove();active=null;lastFocus?.focus?.();}
  const lock=()=>dialog.close();const stateUpdated=()=>{if(!busy&&!demo&&!draft)reload({silent:true});};
  document.addEventListener('cephepro:locked',lock);document.addEventListener('cephepro:state-updated',stateUpdated);dialog.addEventListener('close',cleanup,{once:true});
  const timer=setInterval(()=>{if(!busy&&!demo&&!draft&&!document.hidden&&!card.contains(document.activeElement))reload({silent:true});},4000);
  active={dialog,close:()=>dialog.close(),getSnapshot:()=>structuredClone(snapshot)};
- if(demoOnly)await startDemo();else{await globalThis.__v89CloudSync?.flush?.();await reload({fit:true});}
+ if(demoOnly){if(options.dwgExample){await reload({fit:true});message(t('dwgConverting'));try{
+  const reply=await fetch('/api/site-map?sample=dwg',{signal:controller.signal});if(!reply.ok)throw Error(t('readError'));
+  const map=validateMap((await reply.json()).map);if(!closed){snapshot.map=map;selected=map.features.find(f=>f.kind==='building')?.id||null;await reload({fit:true});}
+ }catch(e){fail(e);}}else await startDemo();}else{await globalThis.__v89CloudSync?.flush?.();await reload({fit:true});}
  return active;
 }

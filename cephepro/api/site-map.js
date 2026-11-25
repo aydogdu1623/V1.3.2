@@ -1,4 +1,5 @@
 import {CAD_MAX_BYTES,CAD_CHUNK_BYTES,CAD_MAX_CHUNKS} from '../assets/site-map/cad-limits.js';
+import {runCad,dwgExample,pruneExpiredCad} from '../lib/dwg-service.js';
 import crypto from 'node:crypto';
 import {getSql,noStore,bearer} from '../lib/db.js';
 import {ensureSchema} from '../lib/schema.js';
@@ -13,6 +14,10 @@ export function createSiteMapHandler(deps){
   if(!noStore(req,res))return res.status(403).json({error:'İstek kaynağı reddedildi.'});
   if(req.method==='OPTIONS')return res.status(204).end();
   try{
+   // Fixed public demo input only. This route cannot accept a path, project or upload.
+   if(req.method==='GET'&&req.query?.sample==='dwg'){
+    const map=await dwgExample();res.setHeader('Cache-Control','public, s-maxage=86400, max-age=300');return res.status(200).json({engine:'libredwg',map});
+   }
    const sql=getSql();await ensureSchema(sql);const me=await sessionUser(sql,bearer(req));
    if(!me)return res.status(401).json({error:'Oturum açın.'});if(!await requireProject(sql,req,me,res))return;
    const b=req.body||{},conf=config(),cadReady=!!conf.url&&!!conf.key;
@@ -22,7 +27,7 @@ export function createSiteMapHandler(deps){
     const response=await request(new URL(path,url),{method:body?'POST':'GET',headers:{Authorization:'Bearer '+conf.key,'Content-Type':'application/json','X-Project-Id':me.projectId},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(22000),redirect:'error'});
     const data=await response.json();if(!response.ok)throw error(response.status,data.error||data.detail||'CAD işlemi tamamlanamadı.');return data;
    };
-   if(req.method==='GET'&&req.query?.job){if(me.role!=='admin')throw error(403,'Yönetici yetkisi gerekli.');if(!/^[a-f0-9]{32}$/.test(req.query.job))throw error(400,'İş kimliği geçersiz.');return res.status(200).json(await proxy('/jobs/'+req.query.job));}
+   if(req.method==='GET'&&req.query?.job){if(me.role!=='admin')throw error(403,'Yönetici yetkisi gerekli.');if(!/^[a-f0-9]{32}$/.test(req.query.job))throw error(400,'İş kimliği geçersiz.');return res.status(200).json(cadReady?await proxy('/jobs/'+req.query.job):await runCad(sql,me,'status',{id:req.query.job}));}
    if(req.method==='GET'&&req.query?.model){
     if(!/^[a-f0-9-]{36}$/.test(req.query.model))throw error(400,'Model kimliği geçersiz.');
     const [row]=await sql`SELECT data FROM cephepro_site_models WHERE project_key=${me.projectId} AND id=${req.query.model}`;
@@ -31,12 +36,13 @@ export function createSiteMapHandler(deps){
    if(req.method==='POST'&&String(b.action).startsWith('upload-')){
     if(me.role!=='admin')throw error(403,'Çizim yüklemek için yönetici yetkisi gerekli.');
     const paths={'upload-start':'/uploads','upload-chunk':'/uploads/chunk','upload-finish':'/uploads/finish'};
+    if(b.action==='upload-cancel'&&!cadReady)return res.status(200).json(await runCad(sql,me,b.action,b));
     if(!paths[b.action])throw error(400,'Yükleme işlemi geçersiz.');
     if(b.action==='upload-start'&&(!/\.(dwg|dxf)$/i.test(b.name||'')||!Number.isInteger(b.size)||b.size<1))throw error(400,'Geçerli DWG/DXF dosyası gerekli.');
     if(b.action==='upload-start'&&b.size>CAD_MAX_BYTES)throw error(413,`DWG/DXF dosyası en fazla ${CAD_MAX_BYTES/1e6} MB olabilir.`);
     if(b.action!=='upload-start'&&!/^[a-f0-9]{32}$/.test(b.id||''))throw error(400,'Yükleme kimliği geçersiz.');
     if(b.action==='upload-chunk'&&(!Number.isInteger(b.index)||b.index<0||b.index>=CAD_MAX_CHUNKS||typeof b.data!=='string'||b.data.length>4*Math.ceil(CAD_CHUNK_BYTES/3)))throw error(413,'Yükleme parçası çok büyük.');
-    return res.status(200).json(await proxy(paths[b.action],b));
+    return res.status(200).json(cadReady?await proxy(paths[b.action],b):await runCad(sql,me,b.action,b));
    }
    if(req.method==='POST'&&b.action==='model'){
     if(me.role!=='admin')throw error(403,'Model yüklemek için yönetici yetkisi gerekli.');
@@ -47,10 +53,11 @@ export function createSiteMapHandler(deps){
     await sql`INSERT INTO cephepro_site_models(project_key,id,data) VALUES(${me.projectId},${id},${buffer.toString('base64')})`;
     return res.status(201).json({id});
    }
+   if(req.method==='GET')await pruneExpiredCad(sql);
    const [saved]=await sql`SELECT data,revision FROM cephepro_site_maps WHERE project_key=${me.projectId}`;
    const [project]=await sql`SELECT state,revision FROM cephepro_project_state WHERE project_key=${me.projectId}`;
    const state=project?.state||{},revision=Number(saved?.revision||0),projectRevision=Number(project?.revision||0),map=saved?.data||emptyMap();
-   if(req.method==='GET')return res.status(200).json({map,revision,projectRevision,catalog:catalogFromState(state),canManage:me.role==='admin',cadReady});
+   if(req.method==='GET')return res.status(200).json({map,revision,projectRevision,catalog:catalogFromState(state),canManage:me.role==='admin',cadReady,dwgReady:true,dwgEngine:cadReady?'private':'libredwg'});
    if(!['PUT','PATCH'].includes(req.method))return res.status(405).json({error:'Yöntem desteklenmiyor.'});
    if(b.revision!==revision)throw error(409,'Harita başka cihazda değişti. Yenileyip tekrar deneyin.');
    if(req.method==='PUT'){

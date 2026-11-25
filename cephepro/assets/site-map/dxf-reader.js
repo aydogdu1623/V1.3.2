@@ -46,8 +46,8 @@ async function largeText(file,onProgress){
  if(carry)line(carry);if(!seenEnd)throw Error('DXF dosyası eksik: EOF bulunamadı.');
  pages.push(out.join(''));return {text:pages.join(''),discarded};
 }
-export async function readDrawing(file,onProgress=()=>{}){
- if(!file.size||file.size>drawingLimit(file.name))throw Error('Dosya boyutu geçersiz.');
+export async function readDrawing(file,onProgress=()=>{},maxBytes=drawingLimit(file.name)){
+ if(!file.size||file.size>maxBytes)throw Error('Dosya boyutu geçersiz.');
  if(!/\.dxf$/i.test(file.name))return fromGeoJSON(JSON.parse(await smallText(file)),file.name);
  if(file.size<=16_000_000)return fromDXF(await smallText(file),file.name);
  const {text,discarded}=await largeText(file,onProgress),map=fromDXF(text,file.name);
