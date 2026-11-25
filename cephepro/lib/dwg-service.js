@@ -1,17 +1,19 @@
 // Built-in private DWG backend. Indexed parts survive separate serverless invocations.
-import {spawn} from 'node:child_process';
+import {Worker} from 'node:worker_threads';
+import {cadRuntime} from './cad-runtime.js';
 import {mkdtemp,open,readFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {randomBytes} from 'node:crypto';
 import {CAD_CHUNK_BYTES as CHUNK,CAD_MAX_BYTES} from '../assets/site-map/cad-limits.js';
 import {validateMap,error} from './site-map.js';
-const dir=()=>process.cwd();
 const bad=(s,m)=>{throw error(s,m);};
 export async function decodePath(input,output,timeout=155000){
- const child=spawn(process.execPath,['--max-old-space-size=700',path.join(dir(),'lib/dwg-decode.mjs'),input,output],{cwd:dir(),env:{LANG:'C',TZ:'UTC'},stdio:'ignore'});
+ const runtime=await cadRuntime(),child=new Worker(path.join(runtime,'decoder.mjs'),{workerData:{input,output},env:{LANG:'C',TZ:'UTC'},execArgv:[],resourceLimits:{maxOldGenerationSizeMb:700},stdout:true,stderr:true});
+ // Never log drawing content. Worker startup diagnostics expose only an error code.
+ child.stdout.resume();child.stderr.resume();
  let timer,timed=false;
- try{const code=await new Promise((resolve,reject)=>{timer=setTimeout(()=>{timed=true;child.kill('SIGKILL');},timeout);child.once('error',reject);child.once('close',resolve);});
+ try{const code=await new Promise((resolve,reject)=>{timer=setTimeout(()=>{timed=true;void child.terminate();},timeout);child.once('error',e=>{console.error('[cad-runtime] worker',String(e.code||e.name).slice(0,50));reject(error(503,'Sunucudaki DWG dönüştürücü başlatılamadı.'));});child.once('exit',resolve);});
   if(timed)bad(400,'DWG işleme süresi doldu. Daha az katman içeren bir çizim deneyin.');
   const data=await readFile(output,'utf8').then(JSON.parse).catch(()=>null);
   if(code!==0||!data||data.error)bad(400,data?.error||'DWG çözümlenemedi; dosya biçimini ve çizim karmaşıklığını kontrol edin.');
@@ -21,7 +23,7 @@ export async function decodePath(input,output,timeout=155000){
 let demoPromise;
 export function dwgExample(){
  if(!demoPromise)demoPromise=(async()=>{const tmp=await mkdtemp(path.join(os.tmpdir(),'cp-example-'));
-  try{return await decodePath(path.join(dir(),'examples/verification-polygon.dwg'),path.join(tmp,'map.json'),20000);}
+  try{return await decodePath(path.join(await cadRuntime(),'example.dwg'),path.join(tmp,'map.json'),20000);}
   finally{await rm(tmp,{force:true,recursive:true});}
  })().catch(e=>{demoPromise=null;throw e;});
  return demoPromise;

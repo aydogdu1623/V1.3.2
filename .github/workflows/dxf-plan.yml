@@ -4,6 +4,10 @@ on:
     paths:
       - 'cephepro/assets/site-map/**'
       - 'cephepro/tests/*dxf*'
+      - 'cephepro/tests/*dwg*'
+      - 'cephepro/lib/*cad*'
+      - 'cephepro/lib/*dwg*'
+      - 'cephepro/vercel.json'
       - 'cephepro/examples/v252-outline.dxf'
 permissions:
   contents: read
@@ -20,5 +24,6 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node lib/package-cad.mjs
       - run: node --test tests/site-map*.test.mjs
       - run: node tests/verify-dxf-browser.mjs
